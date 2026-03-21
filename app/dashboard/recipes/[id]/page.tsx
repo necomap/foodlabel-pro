@@ -235,7 +235,7 @@ export default function RecipeDetailPage() {
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{ing.ingredientName}</span>
                     {ing.nutritionUnconfirmed && (
-                      <AlertTriangle className="w-3.5 h-3.5 text-yellow-500" title="成分未確認" />
+                      <AlertTriangle className="w-3.5 h-3.5 text-yellow-500" aria-label="成分未確認" />
                     )}
                     {ing.isPrimaryIngredient && ing.originCountry && (
                       <span className="badge badge-brand text-xs">{ing.originCountry}</span>

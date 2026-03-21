@@ -130,6 +130,7 @@ export interface RecipeSummary {
 }
 
 export interface RecipeDetail extends RecipeSummary {
+  categoryId?:     string | null;
   notes:           string | null;
   printComment:    string | null;
   qualityControl:  string | null;

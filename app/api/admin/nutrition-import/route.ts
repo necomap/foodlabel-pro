@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     // 各シートを処理（文科省の成分表は穀類・肉類などカテゴリ別にシートが分かれている）
     for (const sheetName of wb.SheetNames) {
       const ws   = wb.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { header: 1, defval: null }) as unknown[][];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null }) as any[][];
 
       // ヘッダー行を探す（食品番号を含む行）
       let headerRow = -1;

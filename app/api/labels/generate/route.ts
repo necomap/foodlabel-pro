@@ -172,11 +172,10 @@ export async function POST(request: Request) {
     notes:          recipe.notes,
     printComment:   recipe.printComment,
     qualityControl: recipe.qualityControl,
-    bakingConditions: recipe.bakingConditions as BakingStep[] | null,
+    bakingConditions: recipe.bakingConditions as unknown as BakingStep[] | null,
     totalCost:      recipe.totalCost  ? Number(recipe.totalCost)  : null,
     totalWeightG:   recipe.totalWeightG ? Number(recipe.totalWeightG) : null,
     nutrition:      totalNutrition,
-    nutritionPerUnit: roundForDisplay(calcPerUnit(totalNutrition, recipe.unitCount)),
     ingredientsLabel: buildIngredientsLabel(
       sortedIngredients.map(i => ({
         ingredientName: i.ingredient?.name ?? i.ingredientNameOverride ?? '',

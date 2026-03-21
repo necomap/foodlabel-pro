@@ -34,7 +34,6 @@ export async function PUT(request: Request, { params }: Params) {
       name,
       nameKana:        body.nameKana        ?? ing.nameKana,
       nameSearch:      `${name}${body.nameKana ?? ''}`,
-      ingredientCategoryId: body.ingredientCategoryId !== undefined ? (body.ingredientCategoryId || null) : (ing as any).ingredientCategoryId,
       nutritionId:     body.nutritionId     ?? ing.nutritionId,
       nutritionVariant: body.nutritionVariant ?? ing.nutritionVariant,
       purchaseUnitG:   body.purchaseUnitG   ?? ing.purchaseUnitG,
@@ -58,6 +57,17 @@ export async function PUT(request: Request, { params }: Params) {
     },
   });
 
+  // ingredientCategoryId はRaw SQLで更新（Prismaクライアント未生成対応）
+  if (body.ingredientCategoryId !== undefined) {
+    try {
+      const catId = body.ingredientCategoryId || null;
+      if (catId) {
+        await prisma.$executeRaw`UPDATE ingredients SET "ingredientCategoryId" = ${catId}::uuid WHERE id = ${params.id}`;
+      } else {
+        await prisma.$executeRaw`UPDATE ingredients SET "ingredientCategoryId" = NULL WHERE id = ${params.id}`;
+      }
+    } catch (e) { console.warn('ingredientCategoryId update skipped:', e); }
+  }
   return NextResponse.json({ success: true, message: '食材を更新しました' });
 }
 

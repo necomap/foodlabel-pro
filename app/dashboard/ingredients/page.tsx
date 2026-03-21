@@ -236,7 +236,7 @@ function IngredientModal({ ingredient, categories, onClose, onSaved }: {
               {[{key:'energyKcal',label:'熱量(kcal)',step:'1'},{key:'protein',label:'たんぱく質(g)',step:'0.1'},{key:'fat',label:'脂質(g)',step:'0.1'},{key:'carbohydrate',label:'炭水化物(g)',step:'0.1'},{key:'saltEquivalent',label:'食塩相当量(g)',step:'0.01'}].map(field=>(
                 <div key={field.key}>
                   <label className="text-xs text-stone-500 mb-0.5 block">{field.label}</label>
-                  <input type="number" value={(form as Record<string,string>)[field.key]} onChange={e=>setForm(p=>({...p,[field.key]:e.target.value}))} className="field-input text-sm py-1.5" step={field.step} min="0" placeholder={selectedNutritionId?'成分表値':'入力'} />
+                  <input type="number" value={(form as any)[field.key]} onChange={e=>setForm(p=>({...p,[field.key]:e.target.value}))} className="field-input text-sm py-1.5" step={field.step} min="0" placeholder={selectedNutritionId?'成分表値':'入力'} />
                 </div>
               ))}
             </div>

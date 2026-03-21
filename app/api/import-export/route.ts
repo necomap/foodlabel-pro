@@ -277,7 +277,7 @@ export async function GET(request: Request) {
     categoryFilter,
   });
 
-  return new Response(excelBuffer, {
+  return new Response(Buffer.from(excelBuffer), {
     headers: {
       'Content-Type':        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'Content-Disposition': `attachment; filename*=UTF-8''foodlabel_export_${new Date().toISOString().slice(0, 10)}.xlsx`,

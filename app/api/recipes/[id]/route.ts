@@ -92,7 +92,7 @@ export async function GET(_req: Request, { params }: Params) {
       notes:          recipe.notes,
       printComment:   recipe.printComment,
       qualityControl: recipe.qualityControl,
-      bakingConditions: recipe.bakingConditions as BakingStep[] | null,
+      bakingConditions: recipe.bakingConditions as unknown as BakingStep[] | null,
       totalCost:      recipe.totalCost  ? Number(recipe.totalCost)  : null,
       unitCost:       recipe.unitCost   ? Number(recipe.unitCost)   : null,
       costRate:       recipe.costRate   ? Number(recipe.costRate)   : null,

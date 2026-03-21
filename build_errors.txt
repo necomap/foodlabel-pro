@@ -1,0 +1,40 @@
+
+> foodlabel-pro@1.0.0 build
+> next build
+
+  ▲ Next.js 14.2.5
+  - Environments: .env.local, .env
+
+   Creating an optimized production build ...
+
+<--- Last few GCs --->
+
+[10140:0000019D4BAF3000]     2451 ms: Scavenge 70.8 (87.4) -> 61.7 (123.4) MB, pooled: 0 MB, 10.46 / 0.00 ms  (average mu = 0.997, current mu = 0.997) allocation failure; 
+[10140:0000019D4BAF3000]     2566 ms: Mark-Compact 66.1 (124.9) -> 59.3 (126.5) MB, pooled: 0 MB, 10.78 / 0.00 ms  (+ 21.2 ms in 1 steps since start of marking, biggest step 21.2 ms, walltime since start of marking 33 ms) (average mu = 0.994, current mu =
+FATAL ERROR: NewSpace::EnsureCurrentCapacity Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF79AFEC36F 
+ 2: 00007FF79BC34D77 
+ 3: 00007FF79BA35467 
+ 4: 00007FF79B9F5F03 
+ 5: 00007FF79BA3786A 
+ 6: 00007FF79BA36E96 
+ 7: 00007FF79BA47E22 
+ 8: 00007FF79BA4794B 
+ 9: 00007FF79CECDAED 
+10: 00007FF79BA32F30 
+11: 00007FF79BA3AE50 
+12: 00007FF79B8B1A84 
+13: 00007FF79BC5C78E 
+14: 00007FF79B02D095 
+15: 0000019D1FDCF64D 
+
+> Build error occurred
+Error: Jest worker encountered 1 child process exceptions, exceeding retry limit
+    at ChildProcessWorker.initialize (C:\Users\emma\.gemini\antigravity\scratch\foodlabel-pro\node_modules\next\dist\compiled\jest-worker\index.js:1:11580)
+    at ChildProcessWorker._onExit (C:\Users\emma\.gemini\antigravity\scratch\foodlabel-pro\node_modules\next\dist\compiled\jest-worker\index.js:1:12545)
+    at ChildProcess.emit (node:events:520:35)
+    at ChildProcess._handle.onexit (node:internal/child_process:294:12) {
+  type: 'WorkerError'
+}

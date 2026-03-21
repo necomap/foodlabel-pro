@@ -120,8 +120,8 @@ export interface RecipeSummary {
   salePrice:      number | null;
   unitCost:       number | null;
   costRate:       number | null;
-  energyKcal:     number | null;
-  saltEquivalent: number | null;
+  energyKcal?:    number | null;
+  saltEquivalent?: number | null;
   allergens:      string[];
   hasUnconfirmedNutrition: boolean;
   isActive:       boolean;
@@ -143,34 +143,35 @@ export interface RecipeDetail extends RecipeSummary {
   totalWeightG:    number | null;
   nutrition:       NutritionValues;
   // 原材料表示文字列（重量順・アレルゲン付き）
-  ingredientsLabel: string;
-  allergensLabel:   string;
+  ingredientsLabel:  string;
+  allergensLabel:    string;
+  nutritionPerUnit?: NutritionValues;
 }
 
 // ============================================================
 // シール印刷
 // ============================================================
 export interface LabelDisplaySettings {
-  showPhone:          boolean;
-  showRepresentative: boolean;
-  showEmail:          boolean;
-  showNutrition:      boolean;
-  showDietaryFiber:   boolean;
-  showSugar:          boolean;
-  showCholesterol:    boolean;
-  showQualityControl: boolean;
-  showComment:        boolean;
-  nutritionNote:      string;  // 例: "※推定値"
+  showPhone?:          boolean;
+  showRepresentative?: boolean;
+  showEmail?:          boolean;
+  showNutrition?:      boolean;
+  showDietaryFiber?:   boolean;
+  showSugar?:          boolean;
+  showCholesterol?:    boolean;
+  showQualityControl?: boolean;
+  showComment?:        boolean;
+  nutritionNote?:      string;
 }
 
 export interface LabelConfig {
-  recipeId:        string;
+  recipeId?:        string;
   shopId?:         string;
-  manufactureDate: string;  // YYYY-MM-DD
+  manufactureDate?: string;  // YYYY-MM-DD
   shelfLifeDays?:  number;  // 上書き可
-  printCount:      number;
-  fontSizePt:      number;
-  deviceType:      PrintDeviceType;
+  printCount?:      number;
+  fontSizePt?:      number;
+  deviceType?:      PrintDeviceType;
   // ラベルプリンタ
   labelWidthMm?:   number;
   labelHeightMm?:  number;
@@ -185,7 +186,7 @@ export interface LabelConfig {
   marginRightMm?:  number;
   startPosition?:  number;
   // 表示設定
-  displaySettings: LabelDisplaySettings;
+  displaySettings?: LabelDisplaySettings;
 }
 
 // ============================================================

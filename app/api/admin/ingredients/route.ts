@@ -23,7 +23,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     success: true,
-    data: ingredients.map(i => ({
+    data: ingredients.map((i: any) => ({
       id:        i.id,
       name:      i.name,
       userId:    i.userId,

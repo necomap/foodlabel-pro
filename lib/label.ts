@@ -1,0 +1,320 @@
+// ============================================================
+// lib/label.ts - シール内容生成ロジック
+// ============================================================
+
+import { addDays, format } from 'date-fns';
+import { ja } from 'date-fns/locale';
+import type { LabelContent, LabelConfig, RecipeDetail } from '@/types';
+import { buildIngredientsLabel, collectRecipeAllergens } from './allergen';
+import { calcPerUnit, roundForDisplay } from './nutrition';
+
+/**
+ * レシピと設定からシール内容を生成する
+ */
+export function generateLabelContent(
+  recipe: RecipeDetail,
+  config: LabelConfig,
+  shopInfo: {
+    shopName:       string;
+    companyName?:   string;
+    postalCode?:    string;
+    address?:       string;
+    phone?:         string;
+    representative?: string;
+    email?:         string;
+    showPhone:      boolean;
+    showRepresentative: boolean;
+    showEmail:      boolean;
+  }
+): LabelContent {
+  // 賞味期限計算
+  const manufactureDate = new Date(config.manufactureDate);
+  const shelfLifeDays = config.shelfLifeDays ?? recipe.shelfLifeDays ?? 0;
+  const expiryDate = shelfLifeDays > 0
+    ? addDays(manufactureDate, shelfLifeDays)
+    : manufactureDate;
+  const expiryDateStr = format(expiryDate, 'yyyy.MM.dd', { locale: ja });
+  const expiryType = recipe.shelfLifeType === 'BEST_BEFORE' ? '賞味期限' : '消費期限';
+
+  // アレルゲン集約
+  const allergenInfo = collectRecipeAllergens(
+    recipe.ingredients.map(ing => ({
+      allergens:       [], // ingredientマスタのallergens
+      allergenOverride: ing.allergenOverride,
+      ingredientName:  ing.ingredientName,
+    }))
+  );
+
+  // 原材料表示（重量順ソート済み前提）
+  const sortedIngredients = [...recipe.ingredients].sort((a, b) => {
+    if (a.sortByWeight && a.unit === 'g' && b.unit === 'g') {
+      return b.amount - a.amount;
+    }
+    return (a.displayOrder ?? 0) - (b.displayOrder ?? 0);
+  });
+
+  const ingredientsText = buildIngredientsLabel(
+    sortedIngredients.map(i => ({
+      ingredientName: i.ingredientName,
+      amount: i.amount,
+      unit: i.unit,
+    })),
+    allergenInfo.all
+  );
+
+  // 栄養成分（1個あたり）
+  const totalNutrition = recipe.nutrition;
+  const perUnit = roundForDisplay(
+    calcPerUnit(totalNutrition, recipe.unitCount)
+  );
+
+  // 未確認成分の警告
+  const warnings = recipe.ingredients
+    .filter(i => i.nutritionUnconfirmed)
+    .map(i => `「${i.ingredientName}」の成分情報が未確認です`);
+
+  // 製造者情報
+  const manufacturerName = shopInfo.companyName ?? shopInfo.shopName;
+  const { displaySettings } = config;
+
+  return {
+    productName:     recipe.name,
+    categoryName:    recipe.categoryName ?? '',
+    ingredientsText,
+    contentAmount:   recipe.contentAmount ?? `1個`,
+    expiryDate:      expiryDateStr,
+    expiryType,
+    storageMethod:   recipe.storageMethod ?? '直射日光・高温多湿を避けて保存してください。',
+    manufacturerName,
+    postalCode:      shopInfo.postalCode ? `〒${shopInfo.postalCode}` : '',
+    address:         shopInfo.address ?? '',
+    phone:           displaySettings.showPhone && shopInfo.showPhone
+                       ? shopInfo.phone ?? undefined
+                       : undefined,
+    representative:  displaySettings.showRepresentative && shopInfo.showRepresentative
+                       ? shopInfo.representative ?? undefined
+                       : undefined,
+    email:           displaySettings.showEmail && shopInfo.showEmail
+                       ? shopInfo.email ?? undefined
+                       : undefined,
+    qualityControl:  displaySettings.showQualityControl
+                       ? recipe.qualityControl ?? undefined
+                       : undefined,
+    comment:         displaySettings.showComment
+                       ? recipe.printComment ?? undefined
+                       : undefined,
+    nutritionPerUnit: {
+      label:          `${recipe.contentAmount ?? '1個'}あたり`,
+      energyKcal:     perUnit.energyKcal ?? 0,
+      protein:        perUnit.protein ?? 0,
+      fat:            perUnit.fat ?? 0,
+      carbohydrate:   perUnit.carbohydrate ?? 0,
+      saltEquivalent: perUnit.saltEquivalent ?? 0,
+      dietaryFiber:   displaySettings.showDietaryFiber
+                        ? perUnit.dietaryFiber ?? undefined
+                        : undefined,
+      sugar:          displaySettings.showSugar
+                        ? perUnit.sugar ?? undefined
+                        : undefined,
+      cholesterol:    displaySettings.showCholesterol
+                        ? perUnit.cholesterol ?? undefined
+                        : undefined,
+    },
+    isEstimated: true,  // 推定値として表示
+    warnings,
+  };
+}
+
+/**
+ * シールHTMLを生成する（印刷用）
+ * @param content - シール内容
+ * @param config - 印刷設定
+ * @param count - 枚数（A4の場合はページ全体）
+ */
+export function generateLabelHtml(
+  content: LabelContent,
+  config: LabelConfig
+): string {
+  const { fontSizePt, labelWidthMm, labelHeightMm } = config;
+  const width = labelWidthMm ?? 60;
+  const height = labelHeightMm ?? 60;
+  const fontSize = fontSizePt ?? 8;
+  const smallFontSize = Math.max(fontSize - 1, 6);
+
+  const escHtml = (s: string) =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  const singleLabel = `
+<div class="label" style="
+  width: ${width}mm;
+  min-height: ${height}mm;
+  font-size: ${fontSize}pt;
+  font-family: 'Noto Sans JP', 'Hiragino Sans', Meiryo, sans-serif;
+  line-height: 1.4;
+  padding: 2mm;
+  border: 0.3mm solid #999;
+  box-sizing: border-box;
+  break-inside: avoid;
+  page-break-inside: avoid;
+">
+  <!-- 品名 -->
+  <div style="font-weight:bold; font-size:${Math.round(fontSize * 1.1)}pt; border-bottom:0.3mm solid #ccc; margin-bottom:1mm; padding-bottom:0.5mm;">
+    ${escHtml(content.productName)}
+  </div>
+  <!-- 名称 -->
+  <div style="margin-bottom:0.5mm;">
+    <span style="font-weight:bold;">名称：</span>${escHtml(content.categoryName)}
+  </div>
+  <!-- 原材料名 -->
+  <div style="margin-bottom:0.5mm; font-size:${smallFontSize}pt;">
+    <span style="font-weight:bold;">原材料名：</span>${escHtml(content.ingredientsText)}
+  </div>
+  <!-- 内容量 -->
+  <div style="margin-bottom:0.5mm;">
+    <span style="font-weight:bold;">内容量：</span>${escHtml(content.contentAmount)}
+  </div>
+  <!-- 賞味期限 -->
+  <div style="margin-bottom:0.5mm;">
+    <span style="font-weight:bold;">${escHtml(content.expiryType)}：</span>${escHtml(content.expiryDate)}
+  </div>
+  <!-- 保存方法 -->
+  <div style="margin-bottom:0.5mm; font-size:${smallFontSize}pt;">
+    <span style="font-weight:bold;">保存方法：</span>${escHtml(content.storageMethod)}
+  </div>
+  <!-- 栄養成分 -->
+  <div style="border:0.3mm solid #ccc; padding:1mm; margin-bottom:0.5mm; font-size:${smallFontSize}pt;">
+    <div style="font-weight:bold; margin-bottom:0.3mm;">
+      栄養成分表示（${escHtml(content.nutritionPerUnit.label)}）${content.isEstimated ? '※推定値' : ''}
+    </div>
+    <table style="width:100%; border-collapse:collapse;">
+      <tr>
+        <td>熱量</td><td style="text-align:right;">${content.nutritionPerUnit.energyKcal}kcal</td>
+        <td style="padding-left:2mm;">炭水化物</td><td style="text-align:right;">${content.nutritionPerUnit.carbohydrate}g</td>
+      </tr>
+      <tr>
+        <td>たんぱく質</td><td style="text-align:right;">${content.nutritionPerUnit.protein}g</td>
+        <td style="padding-left:2mm;">食塩相当量</td><td style="text-align:right;">${content.nutritionPerUnit.saltEquivalent}g</td>
+      </tr>
+      <tr>
+        <td>脂質</td><td style="text-align:right;">${content.nutritionPerUnit.fat}g</td>
+        ${content.nutritionPerUnit.dietaryFiber != null
+          ? `<td style="padding-left:2mm;">食物繊維</td><td style="text-align:right;">${content.nutritionPerUnit.dietaryFiber}g</td>`
+          : '<td></td><td></td>'
+        }
+      </tr>
+      ${content.nutritionPerUnit.sugar != null ? `
+      <tr>
+        <td></td><td></td>
+        <td style="padding-left:2mm;">糖質</td><td style="text-align:right;">${content.nutritionPerUnit.sugar}g</td>
+      </tr>` : ''}
+      ${content.nutritionPerUnit.cholesterol != null ? `
+      <tr>
+        <td></td><td></td>
+        <td style="padding-left:2mm;">コレステロール</td><td style="text-align:right;">${content.nutritionPerUnit.cholesterol}mg</td>
+      </tr>` : ''}
+    </table>
+  </div>
+  <!-- コメント -->
+  ${content.comment ? `<div style="margin-bottom:0.5mm; font-size:${smallFontSize}pt;">${escHtml(content.comment)}</div>` : ''}
+  <!-- 品質管理 -->
+  ${content.qualityControl ? `<div style="font-size:${smallFontSize}pt;">${escHtml(content.qualityControl)}</div>` : ''}
+  <!-- 製造者情報 -->
+  <div style="margin-top:0.5mm; border-top:0.3mm solid #ccc; padding-top:0.5mm; font-size:${smallFontSize}pt;">
+    <span style="font-weight:bold;">製造者：</span>
+    ${content.postalCode ? escHtml(content.postalCode) + ' ' : ''}
+    ${escHtml(content.manufacturerName)}
+    ${content.representative ? ' ' + escHtml(content.representative) : ''}
+    ${content.address ? '<br>' + escHtml(content.address) : ''}
+    ${content.phone ? ' ' + escHtml(content.phone) : ''}
+    ${content.email ? '<br>' + escHtml(content.email) : ''}
+  </div>
+</div>`;
+
+  // ラベルプリンタ用：シールのみ
+  if (config.deviceType === 'LABEL_PRINTER') {
+    const labels = Array(config.printCount).fill(singleLabel).join('\n');
+    return `<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { margin: 0; size: ${width}mm auto; }
+  body { margin: 0; padding: 0; }
+  .label { page-break-after: always; }
+  .label:last-child { page-break-after: avoid; }
+  @media print { * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+</style>
+</head>
+<body>${labels}</body>
+</html>`;
+  }
+
+  // A4プリンタ用：グリッドレイアウト
+  const cols = config.a4Cols ?? 3;
+  const rows = config.a4Rows ?? 5;
+  const labelsPerPage = cols * rows;
+  const startPos = (config.startPosition ?? 1) - 1;
+  const marginTop = config.marginTopMm ?? 10;
+  const marginBottom = config.marginBottomMm ?? 10;
+  const marginLeft = config.marginLeftMm ?? 10;
+  const marginRight = config.marginRightMm ?? 10;
+
+  // 全シール（startPositionまでの空白 + 実シール）
+  const totalSlots = startPos + config.printCount;
+  const pages = Math.ceil(totalSlots / labelsPerPage);
+  let gridHtml = '';
+
+  for (let p = 0; p < pages; p++) {
+    gridHtml += `<div class="page" style="
+      display:grid;
+      grid-template-columns: repeat(${cols}, ${width}mm);
+      grid-template-rows: repeat(${rows}, auto);
+      padding: ${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm;
+      width: 210mm;
+      box-sizing: border-box;
+      page-break-after: always;
+    ">`;
+
+    for (let i = 0; i < labelsPerPage; i++) {
+      const slot = p * labelsPerPage + i;
+      if (slot < startPos || slot >= startPos + config.printCount) {
+        gridHtml += `<div style="width:${width}mm; min-height:${height}mm;"></div>`;
+      } else {
+        gridHtml += singleLabel;
+      }
+    }
+    gridHtml += '</div>';
+  }
+
+  return `<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { margin: 0; size: A4; }
+  body { margin: 0; padding: 0; }
+  .page:last-child { page-break-after: avoid; }
+  @media print { * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+</style>
+</head>
+<body>${gridHtml}</body>
+</html>`;
+}
+
+/**
+ * デフォルトの表示設定を返す
+ */
+export function getDefaultDisplaySettings() {
+  return {
+    showPhone:          true,
+    showRepresentative: false,
+    showEmail:          false,
+    showNutrition:      true,
+    showDietaryFiber:   true,
+    showSugar:          true,
+    showCholesterol:    false,
+    showQualityControl: true,
+    showComment:        true,
+    nutritionNote:      '※推定値',
+  };
+}

@@ -1,0 +1,472 @@
+// ============================================================
+// FoodLabel Pro - Prisma Schema
+// DBプロバイダ: PostgreSQL
+// コマンド:
+//   npx prisma generate    -- クライアント生成
+//   npx prisma db push     -- DB反映（開発時）
+//   npx prisma migrate dev -- マイグレーション作成
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMタイプ
+// ============================================================
+
+enum UserPlan {
+  free
+  premium
+  admin
+}
+
+enum ShelfLifeType {
+  BEST_BEFORE  // 賞味期限
+  USE_BY       // 消費期限
+}
+
+enum StorageType {
+  ROOM_TEMP  // 常温
+  FRIDGE     // 冷蔵
+  FROZEN     // 冷凍
+  OTHER      // その他
+}
+
+enum PrintDeviceType {
+  LABEL_PRINTER  // ラベルプリンタ
+  A4_PRINTER     // A4プリンタ
+  OTHER
+}
+
+enum AllergenCategory {
+  REQUIRED_8   // 特定原材料8品目（表示義務）
+  OPTIONAL_20  // 特定原材料に準ずるもの20品目（推奨表示）
+}
+
+// ============================================================
+// ユーザー
+// ============================================================
+
+model User {
+  id                   String    @id @default(uuid())
+  email                String    @unique
+  emailVerified        Boolean   @default(false)
+  emailVerifyToken     String?
+  passwordHash         String
+  passwordResetToken   String?
+  passwordResetExpires DateTime?
+  
+  // 基本情報（ラベル表示用）
+  companyName    String  @db.VarChar(200)  // 社名・店舗名
+  representative String? @db.VarChar(100)  // 代表者名
+  postalCode     String? @db.VarChar(8)
+  address        String?
+  phone          String? @db.VarChar(20)
+  
+  // プラン
+  plan             UserPlan @default(free)
+  stripeCustomerId String?  @db.VarChar(100)
+  
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // リレーション
+  shops         Shop[]
+  recipes       Recipe[]
+  ingredients   Ingredient[]
+  labels        Label[]
+  subscriptions Subscription[]
+  adminLogs     AdminLog[]
+
+  @@map("users")
+}
+
+// ============================================================
+// 店舗（1ユーザー複数店舗対応）
+// ============================================================
+
+model Shop {
+  id          String @id @default(uuid())
+  userId      String
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  shopName       String  @db.VarChar(200)
+  companyName    String? @db.VarChar(200)
+  representative String? @db.VarChar(100)
+  postalCode     String? @db.VarChar(8)
+  address     String?
+  phone       String? @db.VarChar(20)
+  email       String? @db.VarChar(255)
+  
+  // 表示設定
+  showPhone          Boolean @default(true)
+  showRepresentative Boolean @default(false)
+  showEmail          Boolean @default(false)
+  
+  isDefault Boolean @default(false)
+  isActive  Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  labels Label[]
+
+  @@map("shops")
+}
+
+// ============================================================
+// カテゴリ
+// ============================================================
+
+model Category {
+  id        String  @id @default(uuid())
+  userId    String?  // nullは共通カテゴリ
+  name      String  @db.VarChar(100)
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+  
+  recipes Recipe[]
+
+  @@map("categories")
+}
+
+// ============================================================
+// 日本食品標準成分表
+// ============================================================
+
+model NutritionData {
+  id          Int    @id  // 食品番号
+  foodGroup   String? @db.VarChar(10)
+  foodName    String
+  indexName   String? @db.VarChar(200)
+  wasteRatio  Decimal? @db.Decimal(5, 2)
+  
+  // 主要栄養成分（g/100g）
+  energyKcal     Decimal? @db.Decimal(8, 1)
+  energyKj       Decimal? @db.Decimal(8, 1)
+  water          Decimal? @db.Decimal(6, 2)
+  protein        Decimal? @db.Decimal(6, 2)
+  fat            Decimal? @db.Decimal(6, 2)
+  cholesterol    Decimal? @db.Decimal(6, 2)
+  carbohydrate   Decimal? @db.Decimal(6, 2)
+  dietaryFiber   Decimal? @db.Decimal(6, 2)
+  sugar          Decimal? @db.Decimal(6, 2)
+  ash            Decimal? @db.Decimal(6, 2)
+  sodium         Decimal? @db.Decimal(8, 2)
+  saltEquivalent Decimal? @db.Decimal(6, 2)
+  potassium      Decimal? @db.Decimal(8, 2)
+  calcium        Decimal? @db.Decimal(8, 2)
+  magnesium      Decimal? @db.Decimal(8, 2)
+  alcohol        Decimal? @db.Decimal(6, 2)
+  notes          String?
+  dataVersion    String   @default("2020") @db.VarChar(20)
+  createdAt      DateTime @default(now())
+
+  ingredients Ingredient[]
+
+  @@map("nutrition_data")
+}
+
+// ============================================================
+// 食材マスタ
+// ============================================================
+
+model IngredientCategory {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String   @db.VarChar(100)
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  ingredients Ingredient[]
+
+  @@map("ingredient_categories")
+}
+
+model Ingredient {
+  id       String  @id @default(uuid())
+  userId   String?
+  user     User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  ingredientCategoryId String?
+  ingredientCategory   IngredientCategory? @relation(fields: [ingredientCategoryId], references: [id], onDelete: SetNull)
+
+  name         String  @db.VarChar(200)
+  nameKana     String? @db.VarChar(200)
+  nameSearch   String?混在対応
+  
+  // 成分表との対応
+  nutritionId      Int?
+  nutritionData    NutritionData? @relation(fields: [nutritionId], references: [id])
+  nutritionVariant String?  @db.VarChar(100)  // 生/乾燥/ゆで等
+  
+  // 原価情報
+  purchaseUnitG  Int?
+  purchasePrice  Decimal? @db.Decimal(10, 2)
+  unitPrice      Decimal? @db.Decimal(10, 4)  // 1gあたり単価（自動計算）
+  
+  // 保管・仕入れ
+  storage     StorageType @default(ROOM_TEMP)
+  supplier    String?     @db.VarChar(100)
+  productCode String?     @db.VarChar(100)
+  
+  // アレルゲン（手動設定）
+  allergens String[]  // 例: ["小麦", "乳"]
+  
+  // 共有設定
+  isPublic   Boolean @default(false)
+  isApproved Boolean @default(false)
+  
+  // 手動栄養入力（成分表にない場合）
+  energyKcalManual   Decimal? @db.Decimal(8, 1)
+  proteinManual      Decimal? @db.Decimal(6, 2)
+  fatManual          Decimal? @db.Decimal(6, 2)
+  carbohydrateManual Decimal? @db.Decimal(6, 2)
+  sodiumManual       Decimal? @db.Decimal(8, 2)
+  saltEquivalentManual Decimal? @db.Decimal(6, 2)
+  dietaryFiberManual Decimal? @db.Decimal(6, 2)
+  sugarManual        Decimal? @db.Decimal(6, 2)
+  cholesterolManual  Decimal? @db.Decimal(6, 2)
+  
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  recipeIngredients RecipeIngredient[]
+
+  @@map("ingredients")
+}
+
+// ============================================================
+// レシピ
+// ============================================================
+
+model Recipe {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+  
+  // 基本情報
+  name     String @db.VarChar(200)
+  nameKana String? @db.VarChar(200)
+  
+  // 数量
+  unitCount  Int     @default(1)
+  wasteRatio Decimal @default(0) @db.Decimal(5, 2)
+  
+  // 販売・原価
+  salePrice Decimal? @db.Decimal(10, 2)
+  
+  // 賞味期限
+  shelfLifeDays Int?
+  shelfLifeType ShelfLifeType @default(BEST_BEFORE)
+  
+  // ラベル情報
+  contentAmount String? @db.VarChar(50)
+  storageMethod String? @default("直射日光・高温多湿を避けて保存してください。")
+  notes         String?
+  printComment  String?
+  qualityControl String? @db.VarChar(100)
+  
+  // 焼成条件（JSON: [{steam, topHeat, bottomHeat, timeMin}]）
+  bakingConditions Json?
+  
+  // 計算済みキャッシュ
+  totalCost     Decimal? @db.Decimal(10, 2)
+  unitCost      Decimal? @db.Decimal(10, 2)
+  costRate      Decimal? @db.Decimal(5, 4)
+  totalWeightG  Decimal? @db.Decimal(10, 2)
+  
+  // 栄養成分（全体量で計算）
+  energyKcal    Decimal? @db.Decimal(8, 1)
+  protein       Decimal? @db.Decimal(6, 2)
+  fat           Decimal? @db.Decimal(6, 2)
+  carbohydrate  Decimal? @db.Decimal(6, 2)
+  sodium        Decimal? @db.Decimal(8, 2)
+  saltEquivalent Decimal? @db.Decimal(6, 2)
+  dietaryFiber  Decimal? @db.Decimal(6, 2)
+  sugar         Decimal? @db.Decimal(6, 2)
+  cholesterol   Decimal? @db.Decimal(6, 2)
+  
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ingredients RecipeIngredient[]
+  steps       RecipeStep[]
+  labels      Label[]
+
+  @@map("recipes")
+}
+
+// ============================================================
+// レシピ材料明細
+// ============================================================
+
+model RecipeIngredient {
+  id       String @id @default(uuid())
+  recipeId String
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  
+  ingredientId           String?
+  ingredient             Ingredient? @relation(fields: [ingredientId], references: [id], onDelete: SetNull)
+  ingredientNameOverride String?     @db.VarChar(200)  // 手入力食材名
+  
+  // 使用量
+  amount Decimal @db.Decimal(10, 3)
+  unit   String  @default("g") @db.VarChar(10)
+  
+  // 表示設定
+  displayOrder      Int     @default(0)
+  sortByWeight      Boolean @default(true)
+  
+  // 原産国
+  originCountry    String? @db.VarChar(100)
+  isPrimaryIngredient Boolean @default(false)
+  
+  // 原価
+  costPrice Decimal? @db.Decimal(10, 4)
+  costTotal Decimal? @db.Decimal(10, 2)
+  
+  // アレルゲン（手動）
+  allergenOverride String[]
+  
+  // 栄養成分キャッシュ（この材料の使用量分）
+  energyKcal    Decimal? @db.Decimal(8, 1)
+  protein       Decimal? @db.Decimal(6, 2)
+  fat           Decimal? @db.Decimal(6, 2)
+  carbohydrate  Decimal? @db.Decimal(6, 2)
+  sodium        Decimal? @db.Decimal(8, 2)
+  saltEquivalent Decimal? @db.Decimal(6, 2)
+  dietaryFiber  Decimal? @db.Decimal(6, 2)
+  sugar         Decimal? @db.Decimal(6, 2)
+  cholesterol   Decimal? @db.Decimal(6, 2)
+  
+  nutritionUnconfirmed Boolean @default(false)
+  createdAt            DateTime @default(now())
+
+  @@map("recipe_ingredients")
+}
+
+// ============================================================
+// 作り方（手順）
+// ============================================================
+
+model RecipeStep {
+  id          String @id @default(uuid())
+  recipeId    String
+  recipe      Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  stepNumber  Int
+  instruction String
+  createdAt   DateTime @default(now())
+
+  @@map("recipe_steps")
+}
+
+// ============================================================
+// シール印刷履歴・設定
+// ============================================================
+
+model Label {
+  id       String  @id @default(uuid())
+  recipeId String
+  recipe   Recipe  @relation(fields: [recipeId], references: [id])
+  shopId   String?
+  shop     Shop?   @relation(fields: [shopId], references: [id])
+  userId   String
+  user     User    @relation(fields: [userId], references: [id])
+  
+  // 製造日・期限
+  manufactureDate DateTime @default(now()) @db.Date
+  expiryDate      DateTime? @db.Date
+  
+  // 印刷設定
+  printCount  Int              @default(1)
+  fontSizePt  Decimal          @default(8) @db.Decimal(4, 1)
+  deviceType  PrintDeviceType  @default(LABEL_PRINTER)
+  
+  // ラベルプリンタ設定
+  labelWidthMm  Decimal? @db.Decimal(6, 1)
+  labelHeightMm Decimal? @db.Decimal(6, 1)
+  isPrecut      Boolean  @default(true)
+  cutMarginMm   Decimal? @db.Decimal(4, 1)
+  
+  // A4プリンタ設定
+  a4Cols        Int?
+  a4Rows        Int?
+  marginTopMm   Decimal? @db.Decimal(4, 1)
+  marginBottomMm Decimal? @db.Decimal(4, 1)
+  marginLeftMm  Decimal? @db.Decimal(4, 1)
+  marginRightMm Decimal? @db.Decimal(4, 1)
+  startPosition Int      @default(1)
+  
+  // 表示設定（JSON）
+  displaySettings Json?
+  generatedHtml   String?
+  
+  createdAt DateTime @default(now())
+
+  @@map("labels")
+}
+
+// ============================================================
+// アレルゲンマスタ
+// ============================================================
+
+model AllergenMaster {
+  id           String          @id @default(uuid())
+  name         String          @unique @db.VarChar(50)
+  category     AllergenCategory
+  keywords     String[]
+  displayOrder Int             @default(0)
+  isActive     Boolean         @default(true)
+
+  @@map("allergen_master")
+}
+
+// ============================================================
+// 課金・サブスクリプション
+// ============================================================
+
+model Subscription {
+  id                   String   @id @default(uuid())
+  userId               String
+  user                 User     @relation(fields: [userId], references: [id])
+  stripeSubscriptionId String?  @unique @db.VarChar(100)
+  stripePriceId        String?  @db.VarChar(100)
+  plan                 UserPlan
+  status               String?  @db.VarChar(50)
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@map("subscriptions")
+}
+
+// ============================================================
+// 管理者操作ログ
+// ============================================================
+
+model AdminLog {
+  id         String   @id @default(uuid())
+  adminId    String
+  admin      User     @relation(fields: [adminId], references: [id])
+  action     String   @db.VarChar(100)
+  targetType String?  @db.VarChar(50)
+  targetId   String?
+  details    Json?
+  createdAt  DateTime @default(now())
+
+  @@map("admin_logs")
+}

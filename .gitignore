@@ -1,0 +1,41 @@
+# 依存パッケージ
+node_modules/
+.pnp
+.pnp.js
+
+# ビルド成果物
+.next/
+out/
+build/
+dist/
+
+# 環境変数（必ず除外）
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ログ
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# エディタ設定
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Prisma
+prisma/generated/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+migration_log.csv

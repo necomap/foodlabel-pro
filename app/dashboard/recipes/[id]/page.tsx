@@ -246,10 +246,10 @@ export default function RecipeDetailPage() {
                 <td className="text-right text-stone-500 hidden sm:table-cell">
                   {ing.costTotal != null ? `¥${Math.round(ing.costTotal)}` : '—'}
                 </td>
-                <td className="text-right text-stone-500 hidden md:table-cell text-xs">
+                <td className="text-right text-stone-500 hidden sm:table-cell text-xs">
                   {ing.nutrition?.energyKcal != null ? `${Math.round(ing.nutrition.energyKcal)}kcal` : '—'}
                 </td>
-                <td className="text-right text-stone-500 hidden md:table-cell text-xs">
+                <td className="text-right text-stone-500 hidden sm:table-cell text-xs">
                   {ing.nutrition?.saltEquivalent != null ? `${ing.nutrition.saltEquivalent}g` : '—'}
                 </td>
                 <td className="hidden sm:table-cell">
@@ -270,10 +270,10 @@ export default function RecipeDetailPage() {
               <td className="text-right font-semibold text-brand-600 hidden sm:table-cell">
                 {recipe.totalCost != null ? `¥${Math.round(recipe.totalCost)}` : '—'}
               </td>
-              <td className="text-right font-semibold hidden md:table-cell text-xs">
+              <td className="text-right font-semibold hidden sm:table-cell text-xs">
                 {recipe.nutrition?.energyKcal != null ? `${Math.round(recipe.nutrition.energyKcal)}kcal` : '—'}
               </td>
-              <td className="text-right font-semibold hidden md:table-cell text-xs">
+              <td className="text-right font-semibold hidden sm:table-cell text-xs">
                 {recipe.nutrition?.saltEquivalent != null ? `${recipe.nutrition.saltEquivalent}g` : '—'}
               </td>
               <td></td>

@@ -48,10 +48,12 @@ interface IngredientRow {
 }
 
 // ---- 食材検索コンポーネント ----
-function IngredientSearch({ value, onChange, onSelect }: {
+function IngredientSearch({ value, onChange, onSelect, onFocus, onBlur }: {
   value:    string;
   onChange: (v: string) => void;
   onSelect: (ing: { id: string; name: string; allergens: string[]; unitPrice: number | null; nutrition: { energyKcal: number | null } | null; nutritionUnconfirmed: boolean }) => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
 }) {
   const [results, setResults] = useState<{ id: string; name: string; allergens: string[]; unitPrice: number | null; nutrition: { energyKcal: number | null } | null }[]>([]);
   const [open,    setOpen]    = useState(false);
@@ -138,6 +140,7 @@ export default function RecipeForm() {
   const [qualityControl, setQualityControl] = useState('');
 
   // 材料
+  const [focusedKey, setFocusedKey] = useState<string|null>(null);
   const [ingredients, setIngredients] = useState<IngredientRow[]>([
     { key: 'r0', ingredientId: '', name: '', amount: '', unit: 'g', costPrice: '', originCountry: '', allergenOverride: [], nutritionUnconfirmed: false, isAdditive: false, energyKcal: null, costTotal: null },
   ]);
@@ -493,8 +496,10 @@ export default function RecipeForm() {
                   value={ing.name}
                   onChange={v => updateIngredient(ing.key, 'name', v)}
                   onSelect={s => onIngredientSelect(ing.key, s)}
+                  onFocus={() => setFocusedKey(ing.key)}
+                  onBlur={() => setFocusedKey(null)}
                 />
-                {ing.nutritionUnconfirmed && ing.name && (
+                {ing.nutritionUnconfirmed && ing.name && focusedKey === ing.key && (
                   <p className="text-xs text-yellow-600 mt-0.5 flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3" />成分未確認（後から設定可）
                   </p>

@@ -1,4 +1,5 @@
 // app/api/stripe/webhook/route.ts
+export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/db';
@@ -64,4 +65,4 @@ export async function POST(request: Request) {
   }
 }
 
-export const config = { api: { bodyParser: false } };
+

@@ -443,10 +443,10 @@ export default function RecipeForm() {
 
         <div className="grid sm:grid-cols-2 gap-4">
           <div>
-            <label className="field-label">注意事項（ラベル印字）</label>
+            <label className="field-label">メモ（自分用・ラベル非印字）</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)}
               className="field-input resize-none text-sm" rows={2}
-              placeholder="例: 解凍後は当日中にお召し上がりください" />
+              placeholder="例: 製造時の注意点、仕入れ先など" />
           </div>
           <div>
             <label className="field-label">印字コメント</label>

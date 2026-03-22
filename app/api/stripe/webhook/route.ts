@@ -26,35 +26,34 @@ export async function POST(request: Request) {
         const session = event.data.object as Stripe.Checkout.Session;
         const userId  = session.metadata?.userId ?? session.client_reference_id;
         if (userId) {
-          await prisma.user.update({
-            where: { id: userId },
-            data: {
-              plan: 'premium',
-              stripeCustomerId:       session.customer as string,
-              stripeSubscriptionId:   session.subscription as string,
-              subscriptionStatus:     'active',
-            },
-          });
+          await prisma.$executeRaw`
+            UPDATE users SET
+              plan = 'premium',
+              "stripeCustomerId" = ${session.customer as string},
+              "stripeSubscriptionId" = ${session.subscription as string},
+              "subscriptionStatus" = 'active'
+            WHERE id = ${userId}
+          `;
         }
         break;
       }
       case 'customer.subscription.deleted':
       case 'customer.subscription.paused': {
         const sub = event.data.object as Stripe.Subscription;
-        await prisma.user.updateMany({
-          where: { stripeSubscriptionId: sub.id },
-          data:  { plan: 'free', subscriptionStatus: 'canceled' },
-        });
+        await prisma.$executeRaw`
+          UPDATE users SET plan = 'free', "subscriptionStatus" = 'canceled'
+          WHERE "stripeSubscriptionId" = ${sub.id}
+        `;
         break;
       }
       case 'customer.subscription.updated': {
         const sub    = event.data.object as Stripe.Subscription;
-        const status = sub.status === 'active' ? 'active' : sub.status;
+        const status = sub.status;
         const plan   = sub.status === 'active' ? 'premium' : 'free';
-        await prisma.user.updateMany({
-          where: { stripeSubscriptionId: sub.id },
-          data:  { plan, subscriptionStatus: status },
-        });
+        await prisma.$executeRaw`
+          UPDATE users SET plan = ${plan}, "subscriptionStatus" = ${status}
+          WHERE "stripeSubscriptionId" = ${sub.id}
+        `;
         break;
       }
     }

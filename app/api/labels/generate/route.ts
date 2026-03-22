@@ -277,8 +277,30 @@ export async function POST(request: Request) {
     },
   });
 
+  console.log('DEBUG_SHOP:', JSON.stringify({
+    address: shopInfo.address,
+    phone: shopInfo.phone,
+    rep: shopInfo.representative,
+    name: shopInfo.shopName,
+  }));
+  console.log('DEBUG_LABEL:', JSON.stringify({
+    ing: recipeDetail.ingredientsLabel?.slice(0,30),
+    qc: recipeDetail.qualityControl,
+    pc: recipeDetail.printComment,
+  }));
+
   return NextResponse.json({
     success: true,
-    data: { html, content, warnings },
+    data: {
+      html, content, warnings,
+      _debug: {
+        shopAddress: shopInfo.address,
+        shopPhone: shopInfo.phone,
+        shopRep: shopInfo.representative,
+        ingredientsLabel: recipeDetail.ingredientsLabel?.slice(0,50),
+        qualityControl: recipeDetail.qualityControl,
+        printComment: recipeDetail.printComment,
+      }
+    },
   });
 }

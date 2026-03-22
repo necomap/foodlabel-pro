@@ -67,10 +67,10 @@ export function parseExcelFile(buffer: ArrayBuffer): {
                     workbook.SheetNames[0];
 
   const sheet = workbook.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+  const rows = XLSX.utils.sheet_to_json(sheet, {
     header: 1,
     defval: null,
-  }) as unknown[][];
+  ) as any[][];
 
   if (rows.length < 2) {
     errors.push({ row: 0, message: 'データが見つかりません' });

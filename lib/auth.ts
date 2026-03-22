@@ -31,10 +31,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           throw new Error('メールアドレスまたはパスワードが違います');
         }
 
-        if (!user.emailVerified) {
-          throw new Error('メール認証が完了していません。確認メールをご確認ください。');
-        }
-
         if (!user.isActive) {
           throw new Error('このアカウントは無効化されています');
         }

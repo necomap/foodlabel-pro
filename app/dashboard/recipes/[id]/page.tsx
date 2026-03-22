@@ -237,7 +237,7 @@ export default function RecipeDetailPage() {
                     {ing.nutritionUnconfirmed && (
                       <AlertTriangle className="w-3.5 h-3.5 text-yellow-500" aria-label="成分未確認" />
                     )}
-                    {ing.isPrimaryIngredient && ing.originCountry && (
+                    {ing.originCountry && (
                       <span className="badge badge-brand text-xs">{ing.originCountry}</span>
                     )}
                   </div>
@@ -276,7 +276,7 @@ export default function RecipeDetailPage() {
               <td className="text-right font-semibold hidden sm:table-cell text-xs">
                 {recipe.nutrition?.saltEquivalent != null ? `${recipe.nutrition.saltEquivalent}g` : '—'}
               </td>
-              <td></td>
+              <td className="hidden sm:table-cell"></td>
             </tr>
           </tfoot>
         </table>

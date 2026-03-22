@@ -104,7 +104,7 @@ export async function POST(request: Request) {
         postalCode:         shop.postalCode ?? '',
         address:            shop.address ?? '',
         phone:              shop.phone ?? '',
-        representative:     '',
+        representative:     shop.representative ?? '',
         email:              shop.email ?? '',
         showPhone:          shop.showPhone,
         showRepresentative: shop.showRepresentative,

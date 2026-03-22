@@ -39,9 +39,9 @@ export function generateLabelContent(
   // アレルゲン集約
   const allergenInfo = collectRecipeAllergens(
     recipe.ingredients.map(ing => ({
-      allergens:       [], // ingredientマスタのallergens
-      allergenOverride: ing.allergenOverride,
-      ingredientName:  ing.ingredientName,
+      allergens:        ing.allergenOverride?.length ? [] : (ing as any).allergens ?? [],
+      allergenOverride: ing.allergenOverride ?? [],
+      ingredientName:   ing.ingredientName,
     }))
   );
 

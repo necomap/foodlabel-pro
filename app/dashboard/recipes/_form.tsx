@@ -203,6 +203,7 @@ export default function RecipeForm() {
             key:          `r${i}`,
             ingredientId: ing.ingredientId ?? '',
             name:         ing.ingredientName,
+            isAdditive:   (ing as any).isAdditive ?? false,
             amount:       String(ing.amount),
             unit:         ing.unit,
             costPrice:    ing.costPrice != null ? String(ing.costPrice) : '',

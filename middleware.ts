@@ -15,7 +15,7 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const isLoggedIn = !!token;
 
-  const publicPaths = ['/auth/', '/api/auth', '/api/util'];
+  const publicPaths = ['/auth/', '/api/auth', '/api/util', '/api/stripe/webhook'];
   const isPublic = publicPaths.some(p => pathname.startsWith(p));
 
   if (!isLoggedIn && !isPublic && pathname !== '/') {

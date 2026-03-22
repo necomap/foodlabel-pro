@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import {
   Cookie, BookOpen, Tag, ShoppingBasket, Settings,
-  LogOut, Menu, X, ChevronRight, ArrowLeftRight, HelpCircle, Shield,
+  LogOut, Menu, X, ChevronRight, ArrowLeftRight, HelpCircle, Shield, Crown,
 } from 'lucide-react';
 
 const navItems = [
@@ -19,11 +19,12 @@ const navItems = [
 
 interface Props {
   isAdmin:   boolean;
+  isPremium: boolean;
   userName:  string;
   userEmail: string;
 }
 
-export default function DashboardNav({ isAdmin, userName, userEmail }: Props) {
+export default function DashboardNav({ isAdmin, isPremium, userName, userEmail }: Props) {
   const pathname    = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 

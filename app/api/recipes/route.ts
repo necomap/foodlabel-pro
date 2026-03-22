@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { calcNutritionForAmount, sumNutrition, calcPerUnit, calcCostRate } from '@/lib/nutrition';
+import { getPlanLimits } from '@/lib/plan-limits';
 import { detectAllergens } from '@/lib/allergen';
 import type { NutritionValues } from '@/types';
 
@@ -127,6 +128,19 @@ const recipeSchema = z.object({
 export async function POST(request: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ success: false, error: '認証が必要です' }, { status: 401 });
+
+  // プラン制限チェック
+  const limits = getPlanLimits(session.user.plan ?? 'free');
+  if (limits.maxRecipes !== Infinity) {
+    const recipeCount = await prisma.recipe.count({ where: { userId: session.user.id, isActive: true } });
+    if (recipeCount >= limits.maxRecipes) {
+      return NextResponse.json({
+        success: false,
+        error: `フリープランのレシピ上限（${limits.maxRecipes}件）に達しました。プレミアムプランにアップグレードしてください。`,
+        upgradeRequired: true,
+      }, { status: 403 });
+    }
+  }
 
   try {
     const body   = await request.json();

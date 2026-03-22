@@ -5,6 +5,7 @@
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
+import { getPlanLimits } from '@/lib/plan-limits';
 import { prisma } from '@/lib/db';
 import { parseExcelFile, exportRecipesToExcel, toFullWidth } from '@/lib/excel-import-export';
 import { detectAllergens } from '@/lib/allergen';
@@ -219,6 +220,15 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ success: false, error: '認証が必要です' }, { status: 401 });
+
+  const limits = getPlanLimits(session.user.plan ?? 'free');
+  if (!limits.canExport) {
+    return NextResponse.json({
+      success: false,
+      error: 'Excelエクスポートはプレミアムプランの機能です。',
+      upgradeRequired: true,
+    }, { status: 403 });
+  }
 
   const { searchParams } = new URL(request.url);
   const includeNutrition = searchParams.get('nutrition') !== 'false';

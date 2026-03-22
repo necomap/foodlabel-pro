@@ -250,7 +250,7 @@ export default function RecipeForm() {
     setIngredients(prev => prev.filter(i => i.key !== key));
   };
 
-  const updateIngredient = (key: string, field: keyof IngredientRow, value: string | number | null | string[]) => {
+  const updateIngredient = (key: string, field: keyof IngredientRow, value: string | number | boolean | null | string[]) => {
     setIngredients(prev => prev.map(i => i.key === key ? { ...i, [field]: value } : i));
   };
 

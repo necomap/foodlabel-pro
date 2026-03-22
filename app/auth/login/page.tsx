@@ -42,11 +42,10 @@ function LoginPageInner() {
 
     setLoading(false);
 
-    if (res?.error) {
-      setError(res.error);
+    if (res?.ok && !res?.error) {
+      window.location.replace('/dashboard/recipes');
     } else {
-      toast.success('ログインしました');
-      window.location.href = '/dashboard/recipes';
+      setError('メールアドレスまたはパスワードが間違っています');
     }
   };
 

@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-02-25.clover' });
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {});
 
 export async function POST() {
   const session = await auth();

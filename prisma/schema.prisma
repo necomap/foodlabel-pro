@@ -59,6 +59,7 @@ model User {
   email                String    @unique
   emailVerified        Boolean   @default(false)
   emailVerifyToken     String?
+  emailVerifyExpires   DateTime?
   passwordHash         String
   passwordResetToken   String?
   passwordResetExpires DateTime?

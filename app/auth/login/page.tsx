@@ -46,8 +46,7 @@ function LoginPageInner() {
       setError(res.error);
     } else {
       toast.success('ログインしました');
-      router.push('/dashboard/recipes');
-      router.refresh();
+      window.location.href = '/dashboard/recipes';
     }
   };
 

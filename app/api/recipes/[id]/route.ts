@@ -258,6 +258,8 @@ export async function PUT(request: Request, { params }: Params) {
           sortByWeight:          true,
           costPrice:             d.ing.costPrice ? Number(d.ing.costPrice) : null,
           costTotal:             d.costTotal,
+          originCountry:         d.ing.originCountry || null,
+          isPrimaryIngredient:   d.ing.isPrimaryIngredient ?? false,
           allergenOverride:      d.allergens,
           nutritionUnconfirmed:  d.nutritionUnconfirmed,
           energyKcal:            d.nutrition.energyKcal,

@@ -91,7 +91,7 @@ export default function UpgradePage() {
               </h2>
               {isPremium && <span className="badge bg-amber-100 text-amber-700 text-xs">現在のプラン</span>}
             </div>
-            <div className="text-3xl font-bold text-stone-800 mt-2">¥1,980<span className="text-sm font-normal text-stone-500">/月</span></div>
+            <div className="text-3xl font-bold text-stone-800 mt-2">¥980<span className="text-sm font-normal text-stone-500">/月</span></div>
             <p className="text-xs text-stone-500 mt-1">税込 ・ いつでも解約可能</p>
           </div>
           <ul className="space-y-2">

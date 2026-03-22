@@ -140,8 +140,13 @@ function LoginPageInner() {
         </div>
 
         <p className="text-center text-xs text-stone-400 mt-6">
-          © {new Date().getFullYear()} FoodLabel Pro
+          © {new Date().getFullYear()} FoodLabel Pro（Bummeln）
         </p>
+        <div className="flex justify-center gap-4 text-xs text-stone-400 mt-2">
+          <a href="/terms" className="hover:text-stone-600">利用規約</a>
+          <a href="/privacy" className="hover:text-stone-600">プライバシーポリシー</a>
+          <a href="/legal" className="hover:text-stone-600">特定商取引法</a>
+        </div>
       </div>
     </div>
   );

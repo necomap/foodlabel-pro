@@ -1,46 +1,44 @@
-// ============================================================
-// app/api/auth/verify-email/route.ts - メール認証API
-// ============================================================
-
+// app/api/auth/verify-email/route.ts
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { sendWelcomeEmail } from '@/lib/email';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const token = searchParams.get('token');
 
   if (!token) {
-    return NextResponse.redirect(
-      new URL('/auth/login?error=認証トークンが無効です', request.url)
-    );
+    return NextResponse.redirect(new URL('/auth/login?error=invalid-token', request.url));
   }
 
   const user = await prisma.user.findFirst({
-    where: { emailVerifyToken: token },
+    where: {
+      emailVerifyToken: token,
+      emailVerified:    false,
+    },
   });
 
   if (!user) {
-    return NextResponse.redirect(
-      new URL('/auth/login?error=認証リンクが無効または期限切れです', request.url)
-    );
+    return NextResponse.redirect(new URL('/auth/login?error=invalid-token', request.url));
   }
 
-  if (user.emailVerified) {
-    return NextResponse.redirect(
-      new URL('/auth/login?message=すでに認証済みです', request.url)
-    );
+  // トークン有効期限チェック
+  if (user.emailVerifyExpires && user.emailVerifyExpires < new Date()) {
+    return NextResponse.redirect(new URL('/auth/login?error=token-expired', request.url));
   }
 
   // 認証完了
   await prisma.user.update({
     where: { id: user.id },
     data: {
-      emailVerified:    true,
-      emailVerifyToken: null,
+      emailVerified:      true,
+      emailVerifyToken:   null,
+      emailVerifyExpires: null,
     },
   });
 
-  return NextResponse.redirect(
-    new URL('/auth/login?message=メール認証が完了しました！ログインしてください', request.url)
-  );
+  // ウェルカムメール送信
+  await sendWelcomeEmail(user.email, user.companyName ?? '');
+
+  return NextResponse.redirect(new URL('/auth/login?message=メールアドレスの認証が完了しました。ログインしてください。', request.url));
 }

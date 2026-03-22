@@ -1,117 +1,80 @@
-// ============================================================
-// lib/email.ts - メール送信ユーティリティ
-// nodemailerを使用
-// ============================================================
+// lib/email.ts - Resendを使ったメール送信
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const FROM_EMAIL = process.env.EMAIL_FROM ?? 'FoodLabel Pro <onboarding@resend.dev>';
+const APP_URL = process.env.NEXTAUTH_URL ?? 'https://foodlabel-pro.vercel.app';
 
-import nodemailer from 'nodemailer';
-import { randomBytes } from 'crypto';
-
-// SMTPトランスポーターの設定
-const transporter = nodemailer.createTransport({
-  host:   process.env.EMAIL_SERVER_HOST,
-  port:   parseInt(process.env.EMAIL_SERVER_PORT ?? '587'),
-  secure: process.env.EMAIL_SERVER_PORT === '465',
-  auth: {
-    user: process.env.EMAIL_SERVER_USER,
-    pass: process.env.EMAIL_SERVER_PASSWORD,
-  },
-});
-
-const FROM = process.env.EMAIL_FROM ?? 'FoodLabel Pro <noreply@example.com>';
-const BASE_URL = process.env.NEXTAUTH_URL ?? 'http://localhost:3000';
-
-/**
- * メール認証トークンを生成する
- */
-export function generateToken(): string {
-  return randomBytes(32).toString('hex');
+async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+  if (!RESEND_API_KEY) {
+    console.log(`[DEV] Email to ${to}: ${subject}`);
+    return true;
+  }
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      console.error('Resend error:', err);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('Email send error:', err);
+    return false;
+  }
 }
 
-/**
- * メール認証メールを送信する
- */
-export async function sendVerificationEmail(
-  email: string,
-  token: string
-): Promise<void> {
-  const verifyUrl = `${BASE_URL}/api/auth/verify-email?token=${token}`;
-
-  await transporter.sendMail({
-    from: FROM,
-    to:   email,
-    subject: '【FoodLabel Pro】メールアドレスの確認',
-    html: `
-<!DOCTYPE html>
-<html lang="ja">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
-  <div style="background: #d4891f; color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
-    <h1 style="margin: 0; font-size: 24px;">FoodLabel Pro</h1>
-    <p style="margin: 8px 0 0; opacity: 0.9;">成分表示ラベル管理システム</p>
-  </div>
-  <div style="background: white; border: 1px solid #e5d5b5; border-top: none; padding: 30px; border-radius: 0 0 8px 8px;">
-    <h2 style="color: #d4891f;">メールアドレスの確認</h2>
-    <p>FoodLabel Pro にご登録いただきありがとうございます。</p>
-    <p>以下のボタンをクリックして、メールアドレスの確認を完了してください。</p>
-    <div style="text-align: center; margin: 30px 0;">
-      <a href="${verifyUrl}"
-         style="background: #d4891f; color: white; padding: 14px 32px; border-radius: 6px;
-                text-decoration: none; font-size: 16px; font-weight: bold;">
-        メールアドレスを確認する
+export async function sendVerificationEmail(email: string, token: string): Promise<boolean> {
+  const verifyUrl = `${APP_URL}/auth/verify-email?token=${token}`;
+  const html = `
+    <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #d4891f;">FoodLabel Pro</h2>
+      <p>アカウント登録ありがとうございます。</p>
+      <p>以下のボタンをクリックしてメールアドレスを認証してください。</p>
+      <a href="${verifyUrl}" style="display:inline-block; background:#d4891f; color:#fff; padding:12px 24px; border-radius:8px; text-decoration:none; font-weight:bold; margin:16px 0;">
+        メールアドレスを認証する
       </a>
+      <p style="color:#999; font-size:12px;">このリンクは24時間有効です。</p>
+      <p style="color:#999; font-size:12px;">心当たりがない場合は無視してください。</p>
     </div>
-    <p style="font-size: 12px; color: #999;">
-      このメールに心当たりがない場合は、無視してください。<br>
-      リンクの有効期限は24時間です。<br>
-      ボタンが機能しない場合は、以下のURLをブラウザに貼り付けてください：<br>
-      <a href="${verifyUrl}" style="color: #d4891f;">${verifyUrl}</a>
-    </p>
-  </div>
-</body>
-</html>
-    `,
-  });
+  `;
+  return sendEmail(email, '【FoodLabel Pro】メールアドレスの認証', html);
 }
 
-/**
- * パスワードリセットメールを送信する
- */
-export async function sendPasswordResetEmail(
-  email: string,
-  token: string
-): Promise<void> {
-  const resetUrl = `${BASE_URL}/auth/reset-password?token=${token}`;
-
-  await transporter.sendMail({
-    from: FROM,
-    to:   email,
-    subject: '【FoodLabel Pro】パスワードのリセット',
-    html: `
-<!DOCTYPE html>
-<html lang="ja">
-<head><meta charset="UTF-8"></head>
-<body style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
-  <div style="background: #d4891f; color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
-    <h1 style="margin: 0; font-size: 24px;">FoodLabel Pro</h1>
-  </div>
-  <div style="background: white; border: 1px solid #e5d5b5; border-top: none; padding: 30px; border-radius: 0 0 8px 8px;">
-    <h2 style="color: #d4891f;">パスワードのリセット</h2>
-    <p>パスワードリセットのリクエストを受け付けました。</p>
-    <p>以下のボタンをクリックして、新しいパスワードを設定してください。</p>
-    <div style="text-align: center; margin: 30px 0;">
-      <a href="${resetUrl}"
-         style="background: #d4891f; color: white; padding: 14px 32px; border-radius: 6px;
-                text-decoration: none; font-size: 16px; font-weight: bold;">
-        パスワードをリセットする
+export async function sendPasswordResetEmail(email: string, token: string): Promise<boolean> {
+  const resetUrl = `${APP_URL}/auth/reset-password?token=${token}`;
+  const html = `
+    <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #d4891f;">FoodLabel Pro</h2>
+      <p>パスワードリセットのリクエストを受け付けました。</p>
+      <p>以下のボタンをクリックしてパスワードを再設定してください。</p>
+      <a href="${resetUrl}" style="display:inline-block; background:#d4891f; color:#fff; padding:12px 24px; border-radius:8px; text-decoration:none; font-weight:bold; margin:16px 0;">
+        パスワードを再設定する
       </a>
+      <p style="color:#999; font-size:12px;">このリンクは1時間有効です。</p>
+      <p style="color:#999; font-size:12px;">心当たりがない場合は無視してください。</p>
     </div>
-    <p style="font-size: 12px; color: #999;">
-      このリクエストに心当たりがない場合は、無視してください。<br>
-      リンクの有効期限は1時間です。
-    </p>
-  </div>
-</body>
-</html>
-    `,
-  });
+  `;
+  return sendEmail(email, '【FoodLabel Pro】パスワードリセット', html);
+}
+
+export async function sendWelcomeEmail(email: string, name: string): Promise<boolean> {
+  const html = `
+    <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #d4891f;">FoodLabel Proへようこそ！</h2>
+      <p>${name ?? 'ユーザー'}様、ご登録ありがとうございます。</p>
+      <p>FoodLabel Proで食品成分表示ラベルの管理を始めましょう。</p>
+      <a href="${APP_URL}/dashboard/recipes" style="display:inline-block; background:#d4891f; color:#fff; padding:12px 24px; border-radius:8px; text-decoration:none; font-weight:bold; margin:16px 0;">
+        ダッシュボードを開く
+      </a>
+      <hr style="border:none; border-top:1px solid #eee; margin:24px 0;">
+      <p style="color:#999; font-size:12px;">FoodLabel Pro（Bummeln）</p>
+    </div>
+  `;
+  return sendEmail(email, '【FoodLabel Pro】ご登録ありがとうございます', html);
 }

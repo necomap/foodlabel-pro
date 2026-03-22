@@ -224,8 +224,9 @@ export default function RecipeDetailPage() {
               <th>材料名</th>
               <th className="text-right">分量</th>
               <th className="text-right hidden sm:table-cell">原価</th>
+              <th className="text-right hidden sm:table-cell">熱量</th>
+              <th className="text-right hidden sm:table-cell">食塩相当量</th>
               <th className="hidden sm:table-cell">アレルゲン</th>
-              <th></th>
             </tr>
           </thead>
           <tbody>

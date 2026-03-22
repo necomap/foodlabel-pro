@@ -88,10 +88,10 @@ export function generateLabelContent(
     manufacturerName,
     postalCode:      shopInfo.postalCode ? `〒${shopInfo.postalCode}` : '',
     address:         shopInfo.address ?? '',
-    phone:           displaySettings.showPhone && shopInfo.showPhone
+    phone:           displaySettings.showPhone
                        ? shopInfo.phone ?? undefined
                        : undefined,
-    representative:  displaySettings.showRepresentative && shopInfo.showRepresentative
+    representative:  displaySettings.showRepresentative
                        ? shopInfo.representative ?? undefined
                        : undefined,
     email:           displaySettings.showEmail && shopInfo.showEmail

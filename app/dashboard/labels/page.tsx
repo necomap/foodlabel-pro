@@ -84,13 +84,18 @@ export default function LabelsPage() {
   const [marginR,  setMarginR]  = useState('10');
   const [startPos, setStartPos] = useState('1');
   // 表示設定
-  const [showPhone,    setShowPhone]    = useState(true);
-  const [showRep,      setShowRep]      = useState(false);
-  const [showFiber,    setShowFiber]    = useState(true);
-  const [showSugar,    setShowSugar]    = useState(true);
-  const [showCholest,  setShowCholest]  = useState(false);
-  const [showComment,  setShowComment]  = useState(true);
-  const [showQC,       setShowQC]       = useState(true);
+  const loadBool = (key: string, def: boolean) => {
+    if (typeof window === 'undefined') return def;
+    const v = localStorage.getItem('label_' + key);
+    return v !== null ? v === 'true' : def;
+  };
+  const [showPhone,    setShowPhone]    = useState(() => loadBool('showPhone', true));
+  const [showRep,      setShowRep]      = useState(() => loadBool('showRep', false));
+  const [showFiber,    setShowFiber]    = useState(() => loadBool('showFiber', true));
+  const [showSugar,    setShowSugar]    = useState(() => loadBool('showSugar', true));
+  const [showCholest,  setShowCholest]  = useState(() => loadBool('showCholest', false));
+  const [showComment,  setShowComment]  = useState(() => loadBool('showComment', true));
+  const [showQC,       setShowQC]       = useState(() => loadBool('showQC', true));
 
   useEffect(() => {
     // レシピ一覧を取得
@@ -285,13 +290,13 @@ export default function LabelsPage() {
           <div className="card space-y-3">
             <h2 className="section-title">表示項目設定</h2>
             {[
-              { label: '電話番号を表示', value: showPhone,   onChange: setShowPhone },
-              { label: '代表者名を表示', value: showRep,     onChange: setShowRep,    note: '個人事業主は法的義務を確認してください' },
-              { label: '食物繊維を表示', value: showFiber,   onChange: setShowFiber },
-              { label: '糖質を表示',     value: showSugar,   onChange: setShowSugar },
-              { label: 'コレステロールを表示', value: showCholest, onChange: setShowCholest },
-              { label: '品質管理を表示', value: showQC,      onChange: setShowQC },
-              { label: 'コメントを表示', value: showComment, onChange: setShowComment },
+              { label: '電話番号を表示', value: showPhone,   onChange: (v:boolean)=>{setShowPhone(v);localStorage.setItem('label_showPhone',String(v));} },
+              { label: '代表者名を表示', value: showRep,     onChange: (v:boolean)=>{setShowRep(v);localStorage.setItem('label_showRep',String(v));}, note: '個人事業主は法的義務を確認してください' },
+              { label: '食物繊維を表示', value: showFiber,   onChange: (v:boolean)=>{setShowFiber(v);localStorage.setItem('label_showFiber',String(v));} },
+              { label: '糖質を表示',     value: showSugar,   onChange: (v:boolean)=>{setShowSugar(v);localStorage.setItem('label_showSugar',String(v));} },
+              { label: 'コレステロールを表示', value: showCholest, onChange: (v:boolean)=>{setShowCholest(v);localStorage.setItem('label_showCholest',String(v));} },
+              { label: '品質管理を表示', value: showQC,      onChange: (v:boolean)=>{setShowQC(v);localStorage.setItem('label_showQC',String(v));} },
+              { label: 'コメントを表示', value: showComment, onChange: (v:boolean)=>{setShowComment(v);localStorage.setItem('label_showComment',String(v));} },
             ].map(item => (
               <label key={item.label} className="flex items-start gap-3 cursor-pointer">
                 <input type="checkbox" checked={item.value} onChange={e => item.onChange(e.target.checked)}

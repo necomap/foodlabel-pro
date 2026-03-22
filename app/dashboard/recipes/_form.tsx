@@ -378,12 +378,12 @@ export default function RecipeForm() {
                   } catch { setNameKana(val); }
                 }
               }}
-              className="field-input" placeholder="例: ガレットブルトンヌ" />
+              className="field-input" lang="ja" placeholder="例: ガレットブルトンヌ" inputMode="text" />
           </div>
           <div>
             <label className="field-label">品名（カナ）<span className="text-stone-400 text-xs ml-1">（品名入力後に自動入力）</span></label>
             <input type="text" value={nameKana} onChange={e => setNameKana(e.target.value)}
-              className="field-input" placeholder="例: ガレットブルトンヌ" />
+              className="field-input" lang="ja" placeholder="例: ガレットブルトンヌ" inputMode="text" />
           </div>
           <div>
             <label className="field-label">カテゴリ</label>

@@ -112,7 +112,7 @@ export async function POST(request: Request) {
         representative:     shop.representative ?? '',
         email:              shop.email ?? '',
         showPhone:          shop.showPhone ?? true,
-        showRepresentative: shop.showRepresentative ?? false,
+        showRepresentative: true,  // フロントのcheckboxで制御
         showEmail:          shop.showEmail ?? false,
       };
     }
@@ -136,7 +136,7 @@ export async function POST(request: Request) {
         representative:     s.representative ?? '',
         email:              s.email ?? '',
         showPhone:          s.showPhone ?? true,
-        showRepresentative: s.showRepresentative ?? false,
+        showRepresentative: true,  // フロントのcheckboxで制御
         showEmail:          s.showEmail ?? false,
       };
     } else {

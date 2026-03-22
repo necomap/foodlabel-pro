@@ -200,7 +200,7 @@ model Ingredient {
 
   name         String  @db.VarChar(200)
   nameKana     String? @db.VarChar(200)
-  nameSearch   String?混在対応
+  nameSearch   String?  // 全角半角かな混在対応
   
   // 成分表との対応
   nutritionId      Int?

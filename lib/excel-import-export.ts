@@ -70,7 +70,7 @@ export function parseExcelFile(buffer: ArrayBuffer): {
   const rows = XLSX.utils.sheet_to_json(sheet, {
     header: 1,
     defval: null,
-  ) as any[][];
+  }) as any[][];
 
   if (rows.length < 2) {
     errors.push({ row: 0, message: 'データが見つかりません' });

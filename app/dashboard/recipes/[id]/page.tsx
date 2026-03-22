@@ -218,15 +218,15 @@ export default function RecipeDetailPage() {
           <Wheat className="w-5 h-5 text-amber-500" />
           材料（{recipe.unitCount}個分）
         </h2>
-        <table className="table-base">
+        <table className="table-base w-full" style={{tableLayout:"fixed"}}>
           <thead>
             <tr>
-              <th>材料名</th>
-              <th className="text-right">分量</th>
-              <th className="text-right hidden sm:table-cell">原価</th>
-              <th className="text-right hidden sm:table-cell">熱量</th>
-              <th className="text-right hidden sm:table-cell">食塩相当量</th>
-              <th className="hidden sm:table-cell">アレルゲン</th>
+              <th style={{width:"30%"}}>材料名</th>
+              <th className="text-right" style={{width:"12%"}}>分量</th>
+              <th className="text-right hidden sm:table-cell" style={{width:"12%"}}>原価</th>
+              <th className="text-right hidden sm:table-cell" style={{width:"14%"}}>熱量</th>
+              <th className="text-right hidden sm:table-cell" style={{width:"14%"}}>食塩相当量</th>
+              <th className="hidden sm:table-cell" style={{width:"18%"}}>アレルゲン</th>
             </tr>
           </thead>
           <tbody>

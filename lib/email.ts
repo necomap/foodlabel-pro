@@ -1,6 +1,6 @@
 // lib/email.ts - Resendを使ったメール送信
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const FROM_EMAIL = process.env.EMAIL_FROM ?? 'FoodLabel Pro <onboarding@resend.dev>';
+const FROM_EMAIL = 'FoodLabel Pro <onboarding@resend.dev>';
 const APP_URL = process.env.NEXTAUTH_URL ?? 'https://foodlabel-pro.vercel.app';
 
 async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {

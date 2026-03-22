@@ -200,14 +200,14 @@ export async function PUT(request: Request, { params }: Params) {
 
     const allergenInfo = car(ingredientDetails.map(d => ({
       allergens: d.allergens, allergenOverride: d.ing.allergenOverride ?? [],
-      ingredientName: d.ing.name ?? '',
+      ingredientName: d.ing.ingredientNameOverride ?? d.ing.name ?? '',
     })));
     const totalNutrition = sumNutrition(ingredientDetails.map(d => ({ nutrition: d.nutrition })));
     const totalCost = ingredientDetails.reduce((s, d) => s + (d.costTotal ?? 0), 0);
     const totalWeightG = ingredients.reduce((s: number, ing: any) => s + (ing.unit === 'g' || ing.unit === 'ml' ? Number(ing.amount) : 0), 0);
     const unitCount = body.unitCount ?? 1;
     const ingredientsLabel = bil(
-      ingredientDetails.map(d => ({ ingredientName: d.ing.name, amount: Number(d.ing.amount), unit: d.ing.unit })).sort((a,b) => b.amount - a.amount),
+      ingredientDetails.map(d => ({ ingredientName: d.ing.ingredientNameOverride ?? d.ing.name ?? '', amount: Number(d.ing.amount), unit: d.ing.unit })).sort((a,b) => b.amount - a.amount),
       allergenInfo.all
     );
 
@@ -251,7 +251,7 @@ export async function PUT(request: Request, { params }: Params) {
         data: ingredientDetails.map((d, idx) => ({
           recipeId:              params.id,
           ingredientId:          d.ing.ingredientId || null,
-          ingredientNameOverride: d.ing.name,
+          ingredientNameOverride: d.ing.ingredientNameOverride ?? d.ing.name ?? '',
           amount:                Number(d.ing.amount),
           unit:                  d.ing.unit ?? 'g',
           displayOrder:          idx,

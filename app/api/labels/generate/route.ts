@@ -94,39 +94,67 @@ export async function POST(request: Request) {
   };
 
   if (shopId) {
-    const shop = await prisma.shop.findFirst({
-      where: { id: shopId, userId: session.user.id },
-    });
+    const shops = await prisma.$queryRaw`
+      SELECT "shopName", "companyName", representative, "postalCode",
+             address, phone, email, "showPhone", "showRepresentative", "showEmail"
+      FROM shops
+      WHERE id = ${shopId} AND "userId" = ${session.user.id} AND "isActive" = true
+      LIMIT 1
+    ` as any[];
+    const shop = shops[0];
     if (shop) {
       shopInfo = {
-        shopName:           shop.shopName,
-        companyName:        shop.companyName ?? shop.shopName,
+        shopName:           shop.shopName ?? '',
+        companyName:        shop.companyName ?? shop.shopName ?? '',
         postalCode:         shop.postalCode ?? '',
         address:            shop.address ?? '',
         phone:              shop.phone ?? '',
         representative:     shop.representative ?? '',
         email:              shop.email ?? '',
-        showPhone:          shop.showPhone,
-        showRepresentative: shop.showRepresentative,
-        showEmail:          shop.showEmail,
+        showPhone:          shop.showPhone ?? true,
+        showRepresentative: shop.showRepresentative ?? false,
+        showEmail:          shop.showEmail ?? false,
       };
     }
   } else {
-    // デフォルト店舗
-    const user = await prisma.user.findUnique({ where: { id: session.user.id } });
-    if (user) {
+    // デフォルト店舗またはユーザー情報
+    const defaultShops = await prisma.$queryRaw`
+      SELECT "shopName", "companyName", representative, "postalCode",
+             address, phone, email, "showPhone", "showRepresentative", "showEmail"
+      FROM shops
+      WHERE "userId" = ${session.user.id} AND "isActive" = true AND "isDefault" = true
+      LIMIT 1
+    ` as any[];
+    if (defaultShops[0]) {
+      const s = defaultShops[0];
       shopInfo = {
-        shopName:           user.companyName,
-        companyName:        user.companyName,
-        postalCode:         user.postalCode ?? '',
-        address:            user.address ?? '',
-        phone:              user.phone ?? '',
-        representative:     user.representative ?? '',
-        email:              user.email,
-        showPhone:          true,
-        showRepresentative: false,
-        showEmail:          false,
+        shopName:           s.shopName ?? '',
+        companyName:        s.companyName ?? s.shopName ?? '',
+        postalCode:         s.postalCode ?? '',
+        address:            s.address ?? '',
+        phone:              s.phone ?? '',
+        representative:     s.representative ?? '',
+        email:              s.email ?? '',
+        showPhone:          s.showPhone ?? true,
+        showRepresentative: s.showRepresentative ?? false,
+        showEmail:          s.showEmail ?? false,
       };
+    } else {
+      const user = await prisma.user.findUnique({ where: { id: session.user.id } });
+      if (user) {
+        shopInfo = {
+          shopName:           (user as any).companyName ?? '',
+          companyName:        (user as any).companyName ?? '',
+          postalCode:         (user as any).postalCode ?? '',
+          address:            (user as any).address ?? '',
+          phone:              (user as any).phone ?? '',
+          representative:     (user as any).representative ?? '',
+          email:              user.email ?? '',
+          showPhone:          true,
+          showRepresentative: false,
+          showEmail:          false,
+        };
+      }
     }
   }
 

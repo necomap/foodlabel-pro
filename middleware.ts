@@ -5,28 +5,29 @@ import { getToken } from 'next-auth/jwt';
 export async function middleware(req: NextRequest) {
   const token = await getToken({
     req,
-    secret: process.env.NEXTAUTH_SECRET,
+    secret: process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET,
+    secureCookie: process.env.NODE_ENV === 'production',
+    cookieName: process.env.NODE_ENV === 'production'
+      ? '__Secure-authjs.session-token'
+      : 'authjs.session-token',
   });
 
   const { pathname } = req.nextUrl;
   const isLoggedIn = !!token;
 
-  const publicPaths = ['/auth/', '/api/auth'];
+  const publicPaths = ['/auth/', '/api/auth', '/api/util'];
   const isPublic = publicPaths.some(p => pathname.startsWith(p));
 
-  // 未ログイン → ログインページへ
   if (!isLoggedIn && !isPublic && pathname !== '/') {
     const loginUrl = new URL('/auth/login', req.url);
     loginUrl.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // ログイン済みで認証ページ → ダッシュボードへ
   if (isLoggedIn && pathname.startsWith('/auth/')) {
     return NextResponse.redirect(new URL('/dashboard/recipes', req.url));
   }
 
-  // 管理者ページ → plan を JWT から直接チェック
   if (pathname.startsWith('/admin')) {
     const plan = token?.plan as string | undefined;
     if (plan !== 'admin') {

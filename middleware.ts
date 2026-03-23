@@ -33,6 +33,25 @@ export async function middleware(req: NextRequest) {
     if (plan !== 'admin') {
       return NextResponse.redirect(new URL('/dashboard/recipes', req.url));
     }
+    const basicPass = process.env.ADMIN_BASIC_PASS;
+    if (basicPass) {
+      const basicUser = process.env.ADMIN_BASIC_USER ?? 'admin';
+      const authHeader = req.headers.get('authorization');
+      if (!authHeader || !authHeader.startsWith('Basic ')) {
+        return new NextResponse('認証が必要です', {
+          status: 401,
+          headers: { 'WWW-Authenticate': 'Basic realm="Admin Area"' },
+        });
+      }
+      const decoded = Buffer.from(authHeader.slice(6), 'base64').toString('utf-8');
+      const [user, pass] = decoded.split(':');
+      if (user !== basicUser || pass !== basicPass) {
+        return new NextResponse('認証に失敗しました', {
+          status: 401,
+          headers: { 'WWW-Authenticate': 'Basic realm="Admin Area"' },
+        });
+      }
+    }
   }
 
   return NextResponse.next();

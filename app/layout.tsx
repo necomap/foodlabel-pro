@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Noto_Sans_JP } from 'next/font/google';
 import './globals.css';
 import { Toaster } from 'react-hot-toast';
-import { SessionProvider } from 'next-auth/react';
+import { Providers } from './providers';
 
 const notoSansJP = Noto_Sans_JP({
   subsets:  ['latin'],
@@ -21,11 +21,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ja" className={notoSansJP.variable}>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-      </head>
+        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2277926623752174" crossOrigin="anonymous"></script>
+</head>
       <body className="font-sans bg-cream-100 text-stone-800 antialiased">
-        <SessionProvider>
+        <Providers>
           {children}
-        </SessionProvider>
+        </Providers>
         <Toaster
           position="top-right"
           toastOptions={{

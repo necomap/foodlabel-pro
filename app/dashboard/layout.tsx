@@ -1,6 +1,7 @@
 // app/dashboard/layout.tsx
 import { auth } from '@/lib/auth';
 import DashboardNav from './_nav';
+import AdBanner from '@/components/AdBanner';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();

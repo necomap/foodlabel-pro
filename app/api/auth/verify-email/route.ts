@@ -8,26 +8,21 @@ export async function GET(request: Request) {
   const token = searchParams.get('token');
 
   if (!token) {
-    return NextResponse.redirect(new URL('/auth/login?error=invalid-token', request.url));
+    return NextResponse.json({ success: false, error: '無効なリンクです。' }, { status: 400 });
   }
 
   const user = await prisma.user.findFirst({
-    where: {
-      emailVerifyToken: token,
-      emailVerified:    false,
-    },
+    where: { emailVerifyToken: token, emailVerified: false },
   });
 
   if (!user) {
-    return NextResponse.redirect(new URL('/auth/login?error=invalid-token', request.url));
+    return NextResponse.json({ success: false, error: 'このリンクは無効または既に使用済みです。' }, { status: 400 });
   }
 
-  // トークン有効期限チェック
   if (user.emailVerifyExpires && user.emailVerifyExpires < new Date()) {
-    return NextResponse.redirect(new URL('/auth/login?error=token-expired', request.url));
+    return NextResponse.json({ success: false, error: 'リンクの有効期限が切れています。再度登録してください。' }, { status: 400 });
   }
 
-  // 認証完了
   await prisma.user.update({
     where: { id: user.id },
     data: {
@@ -37,8 +32,7 @@ export async function GET(request: Request) {
     },
   });
 
-  // ウェルカムメール送信
   await sendWelcomeEmail(user.email, user.companyName ?? '');
 
-  return NextResponse.redirect(new URL('/auth/login?message=メールアドレスの認証が完了しました。ログインしてください。', request.url));
+  return NextResponse.json({ success: true });
 }

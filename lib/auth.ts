@@ -31,6 +31,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           throw new Error('メールアドレスまたはパスワードが違います');
         }
 
+        // アカウントロックチェック
+        const now = new Date();
+        if (user.loginLockedUntil && user.loginLockedUntil > now) {
+          const remainMin = Math.ceil((user.loginLockedUntil.getTime() - now.getTime()) / 60000);
+          throw new Error(`アカウントがロックされています。${remainMin}分後に再試行してください。`);
+        }
+
         if (!user.emailVerified) {
           throw new Error('メール認証が完了していません。認証メールをご確認ください。');
         }

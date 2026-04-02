@@ -23,9 +23,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           throw new Error('メールアドレスとパスワードを入力してください');
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string },
-        });
+        const users = await prisma.$queryRaw`
+          SELECT id, email, "passwordHash", "emailVerified", "isActive",
+                 plan, "companyName", "loginFailCount", "loginLockedUntil"
+          FROM users WHERE email = ${credentials.email as string} LIMIT 1
+        ` as any[];
+        const user = users[0];
 
         if (!user) {
           throw new Error('メールアドレスまたはパスワードが違います');
@@ -33,12 +36,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         // アカウントロックチェック
         const now = new Date();
-        if (user.loginLockedUntil && user.loginLockedUntil > now) {
-          const remainMin = Math.ceil((user.loginLockedUntil.getTime() - now.getTime()) / 60000);
+        if (user.loginLockedUntil && new Date(user.loginLockedUntil) > now) {
+          const remainMin = Math.ceil((new Date(user.loginLockedUntil).getTime() - now.getTime()) / 60000);
           throw new Error(`アカウントがロックされています。${remainMin}分後に再試行してください。`);
         }
 
-        if (!user.emailVerified) {
+        if (!user.emailVerified && user.emailVerified !== true) {
           throw new Error('メール認証が完了していません。認証メールをご確認ください。');
         }
 
@@ -59,7 +62,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           id:          user.id,
           email:       user.email,
           name:        user.companyName,
-          plan:        user.plan as UserPlan,
+          plan:        (user.plan ?? 'free') as UserPlan,
         };
       },
     }),

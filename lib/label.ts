@@ -240,7 +240,7 @@ export function generateLabelHtml(
 <meta charset="UTF-8">
 <style>
   @page { margin: 0; size: ${width}mm auto; }
-  body { margin: 0; padding: 0; overflow: hidden; }
+  body { margin: 0; padding: 0; } html, body { height: auto !important; }
   .label { break-after: page; }
   .label:last-child { break-after: avoid; page-break-after: avoid; }
   @media print { * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
@@ -293,7 +293,7 @@ export function generateLabelHtml(
 <meta charset="UTF-8">
 <style>
   @page { margin: 0; size: A4; }
-  body { margin: 0; padding: 0; overflow: hidden; }
+  body { margin: 0; padding: 0; } html, body { height: auto !important; }
   .page:last-child { page-break-after: avoid; }
   @media print { * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 </style>

@@ -215,13 +215,13 @@ export default function LabelsPage() {
             </div>
             <div>
               <label className="field-label">賞味/消費期限（日数）</label>
-              <input type="number" value={shelfOverride} onChange={e => setShelfOverride(e.target.value)}
+              <input type="text" inputMode="numeric" pattern="[0-9]*" value={shelfOverride} onChange={e => setShelfOverride(e.target.value)}
                 className="field-input" placeholder="レシピ設定値を使用" min="0" />
               <p className="field-hint">空欄の場合はレシピの設定値を使用</p>
             </div>
             <div>
               <label className="field-label">印刷枚数</label>
-              <input type="number" value={printCount} onChange={e => setPrintCount(e.target.value)}
+              <input type="text" inputMode="numeric" pattern="[0-9]*" value={printCount} onChange={e => setPrintCount(e.target.value)}
                 className="field-input" min="1" max="200" />
             </div>
           </div>
@@ -238,7 +238,7 @@ export default function LabelsPage() {
             </div>
             <div>
               <label className="field-label">フォントサイズ（pt）</label>
-              <input type="number" value={fontSizePt} onChange={e => setFontSizePt(e.target.value)}
+              <input type="text" inputMode="numeric" pattern="[0-9]*" value={fontSizePt} onChange={e => setFontSizePt(e.target.value)}
                 className="field-input" min="6" max="12" step="0.5" />
               <p className="field-hint">規定値: 8pt（最小: 6pt ※貼付面が小さい場合のみ）</p>
             </div>
@@ -247,11 +247,11 @@ export default function LabelsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="field-label">シール幅（mm）</label>
-                  <input type="number" value={labelW} onChange={e => setLabelW(e.target.value)} className="field-input" />
+                  <input type="text" inputMode="numeric" pattern="[0-9]*" value={labelW} onChange={e => setLabelW(e.target.value)} className="field-input" />
                 </div>
                 <div>
                   <label className="field-label">シール高さ（mm）</label>
-                  <input type="number" value={labelH} onChange={e => setLabelH(e.target.value)} className="field-input" />
+                  <input type="text" inputMode="numeric" pattern="[0-9]*" value={labelH} onChange={e => setLabelH(e.target.value)} className="field-input" />
                 </div>
               </div>
             ) : (
@@ -259,26 +259,26 @@ export default function LabelsPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="field-label">横（列数）</label>
-                    <input type="number" value={a4Cols} onChange={e => setA4Cols(e.target.value)} className="field-input" min="1" max="6" />
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={a4Cols} onChange={e => setA4Cols(e.target.value)} className="field-input" min="1" max="6" />
                   </div>
                   <div>
                     <label className="field-label">縦（行数）</label>
-                    <input type="number" value={a4Rows} onChange={e => setA4Rows(e.target.value)} className="field-input" min="1" max="10" />
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={a4Rows} onChange={e => setA4Rows(e.target.value)} className="field-input" min="1" max="10" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="field-label">上余白（mm）</label>
-                    <input type="number" value={marginT} onChange={e => setMarginT(e.target.value)} className="field-input" />
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={marginT} onChange={e => setMarginT(e.target.value)} className="field-input" />
                   </div>
                   <div>
                     <label className="field-label">左余白（mm）</label>
-                    <input type="number" value={marginL} onChange={e => setMarginL(e.target.value)} className="field-input" />
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={marginL} onChange={e => setMarginL(e.target.value)} className="field-input" />
                   </div>
                 </div>
                 <div>
                   <label className="field-label">印刷開始位置</label>
-                  <input type="number" value={startPos} onChange={e => setStartPos(e.target.value)}
+                  <input type="text" inputMode="numeric" pattern="[0-9]*" value={startPos} onChange={e => setStartPos(e.target.value)}
                     className="field-input" min="1" placeholder="1（左上から）" />
                   <p className="field-hint">使用済みシール用紙を使う場合に指定</p>
                 </div>

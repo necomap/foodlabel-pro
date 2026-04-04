@@ -24,7 +24,7 @@ export default function RootPage() {
       {/* ヒーロー */}
       <section className="text-center px-4 py-16 max-w-3xl mx-auto">
         <div className="inline-flex items-center gap-2 bg-brand-100 text-brand-700 px-4 py-1.5 rounded-full text-sm font-medium mb-6">
-          <Star className="w-4 h-4" />製菓・製パン店向けSaaS
+          <Star className="w-4 h-4" />食品販売事業者向けSaaS
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold text-stone-800 font-display leading-tight mb-4">
           食品成分表示ラベルを<br />かんたんに管理

@@ -16,6 +16,8 @@ export default function RootPage() {
           <span className="font-bold text-stone-800 font-display">FoodLabel Pro</span>
         </div>
         <div className="flex items-center gap-3">
+          <Link href="/about" className="text-sm text-stone-600 hover:text-stone-800 hidden sm:block">サービス紹介</Link>
+          <Link href="/features" className="text-sm text-stone-600 hover:text-stone-800 hidden sm:block">機能一覧</Link>
           <Link href="/help" className="text-sm text-stone-600 hover:text-stone-800 hidden sm:block">よくある質問</Link>
           <Link href="/auth/login" className="text-sm text-stone-600 hover:text-stone-800">ログイン</Link>
           <Link href="/auth/register" className="btn-primary text-sm">無料で始める</Link>
@@ -125,6 +127,8 @@ export default function RootPage() {
       <p>サービス提供：決済完了後すぐにご利用いただけます。</p>
         <p>© 2026 FoodLabel Pro（Bummeln）</p>
         <div className="flex justify-center gap-4">
+          <Link href="/about" className="hover:text-stone-600">サービス紹介</Link>
+          <Link href="/features" className="hover:text-stone-600">機能一覧</Link>
           <Link href="/help" className="hover:text-stone-600">よくある質問</Link>
           <Link href="/terms" className="hover:text-stone-600">利用規約</Link>
           <Link href="/privacy" className="hover:text-stone-600">プライバシーポリシー</Link>

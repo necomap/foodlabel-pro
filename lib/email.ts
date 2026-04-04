@@ -1,4 +1,4 @@
-// lib/email.ts - Gmail SMTPを使ったメール送信
+﻿// lib/email.ts - Gmail SMTPを使ったメール送信
 import nodemailer from 'nodemailer';
 
 const APP_URL = process.env.NEXTAUTH_URL ?? 'https://foodlabel-pro.vercel.app';
@@ -27,8 +27,10 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
       html,
     });
     return true;
-  } catch (err) {
-    console.error('Email send error:', err);
+
+  } catch (err: any) {
+    console.error('Email send error:', err?.message ?? err);
+    console.error('Gmail user:', process.env.GMAIL_USER);
     return false;
   }
 }

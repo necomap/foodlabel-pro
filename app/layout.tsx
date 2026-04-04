@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+﻿import type { Metadata } from 'next';
 import { Noto_Sans_JP } from 'next/font/google';
 import './globals.css';
 import { Toaster } from 'react-hot-toast';
@@ -36,11 +36,6 @@ export const metadata: Metadata = {
   alternates: {
     canonical: 'https://foodlabel.lucke.jp',
   },
-};
-
-export const metadata: Metadata = {
-  title:       'FoodLabel Pro',
-  description: '成分表示ラベル管理システム',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -156,6 +156,7 @@ export function generateLabelHtml(
   box-sizing: border-box;
   break-inside: avoid;
   page-break-inside: avoid;
+  break-after: avoid;
 ">
   <!-- 品名 -->
   <div style="font-weight:bold; font-size:${Math.round(fontSize * 1.1)}pt; border-bottom:0.3mm solid #ccc; margin-bottom:1mm; padding-bottom:0.5mm;">
@@ -239,9 +240,9 @@ export function generateLabelHtml(
 <meta charset="UTF-8">
 <style>
   @page { margin: 0; size: ${width}mm auto; }
-  body { margin: 0; padding: 0; }
-  .label { page-break-after: always; }
-  .label:last-child { page-break-after: avoid; }
+  body { margin: 0; padding: 0; overflow: hidden; }
+  .label { break-after: page; }
+  .label:last-child { break-after: avoid; page-break-after: avoid; }
   @media print { * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 </style>
 </head>
@@ -292,7 +293,7 @@ export function generateLabelHtml(
 <meta charset="UTF-8">
 <style>
   @page { margin: 0; size: A4; }
-  body { margin: 0; padding: 0; }
+  body { margin: 0; padding: 0; overflow: hidden; }
   .page:last-child { page-break-after: avoid; }
   @media print { * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 </style>

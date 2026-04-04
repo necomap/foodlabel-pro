@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // lib/auth.ts - NextAuth.js v5 設定
 // ============================================================
 
@@ -41,7 +41,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           throw new Error(`アカウントがロックされています。${remainMin}分後に再試行してください。`);
         }
 
-        if (!user.emailVerified && user.emailVerified !== true) {
+        if (!user.emailVerified) {
           throw new Error('メール認証が完了していません。認証メールをご確認ください。');
         }
 

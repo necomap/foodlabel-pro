@@ -5,6 +5,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
+import { getPlanLimits } from '@/lib/plan-limits';
 import { prisma } from '@/lib/db';
 import { generateLabelContent, generateLabelHtml, getDefaultDisplaySettings } from '@/lib/label';
 import { buildIngredientsLabel, collectRecipeAllergens } from '@/lib/allergen';
@@ -47,6 +48,30 @@ const labelConfigSchema = z.object({
 export async function POST(request: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ success: false, error: '認証が必要です' }, { status: 401 });
+
+  // フリープランの印刷制限チェック
+  const limits = getPlanLimits(session.user.plan ?? 'free');
+  if (limits.maxLabelPrints !== Infinity) {
+    const now = new Date();
+    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const printCounts = await prisma.$queryRaw`
+      SELECT COALESCE(SUM("printCount"), 0) as total
+      FROM label_print_logs
+      WHERE "userId" = ${session.user.id}
+      AND "createdAt" >= ${firstOfMonth}
+    ` as any[];
+    const monthlyCount = Number(printCounts[0]?.total ?? 0);
+    const printCount = body?.printCount ?? 1;
+    if (monthlyCount + printCount > limits.maxLabelPrints) {
+      return NextResponse.json({
+        success: false,
+        error: `フリープランの月間印刷上限（${limits.maxLabelPrints}枚）に達しました。プレミアムプランにアップグレードしてください。`,
+        upgradeRequired: true,
+        currentCount: monthlyCount,
+        limit: limits.maxLabelPrints,
+      }, { status: 403 });
+    }
+  }
 
   const body   = await request.json();
   const result = labelConfigSchema.safeParse(body);
@@ -288,6 +313,14 @@ export async function POST(request: Request) {
     qc: recipeDetail.qualityControl,
     pc: recipeDetail.printComment,
   }));
+
+  // 印刷ログを記録（エラーは無視）
+  try {
+    await prisma.$executeRaw`
+      INSERT INTO label_print_logs ("userId", "recipeId", "printCount", "createdAt")
+      VALUES (${session.user.id}, ${body.recipeId}, ${body.printCount ?? 1}, NOW())
+    `;
+  } catch (e) { console.warn('print log error:', e); }
 
   return NextResponse.json({
     success: true,

@@ -61,7 +61,7 @@ export async function POST(request: Request) {
       AND "createdAt" >= ${firstOfMonth}
     ` as any[];
     const monthlyCount = Number(printCounts[0]?.total ?? 0);
-    const printCount = body?.printCount ?? 1;
+    const printCount = 1; // bodyはまだ未宣言のためデフォルト1
     if (monthlyCount + printCount > limits.maxLabelPrints) {
       return NextResponse.json({
         success: false,
@@ -316,9 +316,10 @@ export async function POST(request: Request) {
 
   // 印刷ログを記録（エラーは無視）
   try {
+    const actualPrintCount = body.printCount ?? 1;
     await prisma.$executeRaw`
       INSERT INTO label_print_logs ("userId", "recipeId", "printCount", "createdAt")
-      VALUES (${session.user.id}, ${body.recipeId}, ${body.printCount ?? 1}, NOW())
+      VALUES (${session.user.id}, ${body.recipeId}, ${actualPrintCount}, NOW())
     `;
   } catch (e) { console.warn('print log error:', e); }
 

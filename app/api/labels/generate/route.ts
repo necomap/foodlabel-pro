@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // app/api/labels/generate/route.ts - シール生成API
 // ============================================================
 
@@ -52,6 +52,27 @@ export async function POST(request: Request) {
 
 
   const body   = await request.json();
+  // フリープランの印刷制限チェック
+  const limits = getPlanLimits(session.user.plan ?? 'free');
+  if (limits.maxLabelPrints !== Infinity) {
+    const now = new Date();
+    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const printCounts = await prisma.$queryRaw`
+      SELECT COALESCE(SUM("printCount"), 0) as total
+      FROM label_print_logs
+      WHERE "userId" = ${session.user.id}
+      AND "createdAt" >= ${firstOfMonth}
+    ` as any[];
+    const monthlyCount = Number(printCounts[0]?.total ?? 0);
+    const requestedCount = body.printCount ?? 1;
+    if (monthlyCount + requestedCount > limits.maxLabelPrints) {
+      return NextResponse.json({
+        success: false,
+        error: `フリープランの月間印刷上限（${limits.maxLabelPrints}枚）に達しました。プレミアムプランにアップグレードしてください。`,
+        upgradeRequired: true,
+      }, { status: 403 });
+    }
+  }
   const result = labelConfigSchema.safeParse(body);
   if (!result.success) {
     return NextResponse.json(

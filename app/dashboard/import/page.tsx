@@ -35,7 +35,20 @@ export default function ImportExportPage() {
     try {
       const params = new URLSearchParams({ nutrition: String(exportOpts.includeNutrition), steps: String(exportOpts.includeSteps), cost: String(exportOpts.includeCost) });
       const res = await fetch(`/api/import-export?${params}`);
-      if (!res.ok) { toast.error('エクスポートに失敗しました'); return; }
+      if (!res.ok) {
+        try {
+          const errData = await res.json();
+          if (errData.upgradeRequired) {
+            toast.error('Excelエクスポートはプレミアムプランの機能です。アップグレードしてください。');
+            window.location.href = '/dashboard/upgrade';
+          } else {
+            toast.error(errData.error ?? 'エクスポートに失敗しました');
+          }
+        } catch {
+          toast.error('エクスポートに失敗しました');
+        }
+        return;
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const filename = res.headers.get('Content-Disposition')?.match(/filename\*=UTF-8''(.+)/)?.[1] ?? 'foodlabel_export.xlsx';

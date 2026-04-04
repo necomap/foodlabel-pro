@@ -6,6 +6,7 @@ import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import { compare } from 'bcryptjs';
 import { prisma } from '@/lib/db';
+import { sendLoginNotificationEmail } from '@/lib/email';
 import type { UserPlan } from '@/types';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -57,6 +58,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (!isValid) {
           throw new Error('メールアドレスまたはパスワードが違います');
         }
+
+        // ログイン成功通知メール（非同期・失敗しても無視）
+        const ip = 'unknown';
+        sendLoginNotificationEmail(user.email, ip).catch(() => {});
 
         return {
           id:          user.id,

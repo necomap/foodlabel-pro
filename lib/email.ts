@@ -46,3 +46,10 @@ export async function sendWelcomeEmail(email: string, name: string): Promise<boo
   const html = `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;"><h2 style="color:#d4891f;">FoodLabel Proへようこそ！</h2><p>${name ?? 'ユーザー'}様、ご登録ありがとうございます。</p><a href="${APP_URL}/dashboard/recipes" style="display:inline-block;background:#d4891f;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0;">ダッシュボードを開く</a><p style="color:#999;font-size:12px;">FoodLabel Pro（Bummeln）</p></div>`;
   return sendEmail(email, '【FoodLabel Pro】ご登録ありがとうございます', html);
 }
+
+export async function sendLoginNotificationEmail(email: string, ipAddress: string): Promise<boolean> {
+  const now = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
+  const APP_URL_LOCAL = process.env.NEXTAUTH_URL ?? 'https://foodlabel.lucke.jp';
+  const html = `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;"><h2 style="color:#d4891f;">FoodLabel Pro</h2><p>お使いのアカウントに新しいログインがありました。</p><table style="width:100%;border-collapse:collapse;margin:16px 0;"><tr><td style="padding:8px;border:1px solid #eee;background:#f9f9f9;font-weight:bold;">日時</td><td style="padding:8px;border:1px solid #eee;">${now}</td></tr><tr><td style="padding:8px;border:1px solid #eee;background:#f9f9f9;font-weight:bold;">IPアドレス</td><td style="padding:8px;border:1px solid #eee;">${ipAddress}</td></tr></table><p style="color:#e74c3c;font-size:13px;">心当たりがない場合はすぐにパスワードを変更してください。</p><a href="${APP_URL_LOCAL}/auth/forgot-password" style="display:inline-block;background:#e74c3c;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold;">パスワードを変更する</a></div>`;
+  return sendEmail(email, '【FoodLabel Pro】新しいログインがありました', html);
+}

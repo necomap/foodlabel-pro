@@ -1,36 +1,31 @@
-﻿// lib/email.ts - Gmail SMTPを使ったメール送信
-import nodemailer from 'nodemailer';
-
-const APP_URL = process.env.NEXTAUTH_URL ?? 'https://foodlabel-pro.vercel.app';
-
-function createTransporter() {
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD,
-    },
-  });
-}
+// lib/email.ts - Resendを使ったメール送信
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const FROM_EMAIL = process.env.EMAIL_FROM ?? 'FoodLabel Pro <noreply@lucke.jp>';
+const APP_URL = process.env.NEXTAUTH_URL ?? 'https://foodlabel.lucke.jp';
 
 async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+  if (!RESEND_API_KEY) {
     console.log(`[DEV] Email to ${to}: ${subject}`);
     return true;
   }
   try {
-    const transporter = createTransporter();
-    await transporter.sendMail({
-      from: `FoodLabel Pro <${process.env.GMAIL_USER}>`,
-      to,
-      subject,
-      html,
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
     });
+    const data = await res.json();
+    if (!res.ok) {
+      console.error('Resend error:', JSON.stringify(data));
+      return false;
+    }
+    console.log('Email sent:', data.id);
     return true;
-
-  } catch (err: any) {
-    console.error('Email send error:', err?.message ?? err);
-    console.error('Gmail user:', process.env.GMAIL_USER);
+  } catch (err) {
+    console.error('Email send error:', err);
     return false;
   }
 }
@@ -43,11 +38,11 @@ export async function sendVerificationEmail(email: string, token: string): Promi
 
 export async function sendPasswordResetEmail(email: string, token: string): Promise<boolean> {
   const resetUrl = `${APP_URL}/auth/reset-password?token=${token}`;
-  const html = `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;"><h2 style="color:#d4891f;">FoodLabel Pro</h2><p>パスワードリセットのリクエストを受け付けました。</p><a href="${resetUrl}" style="display:inline-block;background:#d4891f;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0;">パスワードを再設定する</a><p style="color:#999;font-size:12px;">このリンクは1時間有効です。</p></div>`;
+  const html = `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;"><h2 style="color:#d4891f;">FoodLabel Pro</h2><p>パスワードリセットのリクエストを受け付けました。</p><a href="${resetUrl}" style="display:inline-block;background:#d4891f;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0;">パスワードを再設定する</a><p style="color:#999;font-size:12px;">このリンクは1時間有効です。</p><p style="color:#999;font-size:12px;">心当たりがない場合は無視してください。</p></div>`;
   return sendEmail(email, '【FoodLabel Pro】パスワードリセット', html);
 }
 
 export async function sendWelcomeEmail(email: string, name: string): Promise<boolean> {
-  const html = `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;"><h2 style="color:#d4891f;">FoodLabel Proへようこそ！</h2><p>${name ?? 'ユーザー'}様、ご登録ありがとうございます。</p><a href="${APP_URL}/dashboard/recipes" style="display:inline-block;background:#d4891f;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0;">ダッシュボードを開く</a></div>`;
+  const html = `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;"><h2 style="color:#d4891f;">FoodLabel Proへようこそ！</h2><p>${name ?? 'ユーザー'}様、ご登録ありがとうございます。</p><a href="${APP_URL}/dashboard/recipes" style="display:inline-block;background:#d4891f;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0;">ダッシュボードを開く</a><p style="color:#999;font-size:12px;">FoodLabel Pro（Bummeln）</p></div>`;
   return sendEmail(email, '【FoodLabel Pro】ご登録ありがとうございます', html);
 }

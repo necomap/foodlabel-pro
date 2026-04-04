@@ -99,6 +99,9 @@ export default function RootPage() {
 
       {/* フッター */}
       <footer className="text-center py-8 text-xs text-stone-400 space-y-2">
+      <p>お問い合わせ：info.lucke@gmail.com</p>
+      <p>返金ポリシー：解約後は当月末まで利用可能。原則返金不可。</p>
+      <p>サービス提供：決済完了後すぐにご利用いただけます。</p>
         <p>© 2026 FoodLabel Pro（Bummeln）</p>
         <div className="flex justify-center gap-4">
           <Link href="/terms" className="hover:text-stone-600">利用規約</Link>

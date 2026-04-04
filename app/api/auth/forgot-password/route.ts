@@ -8,7 +8,10 @@ export async function POST(request: Request) {
   const { email } = await request.json();
   if (!email) return NextResponse.json({ success: false, error: 'メールアドレスを入力してください' }, { status: 400 });
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  const users = await prisma.$queryRaw`
+    SELECT id FROM users WHERE email = ${email} LIMIT 1
+  ` as any[];
+  const user = users[0];
 
   // セキュリティのため、ユーザーが存在しない場合も同じレスポンスを返す
   if (!user) {
@@ -16,17 +19,17 @@ export async function POST(request: Request) {
   }
 
   const token   = randomBytes(32).toString('hex');
-  const expires = new Date(Date.now() + 60 * 60 * 1000); // 1時間
+  const expires = new Date(Date.now() + 60 * 60 * 1000);
 
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      passwordResetToken:   token,
-      passwordResetExpires: expires,
-    },
-  });
+  await prisma.$executeRaw`
+    UPDATE users SET
+      "passwordResetToken" = ${token},
+      "passwordResetExpires" = ${expires}
+    WHERE id = ${user.id}
+  `;
 
-  await sendPasswordResetEmail(email, token);
+  const sent = await sendPasswordResetEmail(email, token);
+  console.log('Password reset email sent:', sent, 'to:', email);
 
   return NextResponse.json({ success: true, message: 'パスワードリセットメールを送信しました' });
 }

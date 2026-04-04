@@ -16,6 +16,7 @@ export default function RootPage() {
           <span className="font-bold text-stone-800 font-display">FoodLabel Pro</span>
         </div>
         <div className="flex items-center gap-3">
+          <Link href="/help" className="text-sm text-stone-600 hover:text-stone-800 hidden sm:block">よくある質問</Link>
           <Link href="/auth/login" className="text-sm text-stone-600 hover:text-stone-800">ログイン</Link>
           <Link href="/auth/register" className="btn-primary text-sm">無料で始める</Link>
         </div>
@@ -65,6 +66,26 @@ export default function RootPage() {
         </div>
       </section>
 
+      {/* 使い方 */}
+      <section className="px-4 py-12 max-w-4xl mx-auto">
+        <h2 className="text-2xl font-bold text-center text-stone-800 font-display mb-8">かんたん3ステップ</h2>
+        <div className="grid sm:grid-cols-3 gap-6">
+          {[
+            { step: '1', title: '食材を登録', desc: '使用する食材をマスタに登録。文科省の成分表データから栄養成分を自動取得できます。' },
+            { step: '2', title: 'レシピを作成', desc: '食材と分量を入力するだけ。アレルゲンと栄養成分が自動で計算されます。' },
+            { step: '3', title: 'シールを印刷', desc: '食品表示法に対応したラベルをその場で印刷。ラベルプリンターとA4用紙に対応。' },
+          ].map(s => (
+            <div key={s.step} className="card text-center">
+              <div className="w-10 h-10 bg-brand-500 text-white rounded-full flex items-center justify-center mx-auto mb-3 font-bold text-lg">
+                {s.step}
+              </div>
+              <h3 className="font-semibold text-stone-800 mb-2">{s.title}</h3>
+              <p className="text-stone-500 text-sm leading-relaxed">{s.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* 料金 */}
       <section className="px-4 py-12 max-w-3xl mx-auto">
         <h2 className="text-2xl font-bold text-center text-stone-800 font-display mb-8">シンプルな料金プラン</h2>
@@ -104,6 +125,7 @@ export default function RootPage() {
       <p>サービス提供：決済完了後すぐにご利用いただけます。</p>
         <p>© 2026 FoodLabel Pro（Bummeln）</p>
         <div className="flex justify-center gap-4">
+          <Link href="/help" className="hover:text-stone-600">よくある質問</Link>
           <Link href="/terms" className="hover:text-stone-600">利用規約</Link>
           <Link href="/privacy" className="hover:text-stone-600">プライバシーポリシー</Link>
           <Link href="/legal" className="hover:text-stone-600">特定商取引法</Link>

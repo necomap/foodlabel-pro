@@ -12,6 +12,33 @@ const notoSansJP = Noto_Sans_JP({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://foodlabel.lucke.jp'),
+  title: {
+    default: 'FoodLabel Pro | 食品成分表示ラベル管理システム',
+    template: '%s | FoodLabel Pro',
+  },
+  description: '製菓・製パン・総菜・弁当など食品を販売するすべての事業者向けの食品成分表示ラベル管理システム。アレルゲン自動判定・栄養成分計算・シール印刷まで対応。月額980円から。',
+  keywords: ['食品表示', 'ラベル印刷', 'アレルゲン', '栄養成分', '食品表示法', '製菓', '製パン', '惣菜', '弁当', '食品ラベル', 'シール印刷'],
+  authors: [{ name: 'Bummeln' }],
+  openGraph: {
+    title: 'FoodLabel Pro | 食品成分表示ラベル管理システム',
+    description: '食品を販売するすべての事業者向けの食品成分表示ラベル管理システム。アレルゲン自動判定・栄養成分計算・シール印刷に対応。',
+    url: 'https://foodlabel.lucke.jp',
+    siteName: 'FoodLabel Pro',
+    locale: 'ja_JP',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'FoodLabel Pro | 食品成分表示ラベル管理システム',
+    description: '食品を販売するすべての事業者向けの食品成分表示ラベル管理システム。',
+  },
+  alternates: {
+    canonical: 'https://foodlabel.lucke.jp',
+  },
+};
+
+export const metadata: Metadata = {
   title:       'FoodLabel Pro',
   description: '成分表示ラベル管理システム',
 };

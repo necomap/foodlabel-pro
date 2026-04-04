@@ -251,38 +251,37 @@ export function generateLabelHtml(
   }
 
   // A4プリンタ用：グリッドレイアウト
-  const cols = config.a4Cols ?? 3;
-  const rows = config.a4Rows ?? 5;
+  const cols      = config.a4Cols ?? 3;
+  const rows      = config.a4Rows ?? 5;
   const labelsPerPage = cols * rows;
-  const startPos = (config.startPosition ?? 1) - 1;
-  const marginTop = config.marginTopMm ?? 10;
+  const startPos  = (config.startPosition ?? 1) - 1;
+  const marginTop    = config.marginTopMm    ?? 10;
   const marginBottom = config.marginBottomMm ?? 10;
-  const marginLeft = config.marginLeftMm ?? 10;
-  const marginRight = config.marginRightMm ?? 10;
+  const marginLeft   = config.marginLeftMm   ?? 10;
+  const marginRight  = config.marginRightMm  ?? 10;
 
-  // 全シール（startPositionまでの空白 + 実シール）
+  // A4印刷領域からシールセルサイズを自動計算
+  const printAreaW = 210 - marginLeft - marginRight;
+  const printAreaH = 297 - marginTop  - marginBottom;
+  const cellW = Math.floor((printAreaW / cols) * 10) / 10;
+  const cellH = Math.floor((printAreaH / rows) * 10) / 10;
+
   const totalSlots = startPos + config.printCount;
-  const pages = Math.ceil(totalSlots / labelsPerPage);
+  const pages      = Math.ceil(totalSlots / labelsPerPage);
+
+  // ラベルHTMLをセルサイズに合わせて調整
+  const cellLabel = singleLabel
+    .replace(`width: ${width}mm`, `width: ${cellW}mm`)
+    .replace(`min-height: ${height}mm`, `height: ${cellH}mm`);
+
   let gridHtml = '';
-
   for (let p = 0; p < pages; p++) {
-    gridHtml += `<div class="page" style="
-      display:grid;
-      grid-template-columns: repeat(${cols}, ${width}mm);
-      grid-template-rows: repeat(${rows}, auto);
-      padding: ${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm;
-      width: 210mm;
-      box-sizing: border-box;
-      page-break-after: always;
-    ">`;
-
+    const isLastPage = p === pages - 1;
+    gridHtml += `<div style="display:grid;grid-template-columns:repeat(${cols},${cellW}mm);grid-template-rows:repeat(${rows},${cellH}mm);width:210mm;height:297mm;padding:${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm;box-sizing:border-box;overflow:hidden;${isLastPage ? '' : 'page-break-after:always;'}">`;
     for (let i = 0; i < labelsPerPage; i++) {
       const slot = p * labelsPerPage + i;
-      if (slot < startPos || slot >= startPos + config.printCount) {
-        gridHtml += `<div style="width:${width}mm; min-height:${height}mm;"></div>`;
-      } else {
-        gridHtml += singleLabel;
-      }
+      const isEmpty = slot < startPos || slot >= startPos + config.printCount;
+      gridHtml += `<div style="width:${cellW}mm;height:${cellH}mm;overflow:hidden;box-sizing:border-box;">${isEmpty ? '' : cellLabel}</div>`;
     }
     gridHtml += '</div>';
   }
@@ -292,9 +291,9 @@ export function generateLabelHtml(
 <head>
 <meta charset="UTF-8">
 <style>
-  @page { margin: 0; size: A4; }
-  body { margin: 0; padding: 0; } html, body { height: auto !important; }
-  .page:last-child { page-break-after: avoid; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  @page { margin: 0; size: A4 portrait; }
+  html, body { width: 210mm; height: auto; margin: 0; padding: 0; background: white; }
   @media print { * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 </style>
 </head>

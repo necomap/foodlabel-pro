@@ -186,6 +186,8 @@ export interface LabelConfig {
   marginLeftMm?:   number;
   marginRightMm?:  number;
   startPosition?:  number;
+  a4SealWidthMm?:  number;
+  a4SealHeightMm?: number;
   // 表示設定
   displaySettings?: LabelDisplaySettings;
 }

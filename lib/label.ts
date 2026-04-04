@@ -260,11 +260,13 @@ export function generateLabelHtml(
   const marginLeft   = config.marginLeftMm   ?? 10;
   const marginRight  = config.marginRightMm  ?? 10;
 
-  // A4印刷領域からシールセルサイズを自動計算
+  // シールサイズ：指定があればそれを使用、なければ印刷領域から自動計算
   const printAreaW = 210 - marginLeft - marginRight;
   const printAreaH = 297 - marginTop  - marginBottom;
-  const cellW = Math.floor((printAreaW / cols) * 10) / 10;
-  const cellH = Math.floor((printAreaH / rows) * 10) / 10;
+  const autoCellW  = Math.floor((printAreaW / cols) * 10) / 10;
+  const autoCellH  = Math.floor((printAreaH / rows) * 10) / 10;
+  const cellW = (config as any).a4SealWidthMm  ?? autoCellW;
+  const cellH = (config as any).a4SealHeightMm ?? autoCellH;
 
   const totalSlots = startPos + config.printCount;
   const pages      = Math.ceil(totalSlots / labelsPerPage);
@@ -277,7 +279,7 @@ export function generateLabelHtml(
   let gridHtml = '';
   for (let p = 0; p < pages; p++) {
     const isLastPage = p === pages - 1;
-    gridHtml += `<div style="display:grid;grid-template-columns:repeat(${cols},${cellW}mm);grid-template-rows:repeat(${rows},${cellH}mm);width:210mm;height:297mm;padding:${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm;box-sizing:border-box;overflow:hidden;${isLastPage ? '' : 'page-break-after:always;'}">`;
+    gridHtml += `<div style="display:grid;grid-template-columns:repeat(${cols},${cellW}mm);grid-template-rows:repeat(${rows},${cellH}mm);width:210mm;height:297mm;padding:${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm;box-sizing:border-box;${isLastPage ? '' : 'page-break-after:always;'}">`;
     for (let i = 0; i < labelsPerPage; i++) {
       const slot = p * labelsPerPage + i;
       const isEmpty = slot < startPos || slot >= startPos + config.printCount;

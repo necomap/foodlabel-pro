@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // app/dashboard/labels/page.tsx - シール印刷ページ
 // ============================================================
 'use client';
@@ -83,6 +83,11 @@ export default function LabelsPage() {
   const [marginL,  setMarginL]  = useState('10');
   const [marginR,  setMarginR]  = useState('10');
   const [startPos, setStartPos] = useState('1');
+  // A4 シールサイズ（指定時はセルサイズより優先）
+  const [a4SealW,  setA4SealW]  = useState('');
+  const [a4SealH,  setA4SealH]  = useState('');
+  // 栄養成分表示
+  const [showNutrition, setShowNutrition] = useState(() => loadBool('showNutrition', true));
   // 表示設定
   const loadBool = (key: string, def: boolean) => {
     if (typeof window === 'undefined') return def;
@@ -145,6 +150,8 @@ export default function LabelsPage() {
           marginLeftMm: parseFloat(marginL),
           marginRightMm: parseFloat(marginR),
           startPosition: parseInt(startPos) || 1,
+          a4SealWidthMm:  a4SealW ? parseFloat(a4SealW) : undefined,
+          a4SealHeightMm: a4SealH ? parseFloat(a4SealH) : undefined,
         }),
         displaySettings: {
           showPhone, showRepresentative: showRep, showEmail: false,
@@ -265,6 +272,16 @@ export default function LabelsPage() {
                     <label className="field-label">縦（行数）</label>
                     <input type="text" inputMode="numeric" pattern="[0-9]*" value={a4Rows} onChange={e => setA4Rows(e.target.value)} className="field-input" min="1" max="10" />
                   </div>
+                </div>
+　　　　　　　　<div>
+                  <label className="field-label">シール1枚のサイズ（任意・mm）</label>
+                  <div className="flex items-center gap-2">
+                    <input type="text" inputMode="decimal" value={a4SealW} onChange={e => setA4SealW(e.target.value)} className="field-input" placeholder="幅" />
+                    <span className="text-stone-400 text-sm">×</span>
+                    <input type="text" inputMode="decimal" value={a4SealH} onChange={e => setA4SealH(e.target.value)} className="field-input" placeholder="高さ" />
+                    <span className="text-xs text-stone-400">mm</span>
+                  </div>
+                  <p className="text-xs text-stone-400 mt-1">入力するとシール枠に合わせて配置します</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>

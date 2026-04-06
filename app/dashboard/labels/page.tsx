@@ -66,6 +66,7 @@ export default function LabelsPage() {
   const [warnings, setWarnings] = useState<string[]>([]);
   const [generated, setGenerated] = useState(false);
   const [printStats, setPrintStats] = useState<{used: number; limit: number; resetDate: string} | null>(null);
+  const [printStats, setPrintStats] = useState<{used: number; limit: number; resetDate: string} | null>(null);
 
   // 印刷設定
   const [mfgDate,       setMfgDate]       = useState(() => new Date().toISOString().slice(0, 10));
@@ -115,6 +116,22 @@ export default function LabelsPage() {
   }, []);
 
   useEffect(() => {
+    // 印刷枚数の残り確認
+    fetch('/api/labels/print-stats')
+      .then(r => r.json())
+      .then(d => { if (d.success) setPrintStats(d.data); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    // 印刷枚数の残り確認
+    fetch('/api/labels/print-stats')
+      .then(r => r.json())
+      .then(d => { if (d.success) setPrintStats(d.data); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     // レシピ一覧を取得
     fetch('/api/recipes?perPage=200').then(r => r.json()).then(d => {
       if (d.success) setRecipes(d.data.items.map((r: RecipeOption) => ({ id: r.id, name: r.name, shelfLifeDays: r.shelfLifeDays, shelfLifeType: r.shelfLifeType, contentAmount: r.contentAmount })));
@@ -126,6 +143,22 @@ export default function LabelsPage() {
   }, []);
 
   // レシピ選択時に賞味期限日数を自動セット
+  useEffect(() => {
+    // 印刷枚数の残り確認
+    fetch('/api/labels/print-stats')
+      .then(r => r.json())
+      .then(d => { if (d.success) setPrintStats(d.data); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    // 印刷枚数の残り確認
+    fetch('/api/labels/print-stats')
+      .then(r => r.json())
+      .then(d => { if (d.success) setPrintStats(d.data); })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     // 印刷枚数の残り確認
     fetch('/api/labels/print-stats')

@@ -233,8 +233,6 @@ export function generateLabelHtml(
     ${content.phone ? '<br>TEL ' + escHtml(content.phone) : ''}
     ${content.email ? '<br>' + escHtml(content.email) : ''}
   </div>
-</div>`;
-
   // ラベルプリンタ用：シールのみ
   if (config.deviceType === 'LABEL_PRINTER') {
     const labels = Array(config.printCount).fill(singleLabel).join('\n');

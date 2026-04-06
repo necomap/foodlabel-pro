@@ -70,22 +70,25 @@ export default function LabelsPage() {
   const [mfgDate,       setMfgDate]       = useState(() => new Date().toISOString().slice(0, 10));
   const [shelfOverride, setShelfOverride] = useState('');
   const [printCount,    setPrintCount]    = useState('1');
-  const [fontSizePt,    setFontSizePt]    = useState('8');
-  const [deviceType,    setDeviceType]    = useState<'LABEL_PRINTER'|'A4_PRINTER'>('LABEL_PRINTER');
+  const [fontSizePt,    setFontSizePt]    = useState(() => typeof window !== 'undefined' ? localStorage.getItem('label_fontSizePt') ?? '8' : '8');
+  const [deviceType,    setDeviceType]    = useState<'LABEL_PRINTER'|'A4_PRINTER'>(() => {
+    if (typeof window === 'undefined') return 'LABEL_PRINTER';
+    return (localStorage.getItem('label_deviceType') as any) ?? 'LABEL_PRINTER';
+  });
   // ラベルプリンタ
-  const [labelW,        setLabelW]        = useState('60');
-  const [labelH,        setLabelH]        = useState('60');
+  const [labelW,        setLabelW]        = useState(() => typeof window !== 'undefined' ? localStorage.getItem('label_labelW') ?? '60' : '60');
+  const [labelH,        setLabelH]        = useState(() => typeof window !== 'undefined' ? localStorage.getItem('label_labelH') ?? '60' : '60');
   // A4プリンタ
-  const [a4Cols,   setA4Cols]   = useState('3');
-  const [a4Rows,   setA4Rows]   = useState('5');
-  const [marginT,  setMarginT]  = useState('10');
-  const [marginB,  setMarginB]  = useState('10');
-  const [marginL,  setMarginL]  = useState('10');
-  const [marginR,  setMarginR]  = useState('10');
+  const [a4Cols,   setA4Cols]   = useState(() => typeof window !== 'undefined' ? localStorage.getItem('label_a4Cols') ?? '3' : '3');
+  const [a4Rows,   setA4Rows]   = useState(() => typeof window !== 'undefined' ? localStorage.getItem('label_a4Rows') ?? '5' : '5');
+  const [marginT,  setMarginT]  = useState(() => typeof window !== 'undefined' ? localStorage.getItem('label_marginT') ?? '10' : '10');
+  const [marginB,  setMarginB]  = useState(() => typeof window !== 'undefined' ? localStorage.getItem('label_marginB') ?? '10' : '10');
+  const [marginL,  setMarginL]  = useState(() => typeof window !== 'undefined' ? localStorage.getItem('label_marginL') ?? '10' : '10');
+  const [marginR,  setMarginR]  = useState(() => typeof window !== 'undefined' ? localStorage.getItem('label_marginR') ?? '10' : '10');
   const [startPos, setStartPos] = useState('1');
   // A4 シールサイズ（指定時はセルサイズより優先）
-  const [a4SealW,  setA4SealW]  = useState('');
-  const [a4SealH,  setA4SealH]  = useState('');
+  const [a4SealW,  setA4SealW]  = useState(() => typeof window !== 'undefined' ? localStorage.getItem('label_a4SealW') ?? '' : '');
+  const [a4SealH,  setA4SealH]  = useState(() => typeof window !== 'undefined' ? localStorage.getItem('label_a4SealH') ?? '' : '');
   // 栄養成分表示
   // 表示設定
   const loadBool = (key: string, def: boolean) => {
@@ -118,6 +121,56 @@ export default function LabelsPage() {
     const r = recipes.find(r => r.id === recipeId);
     if (r?.shelfLifeDays != null) setShelfOverride(String(r.shelfLifeDays));
   }, [recipeId, recipes]);
+
+  const handlePreview = async () => {
+    if (!recipeId) { toast.error('レシピを選択してください'); return; }
+    setLoading(true);
+    setGenerated(false);
+    try {
+      const fs = parseFloat(fontSizePt);
+      const payload = {
+        recipeId,
+        shopId: shopId || undefined,
+        manufactureDate: mfgDate,
+        shelfLifeDays: shelfOverride ? parseInt(shelfOverride) : undefined,
+        printCount: 1,  // プレビューは1枚固定
+        isPreview: true, // カウントしない
+        fontSizePt: fs,
+        deviceType,
+        ...(deviceType === 'LABEL_PRINTER' ? {
+          labelWidthMm:  parseFloat(labelW),
+          labelHeightMm: parseFloat(labelH),
+        } : {
+          a4Cols:       parseInt(a4Cols),
+          a4Rows:       parseInt(a4Rows),
+          marginTopMm:  parseFloat(marginT),
+          marginBottomMm: parseFloat(marginB),
+          marginLeftMm: parseFloat(marginL),
+          marginRightMm: parseFloat(marginR),
+          startPosition: 1,
+          a4SealWidthMm:  a4SealW ? parseFloat(a4SealW) : undefined,
+          a4SealHeightMm: a4SealH ? parseFloat(a4SealH) : undefined,
+        }),
+        displaySettings: {
+          showPhone, showRepresentative: showRep, showEmail: false,
+          showNutrition: true, showDietaryFiber: showFiber,
+          showSugar, showCholesterol: showCholest,
+          showQualityControl: showQC, showComment,
+          nutritionNote: '※推定値',
+        },
+      };
+      const res = await fetch('/api/labels/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const data = await res.json();
+      if (data.success) {
+        setPreviewHtml(data.data.html);
+        setGenerated(true);
+        toast.success('プレビューを生成しました（印刷枚数にカウントされません）');
+      } else {
+        toast.error(data.error ?? 'プレビュー生成に失敗しました');
+      }
+    } catch { toast.error('通信エラーが発生しました'); }
+    finally { setLoading(false); }
+  };
 
   const handleGenerate = async () => {
     if (!recipeId) { toast.error('レシピを選択してください'); return; }
@@ -245,7 +298,7 @@ export default function LabelsPage() {
             </div>
             <div>
               <label className="field-label">フォントサイズ（pt）</label>
-              <input type="text" inputMode="numeric" pattern="[0-9]*" value={fontSizePt} onChange={e => setFontSizePt(e.target.value)}
+              <input type="text" inputMode="numeric" pattern="[0-9]*" value={fontSizePt} onChange={e => { setFontSizePt(e.target.value); localStorage.setItem('label_fontSizePt', e.target.value); }}
                 className="field-input" min="6" max="12" step="0.5" />
               <p className="field-hint">規定値: 8pt（最小: 6pt ※貼付面が小さい場合のみ）</p>
             </div>
@@ -254,11 +307,11 @@ export default function LabelsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="field-label">シール幅（mm）</label>
-                  <input type="text" inputMode="numeric" pattern="[0-9]*" value={labelW} onChange={e => setLabelW(e.target.value)} className="field-input" />
+                  <input type="text" inputMode="numeric" pattern="[0-9]*" value={labelW} onChange={e => { setLabelW(e.target.value); localStorage.setItem('label_labelW', e.target.value); }} className="field-input" />
                 </div>
                 <div>
                   <label className="field-label">シール高さ（mm）</label>
-                  <input type="text" inputMode="numeric" pattern="[0-9]*" value={labelH} onChange={e => setLabelH(e.target.value)} className="field-input" />
+                  <input type="text" inputMode="numeric" pattern="[0-9]*" value={labelH} onChange={e => { setLabelH(e.target.value); localStorage.setItem('label_labelH', e.target.value); }} className="field-input" />
                 </div>
               </div>
             ) : (
@@ -266,19 +319,19 @@ export default function LabelsPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="field-label">横（列数）</label>
-                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={a4Cols} onChange={e => setA4Cols(e.target.value)} className="field-input" min="1" max="6" />
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={a4Cols} onChange={e => { setA4Cols(e.target.value); localStorage.setItem('label_a4Cols', e.target.value); }} className="field-input" min="1" max="6" />
                   </div>
                   <div>
                     <label className="field-label">縦（行数）</label>
-                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={a4Rows} onChange={e => setA4Rows(e.target.value)} className="field-input" min="1" max="10" />
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={a4Rows} onChange={e => { setA4Rows(e.target.value); localStorage.setItem('label_a4Rows', e.target.value); }} className="field-input" min="1" max="10" />
                   </div>
                 </div>
 　　　　　　　　<div>
                   <label className="field-label">シール1枚のサイズ（任意・mm）</label>
                   <div className="flex items-center gap-2">
-                    <input type="text" inputMode="decimal" value={a4SealW} onChange={e => setA4SealW(e.target.value)} className="field-input" placeholder="幅" />
+                    <input type="text" inputMode="decimal" value={a4SealW} onChange={e => { setA4SealW(e.target.value); localStorage.setItem('label_a4SealW', e.target.value); }} className="field-input" placeholder="幅" />
                     <span className="text-stone-400 text-sm">×</span>
-                    <input type="text" inputMode="decimal" value={a4SealH} onChange={e => setA4SealH(e.target.value)} className="field-input" placeholder="高さ" />
+                    <input type="text" inputMode="decimal" value={a4SealH} onChange={e => { setA4SealH(e.target.value); localStorage.setItem('label_a4SealH', e.target.value); }} className="field-input" placeholder="高さ" />
                     <span className="text-xs text-stone-400">mm</span>
                   </div>
                   <p className="text-xs text-stone-400 mt-1">入力するとシール枠に合わせて配置します</p>
@@ -286,11 +339,11 @@ export default function LabelsPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="field-label">上余白（mm）</label>
-                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={marginT} onChange={e => setMarginT(e.target.value)} className="field-input" />
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={marginT} onChange={e => { setMarginT(e.target.value); localStorage.setItem('label_marginT', e.target.value); }} className="field-input" />
                   </div>
                   <div>
                     <label className="field-label">左余白（mm）</label>
-                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={marginL} onChange={e => setMarginL(e.target.value)} className="field-input" />
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={marginL} onChange={e => { setMarginL(e.target.value); localStorage.setItem('label_marginL', e.target.value); }} className="field-input" />
                   </div>
                 </div>
                 <div>

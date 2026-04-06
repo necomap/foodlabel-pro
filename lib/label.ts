@@ -154,7 +154,7 @@ export function generateLabelHtml(
   width: ${width}mm;
   min-height: ${height}mm;
   overflow: hidden;
-  font-size: ${fontSize}pt;
+  font-size:${fontSize}pt;
   font-family: 'Noto Sans JP', 'Hiragino Sans', Meiryo, sans-serif;
   line-height: 1.4;
   padding: 2mm;
@@ -286,7 +286,8 @@ export function generateLabelHtml(
   const cellLabel = singleLabel
     .replace(`width: ${width}mm`, `width: ${cellW}mm`)
     .replace(`min-height: ${height}mm`, `height: ${cellH}mm`)
-    .replace(`font-size: ${fontSize}pt`, `font-size: ${a4FontSize}pt`)
+    .replace(new RegExp(`font-size:${fontSize}pt`, 'g'), `font-size:${a4FontSize}pt`)
+    .replace(new RegExp(`font-size:${Math.round(fontSize * 1.1)}pt`, 'g'), `font-size:${Math.round(a4FontSize * 1.1)}pt`)
     .replace(new RegExp(`font-size:${smallFontSize}pt`, 'g'), `font-size:${a4SmallFontSize}pt`);
 
   let gridHtml = '';

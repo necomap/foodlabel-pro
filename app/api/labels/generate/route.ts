@@ -313,14 +313,16 @@ export async function POST(request: Request) {
     pc: recipeDetail.printComment,
   }));
 
-  // 印刷ログを記録（エラーは無視）
-  try {
-    const actualPrintCount = body.printCount ?? 1;
-    await prisma.$executeRaw`
-      INSERT INTO label_print_logs ("userId", "recipeId", "printCount", "createdAt")
-      VALUES (${session.user.id}, ${body.recipeId}, ${actualPrintCount}, NOW())
-    `;
-  } catch (e) { console.warn('print log error:', e); }
+  // 印刷ログを記録（プレビューモードはカウントしない）
+  if (!body.isPreview) {
+    try {
+      const actualPrintCount = body.printCount ?? 1;
+      await prisma.$executeRaw`
+        INSERT INTO label_print_logs ("userId", "recipeId", "printCount", "createdAt")
+        VALUES (${session.user.id}, ${body.recipeId}, ${actualPrintCount}, NOW())
+      `;
+    } catch (e) { console.warn('print log error:', e); }
+  }
 
   return NextResponse.json({
     success: true,

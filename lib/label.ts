@@ -233,6 +233,7 @@ export function generateLabelHtml(
     ${content.phone ? '<br>TEL ' + escHtml(content.phone) : ''}
     ${content.email ? '<br>' + escHtml(content.email) : ''}
   </div>
+`;
     const labels = Array(config.printCount).fill(singleLabel).join('\n');
     return `<!DOCTYPE html>
 <html lang="ja">

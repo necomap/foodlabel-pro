@@ -1,40 +1,65 @@
 
 > foodlabel-pro@1.0.0 build
-> next build
+> prisma generate && next build
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+
+✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 365ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate
 
   ▲ Next.js 14.2.5
   - Environments: .env.local, .env
 
    Creating an optimized production build ...
+Failed to compile.
 
-<--- Last few GCs --->
+./lib/label.ts
+Error: 
+  [31mx[0m Return statement is not allowed here
+     ,-[[36;1;4mC:\Users\emma\Music\foodlabel-pro\lib\label.ts[0m:297:1]
+ [2m297[0m |         gridHtml += '</div>';
+ [2m298[0m |       }
+ [2m299[0m |     
+ [2m300[0m | [31;1m,[0m[31;1m-[0m[31;1m>[0m   return `<!DOCTYPE html>
+ [2m301[0m | [31;1m|[0m   <html lang="ja">
+ [2m302[0m | [31;1m|[0m   <head>
+ [2m303[0m | [31;1m|[0m   <meta charset="UTF-8">
+ [2m304[0m | [31;1m|[0m   <style>
+ [2m305[0m | [31;1m|[0m     * { box-sizing: border-box; margin: 0; padding: 0; }
+ [2m306[0m | [31;1m|[0m     @page { margin: 0; size: A4 portrait; }
+ [2m307[0m | [31;1m|[0m     html, body { width: 210mm; height: auto; margin: 0; padding: 0; background: white; }
+ [2m308[0m | [31;1m|[0m     @media print { * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+ [2m309[0m | [31;1m|[0m   </style>
+ [2m310[0m | [31;1m|[0m   </head>
+ [2m311[0m | [31;1m|[0m   <body>${gridHtml}</body>
+ [2m312[0m | [31;1m`[0m[31;1m-[0m[31;1m>[0m </html>`;
+ [2m313[0m |     }
+ [2m314[0m |     
+ [2m315[0m |     /**
+     `----
 
-[10140:0000019D4BAF3000]     2451 ms: Scavenge 70.8 (87.4) -> 61.7 (123.4) MB, pooled: 0 MB, 10.46 / 0.00 ms  (average mu = 0.997, current mu = 0.997) allocation failure; 
-[10140:0000019D4BAF3000]     2566 ms: Mark-Compact 66.1 (124.9) -> 59.3 (126.5) MB, pooled: 0 MB, 10.78 / 0.00 ms  (+ 21.2 ms in 1 steps since start of marking, biggest step 21.2 ms, walltime since start of marking 33 ms) (average mu = 0.994, current mu =
-FATAL ERROR: NewSpace::EnsureCurrentCapacity Allocation failed - JavaScript heap out of memory
------ Native stack trace -----
+  [31mx[0m Expression expected
+     ,-[[36;1;4mC:\Users\emma\Music\foodlabel-pro\lib\label.ts[0m:310:1]
+ [2m310[0m | </head>
+ [2m311[0m | <body>${gridHtml}</body>
+ [2m312[0m | </html>`;
+ [2m313[0m | }
+     : [31;1m^[0m
+ [2m314[0m | 
+ [2m315[0m | /**
+ [2m316[0m |  * デフォルトの表示設定を返す
+     `----
 
- 1: 00007FF79AFEC36F 
- 2: 00007FF79BC34D77 
- 3: 00007FF79BA35467 
- 4: 00007FF79B9F5F03 
- 5: 00007FF79BA3786A 
- 6: 00007FF79BA36E96 
- 7: 00007FF79BA47E22 
- 8: 00007FF79BA4794B 
- 9: 00007FF79CECDAED 
-10: 00007FF79BA32F30 
-11: 00007FF79BA3AE50 
-12: 00007FF79B8B1A84 
-13: 00007FF79BC5C78E 
-14: 00007FF79B02D095 
-15: 0000019D1FDCF64D 
+Caused by:
+    Syntax Error
 
-> Build error occurred
-Error: Jest worker encountered 1 child process exceptions, exceeding retry limit
-    at ChildProcessWorker.initialize (C:\Users\emma\.gemini\antigravity\scratch\foodlabel-pro\node_modules\next\dist\compiled\jest-worker\index.js:1:11580)
-    at ChildProcessWorker._onExit (C:\Users\emma\.gemini\antigravity\scratch\foodlabel-pro\node_modules\next\dist\compiled\jest-worker\index.js:1:12545)
-    at ChildProcess.emit (node:events:520:35)
-    at ChildProcess._handle.onexit (node:internal/child_process:294:12) {
-  type: 'WorkerError'
-}
+Import trace for requested module:
+./lib/label.ts
+./app/api/labels/generate/route.ts
+
+
+> Build failed because of webpack errors

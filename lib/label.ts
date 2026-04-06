@@ -277,10 +277,17 @@ export function generateLabelHtml(
   const totalSlots = startPos + config.printCount;
   const pages      = Math.ceil(totalSlots / labelsPerPage);
 
-  // ラベルHTMLをセルサイズに合わせて調整
+  // A4セルサイズに合わせてフォントサイズを再計算
+  const a4AreaRatio = Math.sqrt((cellW * cellH) / (60 * 60));
+  const a4FontSize = Math.max(Math.round((fontSizePt ?? 8) * a4AreaRatio * 10) / 10, 5);
+  const a4SmallFontSize = Math.max(Math.round((a4FontSize - 1) * 10) / 10, 5);
+
+  // ラベルHTMLをセルサイズとフォントサイズに合わせて調整
   const cellLabel = singleLabel
     .replace(`width: ${width}mm`, `width: ${cellW}mm`)
-    .replace(`min-height: ${height}mm`, `height: ${cellH}mm`);
+    .replace(`min-height: ${height}mm`, `height: ${cellH}mm`)
+    .replace(`font-size: ${fontSize}pt`, `font-size: ${a4FontSize}pt`)
+    .replace(new RegExp(`font-size:${smallFontSize}pt`, 'g'), `font-size:${a4SmallFontSize}pt`);
 
   let gridHtml = '';
   for (let p = 0; p < pages; p++) {

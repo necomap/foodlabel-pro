@@ -138,8 +138,13 @@ export function generateLabelHtml(
   const { fontSizePt, labelWidthMm, labelHeightMm } = config;
   const width = labelWidthMm ?? 60;
   const height = labelHeightMm ?? 60;
-  const fontSize = fontSizePt ?? 8;
-  const smallFontSize = Math.max(fontSize - 1, 6);
+  // シールサイズに合わせてフォントサイズを自動調整
+  // 基準: 60mm×60mmで8pt。面積比で縮小（最小5pt）
+  const baseFontSize = fontSizePt ?? 8;
+  const areaRatio = Math.sqrt((width * height) / (60 * 60));
+  const autoFontSize = Math.max(Math.round(baseFontSize * areaRatio * 10) / 10, 5);
+  const fontSize = autoFontSize;
+  const smallFontSize = Math.max(Math.round((fontSize - 1) * 10) / 10, 5);
 
   const escHtml = (s: string) =>
     s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -148,6 +153,7 @@ export function generateLabelHtml(
 <div class="label" style="
   width: ${width}mm;
   min-height: ${height}mm;
+  overflow: hidden;
   font-size: ${fontSize}pt;
   font-family: 'Noto Sans JP', 'Hiragino Sans', Meiryo, sans-serif;
   line-height: 1.4;

@@ -87,7 +87,6 @@ export default function LabelsPage() {
   const [a4SealW,  setA4SealW]  = useState('');
   const [a4SealH,  setA4SealH]  = useState('');
   // 栄養成分表示
-  const [showNutrition, setShowNutrition] = useState(() => loadBool('showNutrition', true));
   // 表示設定
   const loadBool = (key: string, def: boolean) => {
     if (typeof window === 'undefined') return def;
@@ -101,6 +100,7 @@ export default function LabelsPage() {
   const [showCholest,  setShowCholest]  = useState(() => loadBool('showCholest', false));
   const [showComment,  setShowComment]  = useState(() => loadBool('showComment', true));
   const [showQC,       setShowQC]       = useState(() => loadBool('showQC', true));
+  const [showNutrition, setShowNutrition] = useState(() => loadBool('showNutrition', true));
 
   useEffect(() => {
     // レシピ一覧を取得

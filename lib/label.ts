@@ -226,13 +226,11 @@ export function generateLabelHtml(
   <!-- 品質管理 -->
   ${content.qualityControl ? `<div style="font-size:${smallFontSize}pt;">${escHtml(content.qualityControl)}</div>` : ''}
   <!-- 製造者情報 -->
-  <div style="margin-top:0.5mm; border-top:0.3mm solid #ccc; padding-top:0.5mm; font-size:${smallFontSize}pt;">
-    <span style="font-weight:bold;">製造者：</span>
-    ${content.postalCode ? escHtml(content.postalCode) + ' ' : ''}
-    ${escHtml(content.manufacturerName)}
-    ${content.representative ? ' ' + escHtml(content.representative) : ''}
+  <div style="margin-top:0.5mm; border-top:0.3mm solid #ccc; padding-top:0.5mm; font-size:${smallFontSize}pt; word-break:break-all; overflow-wrap:break-word;">
+    <span style="font-weight:bold;">製造者：</span>${escHtml(content.manufacturerName)}${content.representative ? '　' + escHtml(content.representative) : ''}
+    ${content.postalCode ? '<br>' + escHtml(content.postalCode) : ''}
     ${content.address ? '<br>' + escHtml(content.address) : ''}
-    ${content.phone ? ' ' + escHtml(content.phone) : ''}
+    ${content.phone ? '<br>TEL ' + escHtml(content.phone) : ''}
     ${content.email ? '<br>' + escHtml(content.email) : ''}
   </div>
 </div>`;

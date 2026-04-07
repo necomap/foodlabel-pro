@@ -235,6 +235,7 @@ export function generateLabelHtml(
     ${content.phone ? '<br>TEL ' + escHtml(content.phone) : ''}
     ${content.email ? '<br>' + escHtml(content.email) : ''}
   </div>
+</div>
 `;
   // ラベルプリンタ用：ラベルのみ
   if (config.deviceType === 'LABEL_PRINTER') {
@@ -290,18 +291,13 @@ export function generateLabelHtml(
     .replace(new RegExp(`font-size:${smallFontSize}pt`, 'g'), `font-size:${a4SmallFontSize}pt`);
 
   let gridHtml = '';
-  // A4上から順に印刷されるように grid-auto-flow: column; を追加
   for (let p = 0; p < pages; p++) {
     const isLastPage = p === pages - 1;
-    gridHtml += `<div style="display:grid;grid-auto-flow:column;grid-template-columns:repeat(${cols},${cellW}mm);grid-template-rows:repeat(${rows},${cellH}mm);width:210mm;height:297mm;padding:${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm;box-sizing:border-box;${isLastPage ? '' : 'page-break-after:always;'}">`;
-    for (let c = 0; c < cols; c++) {
-      for (let r = 0; r < rows; r++) {
-        // 列から順に埋める場合のインデックス計算 (本来のDOM書き出し順)
-        const i = c * rows + r; 
-        const slot = p * labelsPerPage + i;
-        const isEmpty = slot < startPos || slot >= startPos + config.printCount;
-        gridHtml += `<div style="width:${cellW}mm;height:${cellH}mm;box-sizing:border-box;">${isEmpty ? '' : cellLabel}</div>`;
-      }
+    gridHtml += `<div style="display:grid;grid-template-columns:repeat(${cols},${cellW}mm);grid-template-rows:repeat(${rows},${cellH}mm);width:210mm;height:297mm;padding:${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm;box-sizing:border-box;${isLastPage ? '' : 'page-break-after:always;'}">`;
+    for (let i = 0; i < labelsPerPage; i++) {
+      const slot = p * labelsPerPage + i;
+      const isEmpty = slot < startPos || slot >= startPos + config.printCount;
+      gridHtml += `<div style="width:${cellW}mm;height:${cellH}mm;box-sizing:border-box;">${isEmpty ? '' : cellLabel}</div>`;
     }
     gridHtml += '</div>';
   }

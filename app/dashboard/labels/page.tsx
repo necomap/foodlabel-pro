@@ -57,10 +57,19 @@ export default function LabelsPage() {
   const searchParams = useSearchParams();
   const iframeRef    = useRef<HTMLIFrameElement>(null);
 
+  // 補助：localStorageからの取得
+  const loadValue = (key: string, def: string) => {
+    if (typeof window === 'undefined') return def;
+    return localStorage.getItem('label_' + key) ?? def;
+  };
+
   const [recipes,  setRecipes]  = useState<RecipeOption[]>([]);
   const [shops,    setShops]    = useState<ShopOption[]>([]);
-  const [recipeId, setRecipeId] = useState(searchParams.get('recipeId') ?? '');
-  const [shopId,   setShopId]   = useState('');
+  const [recipeId, setRecipeId] = useState(() => {
+    if (typeof window === 'undefined') return searchParams.get('recipeId') ?? '';
+    return searchParams.get('recipeId') || localStorage.getItem('label_recipeId') || '';
+  });
+  const [shopId,   setShopId]   = useState(() => loadValue('shopId', ''));
   const [loading,  setLoading]  = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -70,28 +79,27 @@ export default function LabelsPage() {
   // 印刷設定
   const [mfgDate,       setMfgDate]       = useState(() => new Date().toISOString().slice(0, 10));
   const [shelfOverride, setShelfOverride] = useState('');
-  const [printCount,    setPrintCount]    = useState('1');
-  const [fontSizePt,    setFontSizePt]    = useState(() => typeof window !== 'undefined' ? localStorage.getItem('label_fontSizePt') ?? '8' : '8');
+  const [printCount,    setPrintCount]    = useState(() => loadValue('printCount', '1'));
+  const [fontSizePt,    setFontSizePt]    = useState(() => loadValue('fontSizePt', '8'));
   const [deviceType,    setDeviceType]    = useState<'LABEL_PRINTER'|'A4_PRINTER'>(() => {
-    if (typeof window === 'undefined') return 'LABEL_PRINTER';
-    return (localStorage.getItem('label_deviceType') as any) ?? 'LABEL_PRINTER';
+    return (loadValue('deviceType', 'LABEL_PRINTER') as any);
   });
   // ラベルプリンタ
-  const [labelW,        setLabelW]        = useState(() => typeof window !== 'undefined' ? localStorage.getItem('label_labelW') ?? '60' : '60');
-  const [labelH,        setLabelH]        = useState(() => typeof window !== 'undefined' ? localStorage.getItem('label_labelH') ?? '60' : '60');
+  const [labelW,        setLabelW]        = useState(() => loadValue('labelW', '60'));
+  const [labelH,        setLabelH]        = useState(() => loadValue('labelH', '60'));
   // A4プリンタ
-  const [a4Cols,   setA4Cols]   = useState(() => typeof window !== 'undefined' ? localStorage.getItem('label_a4Cols') ?? '3' : '3');
-  const [a4Rows,   setA4Rows]   = useState(() => typeof window !== 'undefined' ? localStorage.getItem('label_a4Rows') ?? '5' : '5');
-  const [marginT,  setMarginT]  = useState(() => typeof window !== 'undefined' ? localStorage.getItem('label_marginT') ?? '10' : '10');
-  const [marginB,  setMarginB]  = useState(() => typeof window !== 'undefined' ? localStorage.getItem('label_marginB') ?? '10' : '10');
-  const [marginL,  setMarginL]  = useState(() => typeof window !== 'undefined' ? localStorage.getItem('label_marginL') ?? '10' : '10');
-  const [marginR,  setMarginR]  = useState(() => typeof window !== 'undefined' ? localStorage.getItem('label_marginR') ?? '10' : '10');
-  const [startPos, setStartPos] = useState('1');
-  // A4 シールサイズ（指定時はセルサイズより優先）
-  const [a4SealW,  setA4SealW]  = useState(() => typeof window !== 'undefined' ? localStorage.getItem('label_a4SealW') ?? '' : '');
-  const [a4SealH,  setA4SealH]  = useState(() => typeof window !== 'undefined' ? localStorage.getItem('label_a4SealH') ?? '' : '');
-  // 栄養成分表示
-  // 表示設定
+  const [a4Cols,   setA4Cols]   = useState(() => loadValue('a4Cols', '3'));
+  const [a4Rows,   setA4Rows]   = useState(() => loadValue('a4Rows', '5'));
+  const [marginT,  setMarginT]  = useState(() => loadValue('marginT', '10'));
+  const [marginB,  setMarginB]  = useState(() => loadValue('marginB', '10'));
+  const [marginL,  setMarginL]  = useState(() => loadValue('marginL', '10'));
+  const [marginR,  setMarginR]  = useState(() => loadValue('marginR', '10'));
+  const [startPos, setStartPos] = useState(() => loadValue('startPos', '1'));
+  // A4 シールサイズ
+  const [a4SealW,  setA4SealW]  = useState(() => loadValue('a4SealW', ''));
+  const [a4SealH,  setA4SealH]  = useState(() => loadValue('a4SealH', ''));
+
+  // 表示設定の復元
   const loadBool = (key: string, def: boolean) => {
     if (typeof window === 'undefined') return def;
     const v = localStorage.getItem('label_' + key);
@@ -104,7 +112,6 @@ export default function LabelsPage() {
   const [showCholest,  setShowCholest]  = useState(() => loadBool('showCholest', false));
   const [showComment,  setShowComment]  = useState(() => loadBool('showComment', true));
   const [showQC,       setShowQC]       = useState(() => loadBool('showQC', true));
-  const [showNutrition, setShowNutrition] = useState(() => loadBool('showNutrition', true));
 
   useEffect(() => {
     // 印刷枚数の残り確認
@@ -112,123 +119,35 @@ export default function LabelsPage() {
       .then(r => r.json())
       .then(d => { if (d.success) setPrintStats(d.data); })
       .catch(() => {});
-  }, []);
 
-  useEffect(() => {
-    // 印刷枚数の残り確認
-    fetch('/api/labels/print-stats')
-      .then(r => r.json())
-      .then(d => { if (d.success) setPrintStats(d.data); })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    // 印刷枚数の残り確認
-    fetch('/api/labels/print-stats')
-      .then(r => r.json())
-      .then(d => { if (d.success) setPrintStats(d.data); })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    // 印刷枚数の残り確認
-    fetch('/api/labels/print-stats')
-      .then(r => r.json())
-      .then(d => { if (d.success) setPrintStats(d.data); })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    // 印刷枚数の残り確認
-    fetch('/api/labels/print-stats')
-      .then(r => r.json())
-      .then(d => { if (d.success) setPrintStats(d.data); })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    // 印刷枚数の残り確認
-    fetch('/api/labels/print-stats')
-      .then(r => r.json())
-      .then(d => { if (d.success) setPrintStats(d.data); })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    // 印刷枚数の残り確認
-    fetch('/api/labels/print-stats')
-      .then(r => r.json())
-      .then(d => { if (d.success) setPrintStats(d.data); })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
     // レシピ一覧を取得
     fetch('/api/recipes?perPage=200').then(r => r.json()).then(d => {
       if (d.success) setRecipes(d.data.items.map((r: RecipeOption) => ({ id: r.id, name: r.name, shelfLifeDays: r.shelfLifeDays, shelfLifeType: r.shelfLifeType, contentAmount: r.contentAmount })));
     });
     // 店舗一覧を取得
     fetch('/api/shops').then(r => r.json()).then(d => {
-      if (d.success) { setShops(d.data); const def = d.data.find((s: ShopOption) => s.isDefault); if (def) setShopId(def.id); }
+      if (d.success) { 
+        setShops(d.data); 
+        if (!shopId) { // 初期値がない場合のみデフォルト店舗をセット
+          const def = d.data.find((s: ShopOption) => s.isDefault); 
+          if (def) setShopId(def.id); 
+        }
+      }
     });
   }, []);
 
-  // レシピ選択時に賞味期限日数を自動セット
+  // URLパラメータ（recipeId）に変更があった場合に同期
   useEffect(() => {
-    // 印刷枚数の残り確認
-    fetch('/api/labels/print-stats')
-      .then(r => r.json())
-      .then(d => { if (d.success) setPrintStats(d.data); })
-      .catch(() => {});
-  }, []);
+    const rid = searchParams.get('recipeId');
+    if (rid) {
+      setRecipeId(rid);
+      localStorage.setItem('label_recipeId', rid);
+    }
+  }, [searchParams]);
 
-  useEffect(() => {
-    // 印刷枚数の残り確認
-    fetch('/api/labels/print-stats')
-      .then(r => r.json())
-      .then(d => { if (d.success) setPrintStats(d.data); })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    // 印刷枚数の残り確認
-    fetch('/api/labels/print-stats')
-      .then(r => r.json())
-      .then(d => { if (d.success) setPrintStats(d.data); })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    // 印刷枚数の残り確認
-    fetch('/api/labels/print-stats')
-      .then(r => r.json())
-      .then(d => { if (d.success) setPrintStats(d.data); })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    // 印刷枚数の残り確認
-    fetch('/api/labels/print-stats')
-      .then(r => r.json())
-      .then(d => { if (d.success) setPrintStats(d.data); })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    // 印刷枚数の残り確認
-    fetch('/api/labels/print-stats')
-      .then(r => r.json())
-      .then(d => { if (d.success) setPrintStats(d.data); })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    // 印刷枚数の残り確認
-    fetch('/api/labels/print-stats')
-      .then(r => r.json())
-      .then(d => { if (d.success) setPrintStats(d.data); })
-      .catch(() => {});
-  }, []);
+  const updateLabelStorage = (key: string, val: string) => {
+    localStorage.setItem('label_' + key, val);
+  };
 
   useEffect(() => {
     const r = recipes.find(r => r.id === recipeId);

@@ -234,6 +234,8 @@ export function generateLabelHtml(
     ${content.email ? '<br>' + escHtml(content.email) : ''}
   </div>
 `;
+  // ラベルプリンタ用：シールのみ
+  if (config.deviceType === 'LABEL_PRINTER') {
     const labels = Array(config.printCount).fill(singleLabel).join('\n');
     return `<!DOCTYPE html>
 <html lang="ja">

@@ -5,61 +5,124 @@
 Environment variables loaded from .env
 Prisma schema loaded from prisma\schema.prisma
 
-✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 365ms
+✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 287ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
-Tip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate
+Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
 
   ▲ Next.js 14.2.5
   - Environments: .env.local, .env
 
    Creating an optimized production build ...
-Failed to compile.
+ ⚠ Compiled with warnings
 
-./lib/label.ts
-Error: 
-  [31mx[0m Return statement is not allowed here
-     ,-[[36;1;4mC:\Users\emma\Music\foodlabel-pro\lib\label.ts[0m:297:1]
- [2m297[0m |         gridHtml += '</div>';
- [2m298[0m |       }
- [2m299[0m |     
- [2m300[0m | [31;1m,[0m[31;1m-[0m[31;1m>[0m   return `<!DOCTYPE html>
- [2m301[0m | [31;1m|[0m   <html lang="ja">
- [2m302[0m | [31;1m|[0m   <head>
- [2m303[0m | [31;1m|[0m   <meta charset="UTF-8">
- [2m304[0m | [31;1m|[0m   <style>
- [2m305[0m | [31;1m|[0m     * { box-sizing: border-box; margin: 0; padding: 0; }
- [2m306[0m | [31;1m|[0m     @page { margin: 0; size: A4 portrait; }
- [2m307[0m | [31;1m|[0m     html, body { width: 210mm; height: auto; margin: 0; padding: 0; background: white; }
- [2m308[0m | [31;1m|[0m     @media print { * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
- [2m309[0m | [31;1m|[0m   </style>
- [2m310[0m | [31;1m|[0m   </head>
- [2m311[0m | [31;1m|[0m   <body>${gridHtml}</body>
- [2m312[0m | [31;1m`[0m[31;1m-[0m[31;1m>[0m </html>`;
- [2m313[0m |     }
- [2m314[0m |     
- [2m315[0m |     /**
-     `----
-
-  [31mx[0m Expression expected
-     ,-[[36;1;4mC:\Users\emma\Music\foodlabel-pro\lib\label.ts[0m:310:1]
- [2m310[0m | </head>
- [2m311[0m | <body>${gridHtml}</body>
- [2m312[0m | </html>`;
- [2m313[0m | }
-     : [31;1m^[0m
- [2m314[0m | 
- [2m315[0m | /**
- [2m316[0m |  * デフォルトの表示設定を返す
-     `----
-
-Caused by:
-    Syntax Error
+./node_modules/jose/dist/webapi/lib/deflate.js
+A Node.js API is used (CompressionStream at line: 10) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
 
 Import trace for requested module:
-./lib/label.ts
-./app/api/labels/generate/route.ts
+./node_modules/jose/dist/webapi/lib/deflate.js
+./node_modules/jose/dist/webapi/jwe/flattened/decrypt.js
+./node_modules/jose/dist/webapi/index.js
+./node_modules/@auth/core/jwt.js
+./node_modules/next-auth/jwt.js
+
+./node_modules/jose/dist/webapi/lib/deflate.js
+A Node.js API is used (DecompressionStream at line: 26) which is not supported in the Edge Runtime.
+Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+
+Import trace for requested module:
+./node_modules/jose/dist/webapi/lib/deflate.js
+./node_modules/jose/dist/webapi/jwe/flattened/decrypt.js
+./node_modules/jose/dist/webapi/index.js
+./node_modules/@auth/core/jwt.js
+./node_modules/next-auth/jwt.js
+
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/52) ...
+   Generating static pages (13/52) 
+   Generating static pages (26/52) 
+   Generating static pages (39/52) 
+ ✓ Generating static pages (52/52)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                              Size     First Load JS
+┌ ○ /                                    189 B          94.1 kB
+├ ○ /_not-found                          871 B            88 kB
+├ ○ /about                               189 B          94.1 kB
+├ ○ /admin                               4.77 kB        96.9 kB
+├ ƒ /api/admin/ingredients               0 B                0 B
+├ ƒ /api/admin/ingredients/[id]          0 B                0 B
+├ ƒ /api/admin/nutrition-import          0 B                0 B
+├ ƒ /api/admin/stats                     0 B                0 B
+├ ƒ /api/auth/[...nextauth]              0 B                0 B
+├ ƒ /api/auth/forgot-password            0 B                0 B
+├ ƒ /api/auth/register                   0 B                0 B
+├ ƒ /api/auth/reset-password             0 B                0 B
+├ ƒ /api/auth/verify-email               0 B                0 B
+├ ƒ /api/categories                      0 B                0 B
+├ ƒ /api/categories/[id]                 0 B                0 B
+├ ƒ /api/contact                         0 B                0 B
+├ ƒ /api/import-export                   0 B                0 B
+├ ƒ /api/ingredient-categories           0 B                0 B
+├ ƒ /api/ingredient-categories/[id]      0 B                0 B
+├ ƒ /api/ingredients                     0 B                0 B
+├ ƒ /api/ingredients/[id]                0 B                0 B
+├ ƒ /api/labels/generate                 0 B                0 B
+├ ƒ /api/labels/print-stats              0 B                0 B
+├ ƒ /api/nutrition                       0 B                0 B
+├ ƒ /api/recipes                         0 B                0 B
+├ ƒ /api/recipes/[id]                    0 B                0 B
+├ ƒ /api/recipes/[id]/copy               0 B                0 B
+├ ƒ /api/recipes/[id]/toggle-active      0 B                0 B
+├ ƒ /api/shops                           0 B                0 B
+├ ƒ /api/shops/[id]                      0 B                0 B
+├ ƒ /api/shops/[id]/set-default          0 B                0 B
+├ ƒ /api/shops/[id]/unset-default        0 B                0 B
+├ ƒ /api/stripe/checkout                 0 B                0 B
+├ ƒ /api/stripe/portal                   0 B                0 B
+├ ƒ /api/stripe/webhook                  0 B                0 B
+├ ƒ /api/user/profile                    0 B                0 B
+├ ƒ /api/util/kana                       0 B                0 B
+├ ○ /auth/forgot-password                2.26 kB         101 kB
+├ ○ /auth/login                          3.12 kB         106 kB
+├ ○ /auth/register                       4.01 kB         103 kB
+├ ○ /auth/reset-password                 2.96 kB         102 kB
+├ ○ /auth/verify-email                   1.98 kB        95.9 kB
+├ ƒ /dashboard                           141 B          87.3 kB
+├ ƒ /dashboard/contact                   2.67 kB         102 kB
+├ ƒ /dashboard/debug                     141 B          87.3 kB
+├ ƒ /dashboard/export                    385 B          87.5 kB
+├ ƒ /dashboard/help                      4.48 kB        98.4 kB
+├ ƒ /dashboard/import                    4.3 kB          103 kB
+├ ƒ /dashboard/ingredients               7.32 kB        99.5 kB
+├ ƒ /dashboard/labels                    6.09 kB        98.3 kB
+├ ƒ /dashboard/recipes                   5.36 kB         104 kB
+├ ƒ /dashboard/recipes/[id]              6.11 kB         105 kB
+├ ƒ /dashboard/recipes/[id]/edit         223 B           100 kB
+├ ƒ /dashboard/recipes/new               224 B           100 kB
+├ ƒ /dashboard/recipes/print             3.99 kB        96.2 kB
+├ ƒ /dashboard/settings                  5.69 kB         102 kB
+├ ƒ /dashboard/upgrade                   2.81 kB          99 kB
+├ ○ /features                            189 B          94.1 kB
+├ ○ /help                                189 B          94.1 kB
+├ ○ /legal                               189 B          94.1 kB
+├ ○ /privacy                             189 B          94.1 kB
+├ ○ /robots.txt                          0 B                0 B
+├ ○ /sitemap.xml                         0 B                0 B
+└ ○ /terms                               189 B          94.1 kB
++ First Load JS shared by all            87.1 kB
+  ├ chunks/23-9a9d3d34fd9bcb9f.js        31.5 kB
+  ├ chunks/fd9d1056-79c5ad9da5262500.js  53.6 kB
+  └ other shared chunks (total)          1.96 kB
 
 
-> Build failed because of webpack errors
+ƒ Middleware                             39.5 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

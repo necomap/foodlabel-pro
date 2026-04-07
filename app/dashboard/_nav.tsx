@@ -10,7 +10,7 @@ import {
 
 const navItems = [
   { href: '/dashboard/recipes',     label: 'レシピ管理',             icon: BookOpen,       color: 'text-amber-600'  },
-  { href: '/dashboard/labels',      label: 'シール印刷',             icon: Tag,            color: 'text-green-600'  },
+  { href: '/dashboard/labels',      label: 'ラベル印刷',             icon: Tag,            color: 'text-green-600'  },
   { href: '/dashboard/ingredients', label: '食材マスタ',             icon: ShoppingBasket, color: 'text-blue-600'   },
   { href: '/dashboard/import',      label: 'インポート/エクスポート', icon: ArrowLeftRight, color: 'text-purple-600' },
   { href: '/dashboard/help',        label: 'ヘルプ・使い方',         icon: HelpCircle,     color: 'text-teal-600'   },

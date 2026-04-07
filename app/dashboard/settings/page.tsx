@@ -64,7 +64,7 @@ function ProfileTab() {
         <div className="text-stone-500 mt-0.5">プラン: <span className="text-brand-600 font-medium capitalize">{session?.user?.plan ?? 'free'}</span></div>
       </div>
       <h2 className="section-title">基本情報（ラベル製造者欄）</h2>
-      <p className="text-sm text-stone-500 -mt-2">シールの製造者欄に印字される情報です</p>
+      <p className="text-sm text-stone-500 -mt-2">ラベルの製造者欄に印字される情報です</p>
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="sm:col-span-2"><label className="field-label">店舗名・社名</label><input type="text" value={profile.companyName} onChange={e=>setProfile(p=>({...p,companyName:e.target.value}))} className="field-input" placeholder="例: ○○ベーカリー" /></div>
         <div><label className="field-label">代表者名</label><input type="text" value={profile.representative} onChange={e=>setProfile(p=>({...p,representative:e.target.value}))} className="field-input" placeholder="例: 田中 太郎" /><p className="field-hint text-yellow-600">個人事業主は表示義務があります</p></div>

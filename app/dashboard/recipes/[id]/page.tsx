@@ -126,7 +126,7 @@ export default function RecipeDetailPage() {
           <Link href={`/dashboard/labels?recipeId=${id}`}
             className="btn-primary flex items-center gap-2 text-sm">
             <Printer className="w-4 h-4" />
-            シール印刷
+            ラベル印刷
           </Link>
           <button onClick={handleCopy}
             className="btn-secondary flex items-center gap-2 text-sm">
@@ -160,7 +160,7 @@ export default function RecipeDetailPage() {
       )}
 
       {/* ============================================================
-          原材料・アレルゲン（シール表示内容）
+          原材料・アレルゲン（ラベル表示内容）
           ============================================================ */}
       <div className="card space-y-4">
         <h2 className="section-title flex items-center gap-2">

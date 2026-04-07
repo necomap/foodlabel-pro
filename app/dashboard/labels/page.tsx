@@ -1,5 +1,5 @@
 // ============================================================
-// app/dashboard/labels/page.tsx - シール印刷ページ
+// app/dashboard/labels/page.tsx - ラベル印刷ページ
 // ============================================================
 'use client';
 
@@ -65,89 +65,97 @@ export default function LabelsPage() {
 
   const [recipes,  setRecipes]  = useState<RecipeOption[]>([]);
   const [shops,    setShops]    = useState<ShopOption[]>([]);
-  const [recipeId, setRecipeId] = useState(() => {
-    if (typeof window === 'undefined') return searchParams.get('recipeId') ?? '';
-    return searchParams.get('recipeId') || localStorage.getItem('label_recipeId') || '';
-  });
-  const [shopId,   setShopId]   = useState(() => loadValue('shopId', ''));
+  const [recipeId, setRecipeId] = useState('');
+  const [shopId,   setShopId]   = useState('');
   const [loading,  setLoading]  = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [warnings, setWarnings] = useState<string[]>([]);
   const [generated, setGenerated] = useState(false);
   const [printStats, setPrintStats] = useState<{used: number; limit: number; resetDate: string} | null>(null);
 
-  // 印刷設定
+  // 印刷設定 (初期値はデフォルト)
   const [mfgDate,       setMfgDate]       = useState(() => new Date().toISOString().slice(0, 10));
   const [shelfOverride, setShelfOverride] = useState('');
-  const [printCount,    setPrintCount]    = useState(() => loadValue('printCount', '1'));
-  const [fontSizePt,    setFontSizePt]    = useState(() => loadValue('fontSizePt', '8'));
-  const [deviceType,    setDeviceType]    = useState<'LABEL_PRINTER'|'A4_PRINTER'>(() => {
-    return (loadValue('deviceType', 'LABEL_PRINTER') as any);
-  });
+  const [printCount,    setPrintCount]    = useState('1');
+  const [fontSizePt,    setFontSizePt]    = useState('8');
+  const [deviceType,    setDeviceType]    = useState<'LABEL_PRINTER'|'A4_PRINTER'>('LABEL_PRINTER');
+  
   // ラベルプリンタ
-  const [labelW,        setLabelW]        = useState(() => loadValue('labelW', '60'));
-  const [labelH,        setLabelH]        = useState(() => loadValue('labelH', '60'));
+  const [labelW,        setLabelW]        = useState('60');
+  const [labelH,        setLabelH]        = useState('60');
+  
   // A4プリンタ
-  const [a4Cols,   setA4Cols]   = useState(() => loadValue('a4Cols', '3'));
-  const [a4Rows,   setA4Rows]   = useState(() => loadValue('a4Rows', '5'));
-  const [marginT,  setMarginT]  = useState(() => loadValue('marginT', '10'));
-  const [marginB,  setMarginB]  = useState(() => loadValue('marginB', '10'));
-  const [marginL,  setMarginL]  = useState(() => loadValue('marginL', '10'));
-  const [marginR,  setMarginR]  = useState(() => loadValue('marginR', '10'));
-  const [startPos, setStartPos] = useState(() => loadValue('startPos', '1'));
-  // A4 シールサイズ
-  const [a4SealW,  setA4SealW]  = useState(() => loadValue('a4SealW', ''));
-  const [a4SealH,  setA4SealH]  = useState(() => loadValue('a4SealH', ''));
+  const [a4Cols,   setA4Cols]   = useState('3');
+  const [a4Rows,   setA4Rows]   = useState('5');
+  const [marginT,  setMarginT]  = useState('10');
+  const [marginB,  setMarginB]  = useState('10');
+  const [marginL,  setMarginL]  = useState('10');
+  const [marginR,  setMarginR]  = useState('10');
+  const [startPos, setStartPos] = useState('1');
+  
+  // A4 ラベルサイズ
+  const [a4SealW,  setA4SealW]  = useState('');
+  const [a4SealH,  setA4SealH]  = useState('');
 
-  // 表示設定の復元
-  const loadBool = (key: string, def: boolean) => {
-    if (typeof window === 'undefined') return def;
-    const v = localStorage.getItem('label_' + key);
-    return v !== null ? v === 'true' : def;
-  };
-  const [showPhone,    setShowPhone]    = useState(() => loadBool('showPhone', true));
-  const [showRep,      setShowRep]      = useState(() => loadBool('showRep', false));
-  const [showFiber,    setShowFiber]    = useState(() => loadBool('showFiber', true));
-  const [showSugar,    setShowSugar]    = useState(() => loadBool('showSugar', true));
-  const [showCholest,  setShowCholest]  = useState(() => loadBool('showCholest', false));
-  const [showComment,  setShowComment]  = useState(() => loadBool('showComment', true));
-  const [showQC,       setShowQC]       = useState(() => loadBool('showQC', true));
+  // 表示設定
+  const [showPhone,    setShowPhone]    = useState(true);
+  const [showRep,      setShowRep]      = useState(false);
+  const [showFiber,    setShowFiber]    = useState(true);
+  const [showSugar,    setShowSugar]    = useState(true);
+  const [showCholest,  setShowCholest]  = useState(false);
+  const [showComment,  setShowComment]  = useState(true);
+  const [showQC,       setShowQC]       = useState(true);
 
+  // ▼ 初期マウント時にlocalStorageから設定を復元 (Hydration Mismatch防止)
   useEffect(() => {
-    // 印刷枚数の残り確認
-    fetch('/api/labels/print-stats')
-      .then(r => r.json())
-      .then(d => { if (d.success) setPrintStats(d.data); })
-      .catch(() => {});
+    const getL = (k: string) => localStorage.getItem('label_' + k);
+    const getB = (k: string, def: boolean) => {
+      const v = getL(k);
+      return v !== null ? v === 'true' : def;
+    };
 
-    // レシピ一覧を取得
-    fetch('/api/recipes?perPage=200').then(r => r.json()).then(d => {
-      if (d.success) setRecipes(d.data.items.map((r: RecipeOption) => ({ id: r.id, name: r.name, shelfLifeDays: r.shelfLifeDays, shelfLifeType: r.shelfLifeType, contentAmount: r.contentAmount })));
-    });
-    // 店舗一覧を取得
-    fetch('/api/shops').then(r => r.json()).then(d => {
-      if (d.success) { 
-        setShops(d.data); 
-        if (!shopId) { // 初期値がない場合のみデフォルト店舗をセット
-          const def = d.data.find((s: ShopOption) => s.isDefault); 
-          if (def) setShopId(def.id); 
-        }
-      }
-    });
-  }, []);
+    const qsRecipeId = searchParams.get('recipeId');
+    if (qsRecipeId) {
+      setRecipeId(qsRecipeId);
+      localStorage.setItem('label_recipeId', qsRecipeId);
+    } else if (getL('recipeId')) setRecipeId(getL('recipeId')!);
 
-  // URLパラメータ（recipeId）に変更があった場合に同期
-  useEffect(() => {
-    const rid = searchParams.get('recipeId');
-    if (rid) {
-      setRecipeId(rid);
-      localStorage.setItem('label_recipeId', rid);
+    if (getL('shopId')) setShopId(getL('shopId')!);
+    
+    if (getL('printCount')) setPrintCount(getL('printCount')!);
+    if (getL('fontSizePt')) setFontSizePt(getL('fontSizePt')!);
+    if (getL('deviceType') === 'A4_PRINTER' || getL('deviceType') === 'LABEL_PRINTER') {
+      setDeviceType(getL('deviceType') as any);
     }
+
+    if (getL('labelW')) setLabelW(getL('labelW')!);
+    if (getL('labelH')) setLabelH(getL('labelH')!);
+
+    if (getL('a4Cols')) setA4Cols(getL('a4Cols')!);
+    if (getL('a4Rows')) setA4Rows(getL('a4Rows')!);
+    if (getL('marginT')) setMarginT(getL('marginT')!);
+    if (getL('marginB')) setMarginB(getL('marginB')!);
+    if (getL('marginL')) setMarginL(getL('marginL')!);
+    if (getL('marginR')) setMarginR(getL('marginR')!);
+    if (getL('startPos')) setStartPos(getL('startPos')!);
+
+    if (getL('a4SealW') !== null) setA4SealW(getL('a4SealW')!);
+    if (getL('a4SealH') !== null) setA4SealH(getL('a4SealH')!);
+
+    setShowPhone(getB('showPhone', true));
+    setShowRep(getB('showRep', false));
+    setShowFiber(getB('showFiber', true));
+    setShowSugar(getB('showSugar', true));
+    setShowCholest(getB('showCholest', false));
+    setShowComment(getB('showComment', true));
+    setShowQC(getB('showQC', true));
   }, [searchParams]);
 
   const updateLabelStorage = (key: string, val: string) => {
     localStorage.setItem('label_' + key, val);
   };
+
+
 
   useEffect(() => {
     const r = recipes.find(r => r.id === recipeId);
@@ -255,9 +263,9 @@ export default function LabelsPage() {
         setWarnings(data.data.warnings ?? []);
         setGenerated(true);
         if (data.data.warnings?.length > 0) toast.error(`${data.data.warnings.length}件の警告があります`);
-        else toast.success('シールを生成しました');
+        else toast.success('ラベルを生成しました');
       } else {
-        toast.error(data.error ?? 'シール生成に失敗しました');
+        toast.error(data.error ?? 'ラベル生成に失敗しました');
       }
     } catch { toast.error('通信エラーが発生しました'); }
     finally   { setLoading(false); }
@@ -296,8 +304,8 @@ export default function LabelsPage() {
       )}
 
       <div>
-        <h1 className="text-2xl font-bold text-stone-800 font-display">シール印刷</h1>
-        <p className="text-stone-500 text-sm mt-0.5">製造日を入力してシールを生成・印刷します</p>
+        <h1 className="text-2xl font-bold text-stone-800 font-display">ラベル印刷</h1>
+        <p className="text-stone-500 text-sm mt-0.5">製造日を入力してラベルを生成・印刷します</p>
       </div>
 
       <div className="grid lg:grid-cols-5 gap-5">
@@ -312,12 +320,12 @@ export default function LabelsPage() {
               <RecipeSearchSelect
                 recipes={recipes}
                 value={recipeId}
-                onChange={setRecipeId}
+                onChange={(v) => { setRecipeId(v); updateLabelStorage('recipeId', v); }}
               />
             </div>
             <div>
               <label className="field-label">店舗</label>
-              <select value={shopId} onChange={e => setShopId(e.target.value)} className="field-select">
+              <select value={shopId} onChange={e => { setShopId(e.target.value); updateLabelStorage('shopId', e.target.value); }} className="field-select">
                 <option value="">デフォルト店舗</option>
                 {shops.map(s => <option key={s.id} value={s.id}>{s.shopName}{s.isDefault ? '（デフォルト）' : ''}</option>)}
               </select>
@@ -334,7 +342,7 @@ export default function LabelsPage() {
             </div>
             <div>
               <label className="field-label">印刷枚数</label>
-              <input type="text" inputMode="numeric" pattern="[0-9]*" value={printCount} onChange={e => setPrintCount(e.target.value)}
+              <input type="text" inputMode="numeric" pattern="[0-9]*" value={printCount} onChange={e => { setPrintCount(e.target.value); updateLabelStorage('printCount', e.target.value); }}
                 className="field-input" min="1" max="200" />
             </div>
           </div>
@@ -344,14 +352,14 @@ export default function LabelsPage() {
             <h2 className="section-title">プリンタ設定</h2>
             <div>
               <label className="field-label">プリンタ種別</label>
-              <select value={deviceType} onChange={e => setDeviceType(e.target.value as 'LABEL_PRINTER'|'A4_PRINTER')} className="field-select">
+              <select value={deviceType} onChange={e => { setDeviceType(e.target.value as 'LABEL_PRINTER'|'A4_PRINTER'); updateLabelStorage('deviceType', e.target.value); }} className="field-select">
                 <option value="LABEL_PRINTER">ラベルプリンタ（サーマル等）</option>
                 <option value="A4_PRINTER">A4プリンタ（レーザー・インクジェット）</option>
               </select>
             </div>
             <div>
               <label className="field-label">フォントサイズ（pt）</label>
-              <input type="text" inputMode="numeric" pattern="[0-9]*" value={fontSizePt} onChange={e => { setFontSizePt(e.target.value); localStorage.setItem('label_fontSizePt', e.target.value); }}
+              <input type="text" inputMode="numeric" pattern="[0-9]*" value={fontSizePt} onChange={e => { setFontSizePt(e.target.value); updateLabelStorage('fontSizePt', e.target.value); }}
                 className="field-input" min="6" max="12" step="0.5" />
               <p className="field-hint">規定値: 8pt（最小: 6pt ※貼付面が小さい場合のみ）</p>
             </div>
@@ -359,12 +367,12 @@ export default function LabelsPage() {
             {deviceType === 'LABEL_PRINTER' ? (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="field-label">シール幅（mm）</label>
-                  <input type="text" inputMode="numeric" pattern="[0-9]*" value={labelW} onChange={e => { setLabelW(e.target.value); localStorage.setItem('label_labelW', e.target.value); }} className="field-input" />
+                  <label className="field-label">ラベル幅（mm）</label>
+                  <input type="text" inputMode="numeric" pattern="[0-9]*" value={labelW} onChange={e => { setLabelW(e.target.value); updateLabelStorage('labelW', e.target.value); }} className="field-input" />
                 </div>
                 <div>
-                  <label className="field-label">シール高さ（mm）</label>
-                  <input type="text" inputMode="numeric" pattern="[0-9]*" value={labelH} onChange={e => { setLabelH(e.target.value); localStorage.setItem('label_labelH', e.target.value); }} className="field-input" />
+                  <label className="field-label">ラベル高さ（mm）</label>
+                  <input type="text" inputMode="numeric" pattern="[0-9]*" value={labelH} onChange={e => { setLabelH(e.target.value); updateLabelStorage('labelH', e.target.value); }} className="field-input" />
                 </div>
               </div>
             ) : (
@@ -372,38 +380,38 @@ export default function LabelsPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="field-label">横（列数）</label>
-                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={a4Cols} onChange={e => { setA4Cols(e.target.value); localStorage.setItem('label_a4Cols', e.target.value); }} className="field-input" min="1" max="6" />
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={a4Cols} onChange={e => { setA4Cols(e.target.value); updateLabelStorage('a4Cols', e.target.value); }} className="field-input" min="1" max="6" />
                   </div>
                   <div>
                     <label className="field-label">縦（行数）</label>
-                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={a4Rows} onChange={e => { setA4Rows(e.target.value); localStorage.setItem('label_a4Rows', e.target.value); }} className="field-input" min="1" max="10" />
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={a4Rows} onChange={e => { setA4Rows(e.target.value); updateLabelStorage('a4Rows', e.target.value); }} className="field-input" min="1" max="10" />
                   </div>
                 </div>
 　　　　　　　　<div>
-                  <label className="field-label">シール1枚のサイズ（任意・mm）</label>
+                  <label className="field-label">ラベル1枚のサイズ（任意・mm）</label>
                   <div className="flex items-center gap-2">
-                    <input type="text" inputMode="decimal" value={a4SealW} onChange={e => { setA4SealW(e.target.value); localStorage.setItem('label_a4SealW', e.target.value); }} className="field-input" placeholder="幅" />
+                    <input type="text" inputMode="decimal" value={a4SealW} onChange={e => { setA4SealW(e.target.value); updateLabelStorage('a4SealW', e.target.value); }} className="field-input" placeholder="幅" />
                     <span className="text-stone-400 text-sm">×</span>
-                    <input type="text" inputMode="decimal" value={a4SealH} onChange={e => { setA4SealH(e.target.value); localStorage.setItem('label_a4SealH', e.target.value); }} className="field-input" placeholder="高さ" />
+                    <input type="text" inputMode="decimal" value={a4SealH} onChange={e => { setA4SealH(e.target.value); updateLabelStorage('a4SealH', e.target.value); }} className="field-input" placeholder="高さ" />
                     <span className="text-xs text-stone-400">mm</span>
                   </div>
-                  <p className="text-xs text-stone-400 mt-1">入力するとシール枠に合わせて配置します</p>
+                  <p className="text-xs text-stone-400 mt-1">入力するとラベル枠に合わせて配置します</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="field-label">上余白（mm）</label>
-                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={marginT} onChange={e => { setMarginT(e.target.value); localStorage.setItem('label_marginT', e.target.value); }} className="field-input" />
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={marginT} onChange={e => { setMarginT(e.target.value); updateLabelStorage('marginT', e.target.value); }} className="field-input" />
                   </div>
                   <div>
                     <label className="field-label">左余白（mm）</label>
-                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={marginL} onChange={e => { setMarginL(e.target.value); localStorage.setItem('label_marginL', e.target.value); }} className="field-input" />
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={marginL} onChange={e => { setMarginL(e.target.value); updateLabelStorage('marginL', e.target.value); }} className="field-input" />
                   </div>
                 </div>
                 <div>
                   <label className="field-label">印刷開始位置</label>
-                  <input type="text" inputMode="numeric" pattern="[0-9]*" value={startPos} onChange={e => setStartPos(e.target.value)}
+                  <input type="text" inputMode="numeric" pattern="[0-9]*" value={startPos} onChange={e => { setStartPos(e.target.value); updateLabelStorage('startPos', e.target.value); }}
                     className="field-input" min="1" placeholder="1（左上から）" />
-                  <p className="field-hint">使用済みシール用紙を使う場合に指定</p>
+                  <p className="field-hint">使用済みラベル用紙を使う場合に指定</p>
                 </div>
               </div>
             )}
@@ -440,7 +448,7 @@ export default function LabelsPage() {
             <button onClick={handleGenerate} disabled={loading || !recipeId}
               className="btn-primary flex-1 flex items-center justify-center gap-2 py-3">
               {loading ? <><Loader2 className="w-5 h-5 animate-spin" />処理中...</> :
-                <><RefreshCw className="w-5 h-5" />シールを生成</>}
+                <><RefreshCw className="w-5 h-5" />ラベルを生成</>}
             </button>
           </div>
         </div>
@@ -481,13 +489,13 @@ export default function LabelsPage() {
                   srcDoc={previewHtml}
                   className="w-full"
                   style={{ height: '600px' }}
-                  title="シールプレビュー"
+                  title="ラベルプレビュー"
                 />
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-48 text-stone-400">
                 <Printer className="w-12 h-12 mb-3 opacity-30" />
-                <p className="text-sm">左のパネルで設定してシールを生成してください</p>
+                <p className="text-sm">左のパネルで設定してラベルを生成してください</p>
               </div>
             )}
           </div>
@@ -498,7 +506,7 @@ export default function LabelsPage() {
               <div className="text-sm">
                 <p className="font-medium mb-1">印刷方法</p>
                 <p>「印刷する」ボタンをクリックするとブラウザの印刷ダイアログが開きます。</p>
-                <p className="mt-1">ラベルプリンタの場合: 用紙サイズを手動でシールサイズに合わせてください。</p>
+                <p className="mt-1">ラベルプリンタの場合: 用紙サイズを手動でラベルサイズに合わせてください。</p>
                 <p className="mt-1">A4プリンタの場合: 「拡大縮小なし（100%）」で印刷してください。</p>
               </div>
             </div>

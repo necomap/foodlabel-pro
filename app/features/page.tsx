@@ -3,7 +3,7 @@ import { Cookie, BookOpen, Tag, ShoppingBasket, Printer, ArrowLeftRight, Setting
 
 export const metadata = {
   title: '機能一覧 | FoodLabel Pro',
-  description: 'FoodLabel Proの機能一覧。レシピ管理・アレルゲン判定・栄養成分計算・シール印刷・Excelエクスポートなど。',
+  description: 'FoodLabel Proの機能一覧。レシピ管理・アレルゲン判定・栄養成分計算・ラベル印刷・Excelエクスポートなど。',
 };
 
 const FEATURES = [
@@ -27,7 +27,7 @@ const FEATURES = [
   },
   {
     icon: Printer,
-    title: 'シール印刷',
+    title: 'ラベル印刷',
     desc: '食品表示法に対応したラベルをすぐに印刷。',
     items: ['ラベルプリンター対応（サイズmm単位で設定）', 'A4用紙への複数面付け印刷', '製造日・賞味期限の自動計算', '店舗情報の自動挿入', 'フォントサイズ調整', '印刷プレビュー機能'],
   },

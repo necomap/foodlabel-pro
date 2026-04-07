@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 
 const FREE_FEATURES = [
   'レシピ最大10件',
-  'シール印刷 月20枚まで',
+  'ラベル印刷 月20枚まで',
   '店舗1件',
   'アレルゲン自動判定',
   '栄養成分計算',
@@ -15,7 +15,7 @@ const FREE_FEATURES = [
 
 const PREMIUM_FEATURES = [
   'レシピ無制限',
-  'シール印刷 無制限',
+  'ラベル印刷 無制限',
   '店舗 無制限',
   'Excelエクスポート',
   'アレルゲン自動判定',

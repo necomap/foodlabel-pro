@@ -158,7 +158,7 @@ export default function RegisterPage() {
                 店舗・事業者情報
               </h3>
               <p className="text-xs text-stone-500 mb-3">
-                ※ シールの製造者欄に表示される情報です。後から変更できます。
+                ※ ラベルの製造者欄に表示される情報です。後から変更できます。
               </p>
               <div className="space-y-3">
                 <div>

@@ -33,7 +33,7 @@ export default function RootPage() {
           食品成分表示ラベルを<br />かんたんに管理
         </h1>
         <p className="text-stone-500 text-lg mb-8 leading-relaxed">
-          レシピ登録からアレルゲン判定・栄養成分計算・シール印刷まで。<br />
+          レシピ登録からアレルゲン判定・栄養成分計算・ラベル印刷まで。<br />
           食品表示法に対応したラベルをすぐに作成できます。
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -52,7 +52,7 @@ export default function RootPage() {
           {[
             { icon: ShoppingBasket, title: 'アレルゲン自動判定', desc: '食材を選ぶだけで特定原材料8品目・20品目を自動で判定します' },
             { icon: Shield, title: '栄養成分計算', desc: '文科省の食品成分表データを元に栄養成分を自動計算します' },
-            { icon: Printer, title: 'シール印刷', desc: 'ラベルプリンターやA4用紙に対応した食品表示シールを印刷できます' },
+            { icon: Printer, title: 'ラベル印刷', desc: 'ラベルプリンターやA4用紙に対応した食品表示ラベルを印刷できます' },
           ].map(f => {
             const Icon = f.icon;
             return (
@@ -75,7 +75,7 @@ export default function RootPage() {
           {[
             { step: '1', title: '食材を登録', desc: '使用する食材をマスタに登録。文科省の成分表データから栄養成分を自動取得できます。' },
             { step: '2', title: 'レシピを作成', desc: '食材と分量を入力するだけ。アレルゲンと栄養成分が自動で計算されます。' },
-            { step: '3', title: 'シールを印刷', desc: '食品表示法に対応したラベルをその場で印刷。ラベルプリンターとA4用紙に対応。' },
+            { step: '3', title: 'ラベルを印刷', desc: '食品表示法に対応したラベルをその場で印刷。ラベルプリンターとA4用紙に対応。' },
           ].map(s => (
             <div key={s.step} className="card text-center">
               <div className="w-10 h-10 bg-brand-500 text-white rounded-full flex items-center justify-center mx-auto mb-3 font-bold text-lg">
@@ -96,7 +96,7 @@ export default function RootPage() {
             <h3 className="font-bold text-stone-800">フリープラン</h3>
             <div className="text-3xl font-bold text-stone-800">¥0<span className="text-sm font-normal text-stone-500">/月</span></div>
             <ul className="space-y-2 text-sm text-stone-600">
-              {['レシピ最大10件', 'シール印刷月20枚', '店舗1件', 'アレルゲン判定', '栄養成分計算'].map(f => (
+              {['レシピ最大10件', 'ラベル印刷月20枚', '店舗1件', 'アレルゲン判定', '栄養成分計算'].map(f => (
                 <li key={f} className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-stone-400" />{f}</li>
               ))}
             </ul>
@@ -109,7 +109,7 @@ export default function RootPage() {
             </div>
             <div className="text-3xl font-bold text-stone-800">¥980<span className="text-sm font-normal text-stone-500">/月</span></div>
             <ul className="space-y-2 text-sm text-stone-600">
-              {['レシピ無制限', 'シール印刷無制限', '店舗無制限', 'Excelエクスポート', '広告なし', '優先サポート'].map(f => (
+              {['レシピ無制限', 'ラベル印刷無制限', '店舗無制限', 'Excelエクスポート', '広告なし', '優先サポート'].map(f => (
                 <li key={f} className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-amber-500" />{f}</li>
               ))}
             </ul>

@@ -1,5 +1,5 @@
 // ============================================================
-// lib/label.ts - シール内容生成ロジック
+// lib/label.ts - ラベル内容生成ロジック
 // ============================================================
 
 import { addDays, format } from 'date-fns';
@@ -9,7 +9,7 @@ import { buildIngredientsLabel, collectRecipeAllergens } from './allergen';
 import { calcPerUnit, roundForDisplay } from './nutrition';
 
 /**
- * レシピと設定からシール内容を生成する
+ * レシピと設定からラベル内容を生成する
  */
 export function generateLabelContent(
   recipe: RecipeDetail,
@@ -126,8 +126,8 @@ export function generateLabelContent(
 }
 
 /**
- * シールHTMLを生成する（印刷用）
- * @param content - シール内容
+ * ラベルHTMLを生成する（印刷用）
+ * @param content - ラベル内容
  * @param config - 印刷設定
  * @param count - 枚数（A4の場合はページ全体）
  */
@@ -138,7 +138,7 @@ export function generateLabelHtml(
   const { fontSizePt, labelWidthMm, labelHeightMm } = config;
   const width = labelWidthMm ?? 60;
   const height = labelHeightMm ?? 60;
-  // シールサイズに合わせてフォントサイズを自動調整
+  // ラベルサイズに合わせてフォントサイズを自動調整
   // 基準: 60mm×60mmで8pt。面積比で縮小（最小5pt）
   const baseFontSize = fontSizePt ?? 8;
   const areaRatio = Math.sqrt((width * height) / (60 * 60));
@@ -234,7 +234,7 @@ export function generateLabelHtml(
     ${content.email ? '<br>' + escHtml(content.email) : ''}
   </div>
 `;
-  // ラベルプリンタ用：シールのみ
+  // ラベルプリンタ用：ラベルのみ
   if (config.deviceType === 'LABEL_PRINTER') {
     const labels = Array(config.printCount).fill(singleLabel).join('\n');
     return `<!DOCTYPE html>
@@ -263,7 +263,7 @@ export function generateLabelHtml(
   const marginLeft   = config.marginLeftMm   ?? 10;
   const marginRight  = config.marginRightMm  ?? 10;
 
-  // シールサイズ：指定があればそれを使用、なければ印刷領域から自動計算
+  // ラベルサイズ：指定があればそれを使用、なければ印刷領域から自動計算
   const printAreaW = 210 - marginLeft - marginRight;
   const printAreaH = 297 - marginTop  - marginBottom;
   const autoCellW  = Math.floor((printAreaW / cols) * 10) / 10;

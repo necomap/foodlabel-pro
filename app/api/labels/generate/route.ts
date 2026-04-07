@@ -1,5 +1,5 @@
 // ============================================================
-// app/api/labels/generate/route.ts - シール生成API
+// app/api/labels/generate/route.ts - ラベル生成API
 // ============================================================
 
 import { NextResponse } from 'next/server';

@@ -146,7 +146,6 @@ export function generateLabelHtml(
   const areaRatio = Math.sqrt((width * height) / (60 * 60));
   const autoFontSize = Math.max(Math.round(baseFontSize * areaRatio * 10) / 10, 5);
   const fontSize = autoFontSize;
-  const smallFontSize = Math.max(Math.round((fontSize - 1) * 10) / 10, 5);
 
   const escHtml = (s: string) =>
     s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -175,7 +174,7 @@ export function generateLabelHtml(
     <span style="font-weight:bold;">名称：</span>${escHtml(content.categoryName)}
   </div>
   <!-- 原材料名 -->
-  <div style="margin-bottom:0.3mm; font-size:${smallFontSize}pt;">
+  <div style="margin-bottom:0.3mm;">
     <span style="font-weight:bold;">原材料名：</span>${escHtml(content.ingredientsText)}
   </div>
   <!-- 内容量 -->
@@ -187,11 +186,11 @@ export function generateLabelHtml(
     <span style="font-weight:bold;">${escHtml(content.expiryType)}：</span>${escHtml(content.expiryDate)}
   </div>
   <!-- 保存方法 -->
-  <div style="margin-bottom:0.3mm; font-size:${smallFontSize}pt;">
+  <div style="margin-bottom:0.3mm;">
     <span style="font-weight:bold;">保存方法：</span>${escHtml(content.storageMethod)}
   </div>
   <!-- 栄養成分 -->
-  <div style="border:0.3mm solid #ccc; padding:0.5mm 1mm; margin-bottom:0.3mm; font-size:${smallFontSize}pt;">
+  <div style="border:0.3mm solid #ccc; padding:0.5mm 1mm; margin-bottom:0.3mm;">
     <div style="font-weight:bold; margin-bottom:0.2mm;">
       栄養成分表示（${escHtml(content.nutritionPerUnit.label)}）${content.isEstimated ? '※推定値' : ''}
     </div>
@@ -224,11 +223,11 @@ export function generateLabelHtml(
     </table>
   </div>
   <!-- コメント -->
-  ${content.comment ? `<div style="margin-bottom:0.3mm; font-size:${smallFontSize}pt;">${escHtml(content.comment)}</div>` : ''}
+  ${content.comment ? `<div style="margin-bottom:0.3mm;">${escHtml(content.comment)}</div>` : ''}
   <!-- 品質管理 -->
-  ${content.qualityControl ? `<div style="font-size:${smallFontSize}pt;">${escHtml(content.qualityControl)}</div>` : ''}
+  ${content.qualityControl ? `<div>${escHtml(content.qualityControl)}</div>` : ''}
   <!-- 製造者情報 -->
-  <div style="margin-top:0.3mm; border-top:0.3mm solid #ccc; padding-top:0.3mm; font-size:${smallFontSize}pt; word-break:break-all; overflow-wrap:break-word; line-height:1.15;">
+  <div style="margin-top:0.3mm; border-top:0.3mm solid #ccc; padding-top:0.3mm; word-break:break-all; overflow-wrap:break-word; line-height:1.15;">
     <span style="font-weight:bold;">製造者：</span>${escHtml(content.manufacturerName)}${content.representative ? '　' + escHtml(content.representative) : ''}
     ${content.postalCode ? '<br>' + escHtml(content.postalCode) : ''}
     ${content.address ? '<br>' + escHtml(content.address) : ''}
@@ -280,15 +279,13 @@ export function generateLabelHtml(
   // A4セルサイズに合わせてフォントサイズを再計算
   const a4AreaRatio = Math.sqrt((cellW * cellH) / (60 * 60));
   const a4FontSize = Math.max(Math.round((fontSizePt ?? 8) * a4AreaRatio * 10) / 10, 5);
-  const a4SmallFontSize = Math.max(Math.round((a4FontSize - 1) * 10) / 10, 5);
 
   // ラベルHTMLをセルサイズとフォントサイズに合わせて調整
   const cellLabel = singleLabel
     .replace(`width: ${width}mm`, `width: ${cellW}mm`)
     .replace(`min-height: ${height}mm`, `height: ${cellH}mm`)
     .replace(new RegExp(`font-size:${fontSize}pt`, 'g'), `font-size:${a4FontSize}pt`)
-    .replace(new RegExp(`font-size:${Math.round(fontSize * 1.1)}pt`, 'g'), `font-size:${Math.round(a4FontSize * 1.1)}pt`)
-    .replace(new RegExp(`font-size:${smallFontSize}pt`, 'g'), `font-size:${a4SmallFontSize}pt`);
+    .replace(new RegExp(`font-size:${Math.round(fontSize * 1.1)}pt`, 'g'), `font-size:${Math.round(a4FontSize * 1.1)}pt`);
 
   let gridHtml = '';
   for (let p = 0; p < pages; p++) {

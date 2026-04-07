@@ -153,11 +153,11 @@ export function generateLabelHtml(
 <div class="label" style="
   width: ${width}mm;
   min-height: ${height}mm;
-  overflow: visible;
+  overflow: hidden;
   font-size:${fontSize}pt;
   font-family: 'Noto Sans JP', 'Hiragino Sans', Meiryo, sans-serif;
-  line-height: 1.4;
-  padding: 2mm;
+  line-height: 1.25;
+  padding: 1.5mm;
   border: 0.3mm solid #999;
   box-sizing: border-box;
   break-inside: avoid;
@@ -165,32 +165,32 @@ export function generateLabelHtml(
   break-after: avoid;
 ">
   <!-- 品名 -->
-  <div style="font-weight:bold; font-size:${Math.round(fontSize * 1.1)}pt; border-bottom:0.3mm solid #ccc; margin-bottom:1mm; padding-bottom:0.5mm;">
+  <div style="font-weight:bold; font-size:${Math.round(fontSize * 1.1)}pt; border-bottom:0.3mm solid #ccc; margin-bottom:0.5mm; padding-bottom:0.3mm;">
     ${escHtml(content.productName)}
   </div>
   <!-- 名称 -->
-  <div style="margin-bottom:0.5mm;">
+  <div style="margin-bottom:0.3mm;">
     <span style="font-weight:bold;">名称：</span>${escHtml(content.categoryName)}
   </div>
   <!-- 原材料名 -->
-  <div style="margin-bottom:0.5mm; font-size:${smallFontSize}pt;">
+  <div style="margin-bottom:0.3mm; font-size:${smallFontSize}pt;">
     <span style="font-weight:bold;">原材料名：</span>${escHtml(content.ingredientsText)}
   </div>
   <!-- 内容量 -->
-  <div style="margin-bottom:0.5mm;">
+  <div style="margin-bottom:0.3mm;">
     <span style="font-weight:bold;">内容量：</span>${escHtml(content.contentAmount)}
   </div>
   <!-- 賞味期限 -->
-  <div style="margin-bottom:0.5mm;">
+  <div style="margin-bottom:0.3mm;">
     <span style="font-weight:bold;">${escHtml(content.expiryType)}：</span>${escHtml(content.expiryDate)}
   </div>
   <!-- 保存方法 -->
-  <div style="margin-bottom:0.5mm; font-size:${smallFontSize}pt;">
+  <div style="margin-bottom:0.3mm; font-size:${smallFontSize}pt;">
     <span style="font-weight:bold;">保存方法：</span>${escHtml(content.storageMethod)}
   </div>
   <!-- 栄養成分 -->
-  <div style="border:0.3mm solid #ccc; padding:1mm; margin-bottom:0.5mm; font-size:${smallFontSize}pt;">
-    <div style="font-weight:bold; margin-bottom:0.3mm;">
+  <div style="border:0.3mm solid #ccc; padding:0.5mm 1mm; margin-bottom:0.3mm; font-size:${smallFontSize}pt;">
+    <div style="font-weight:bold; margin-bottom:0.2mm;">
       栄養成分表示（${escHtml(content.nutritionPerUnit.label)}）${content.isEstimated ? '※推定値' : ''}
     </div>
     <table style="width:100%; border-collapse:collapse;">
@@ -222,11 +222,11 @@ export function generateLabelHtml(
     </table>
   </div>
   <!-- コメント -->
-  ${content.comment ? `<div style="margin-bottom:0.5mm; font-size:${smallFontSize}pt;">${escHtml(content.comment)}</div>` : ''}
+  ${content.comment ? `<div style="margin-bottom:0.3mm; font-size:${smallFontSize}pt;">${escHtml(content.comment)}</div>` : ''}
   <!-- 品質管理 -->
   ${content.qualityControl ? `<div style="font-size:${smallFontSize}pt;">${escHtml(content.qualityControl)}</div>` : ''}
   <!-- 製造者情報 -->
-  <div style="margin-top:0.5mm; border-top:0.3mm solid #ccc; padding-top:0.5mm; font-size:${smallFontSize}pt; word-break:break-all; overflow-wrap:break-word;">
+  <div style="margin-top:0.3mm; border-top:0.3mm solid #ccc; padding-top:0.3mm; font-size:${smallFontSize}pt; word-break:break-all; overflow-wrap:break-word;">
     <span style="font-weight:bold;">製造者：</span>${escHtml(content.manufacturerName)}${content.representative ? '　' + escHtml(content.representative) : ''}
     ${content.postalCode ? '<br>' + escHtml(content.postalCode) : ''}
     ${content.address ? '<br>' + escHtml(content.address) : ''}

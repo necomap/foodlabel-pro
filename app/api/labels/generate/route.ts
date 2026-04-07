@@ -32,6 +32,7 @@ const labelConfigSchema = z.object({
   marginRightMm:   z.number().optional(),
   startPosition:   z.number().int().positive().optional(),
   displaySettings: z.object({
+    showPostalCode:     z.boolean().default(true),
     showPhone:          z.boolean().default(true),
     showRepresentative: z.boolean().default(false),
     showEmail:          z.boolean().default(false),

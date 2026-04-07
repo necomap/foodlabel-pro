@@ -98,6 +98,7 @@ export default function LabelsPage() {
   const [a4SealH,  setA4SealH]  = useState('');
 
   // 表示設定
+  const [showPostalCode, setShowPostalCode] = useState(true);
   const [showPhone,    setShowPhone]    = useState(true);
   const [showRep,      setShowRep]      = useState(false);
   const [showFiber,    setShowFiber]    = useState(true);
@@ -142,6 +143,7 @@ export default function LabelsPage() {
     if (getL('a4SealW') !== null) setA4SealW(getL('a4SealW')!);
     if (getL('a4SealH') !== null) setA4SealH(getL('a4SealH')!);
 
+    if (getL('showPostalCode') !== null) setShowPostalCode(getB('showPostalCode', true));
     setShowPhone(getB('showPhone', true));
     setShowRep(getB('showRep', false));
     setShowFiber(getB('showFiber', true));
@@ -150,6 +152,29 @@ export default function LabelsPage() {
     setShowComment(getB('showComment', true));
     setShowQC(getB('showQC', true));
   }, [searchParams]);
+
+  useEffect(() => {
+    // 印刷枚数の残り確認
+    fetch('/api/labels/print-stats')
+      .then(r => r.json())
+      .then(d => { if (d.success) setPrintStats(d.data); })
+      .catch(() => {});
+
+    // レシピ一覧を取得
+    fetch('/api/recipes?perPage=200').then(r => r.json()).then(d => {
+      if (d.success) setRecipes(d.data.items.map((r: RecipeOption) => ({ id: r.id, name: r.name, shelfLifeDays: r.shelfLifeDays, shelfLifeType: r.shelfLifeType, contentAmount: r.contentAmount })));
+    });
+    // 店舗一覧を取得
+    fetch('/api/shops').then(r => r.json()).then(d => {
+      if (d.success) { 
+        setShops(d.data); 
+        if (!shopId) { // 初期値がない場合のみデフォルト店舗をセット
+          const def = d.data.find((s: ShopOption) => s.isDefault); 
+          if (def) setShopId(def.id); 
+        }
+      }
+    });
+  }, []);
 
   const updateLabelStorage = (key: string, val: string) => {
     localStorage.setItem('label_' + key, val);
@@ -192,7 +217,7 @@ export default function LabelsPage() {
           a4SealHeightMm: a4SealH ? parseFloat(a4SealH) : undefined,
         }),
         displaySettings: {
-          showPhone, showRepresentative: showRep, showEmail: false,
+          showPostalCode, showPhone, showRepresentative: showRep, showEmail: false,
           showNutrition: true, showDietaryFiber: showFiber,
           showSugar, showCholesterol: showCholest,
           showQualityControl: showQC, showComment,
@@ -247,7 +272,7 @@ export default function LabelsPage() {
           a4SealHeightMm: a4SealH ? parseFloat(a4SealH) : undefined,
         }),
         displaySettings: {
-          showPhone, showRepresentative: showRep, showEmail: false,
+          showPostalCode, showPhone, showRepresentative: showRep, showEmail: false,
           showNutrition: true, showDietaryFiber: showFiber,
           showSugar, showCholesterol: showCholest,
           showQualityControl: showQC, showComment,
@@ -421,6 +446,7 @@ export default function LabelsPage() {
           <div className="card space-y-3">
             <h2 className="section-title">表示項目設定</h2>
             {[
+              { label: '郵便番号を表示', value: showPostalCode, onChange: (v:boolean)=>{setShowPostalCode(v);localStorage.setItem('label_showPostalCode',String(v));} },
               { label: '電話番号を表示', value: showPhone,   onChange: (v:boolean)=>{setShowPhone(v);localStorage.setItem('label_showPhone',String(v));} },
               { label: '代表者名を表示', value: showRep,     onChange: (v:boolean)=>{setShowRep(v);localStorage.setItem('label_showRep',String(v));}, note: '個人事業主は法的義務を確認してください' },
               { label: '食物繊維を表示', value: showFiber,   onChange: (v:boolean)=>{setShowFiber(v);localStorage.setItem('label_showFiber',String(v));} },

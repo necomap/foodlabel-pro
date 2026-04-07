@@ -153,6 +153,7 @@ export interface RecipeDetail extends RecipeSummary {
 // シール印刷
 // ============================================================
 export interface LabelDisplaySettings {
+  showPostalCode?:     boolean;
   showPhone?:          boolean;
   showRepresentative?: boolean;
   showEmail?:          boolean;

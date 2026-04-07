@@ -86,7 +86,9 @@ export function generateLabelContent(
     expiryType,
     storageMethod:   recipe.storageMethod ?? '直射日光・高温多湿を避けて保存してください。',
     manufacturerName,
-    postalCode:      shopInfo.postalCode ? `〒${shopInfo.postalCode}` : '',
+    postalCode:      displaySettings.showPostalCode !== false && shopInfo.postalCode 
+                       ? `〒${shopInfo.postalCode}` 
+                       : '',
     address:         shopInfo.address ?? '',
     phone:           displaySettings.showPhone
                        ? shopInfo.phone ?? undefined
@@ -156,8 +158,8 @@ export function generateLabelHtml(
   overflow: hidden;
   font-size:${fontSize}pt;
   font-family: 'Noto Sans JP', 'Hiragino Sans', Meiryo, sans-serif;
-  line-height: 1.25;
-  padding: 1.5mm;
+  line-height: 1.15;
+  padding: 1.2mm;
   border: 0.3mm solid #999;
   box-sizing: border-box;
   break-inside: avoid;
@@ -226,7 +228,7 @@ export function generateLabelHtml(
   <!-- 品質管理 -->
   ${content.qualityControl ? `<div style="font-size:${smallFontSize}pt;">${escHtml(content.qualityControl)}</div>` : ''}
   <!-- 製造者情報 -->
-  <div style="margin-top:0.3mm; border-top:0.3mm solid #ccc; padding-top:0.3mm; font-size:${smallFontSize}pt; word-break:break-all; overflow-wrap:break-word;">
+  <div style="margin-top:0.3mm; border-top:0.3mm solid #ccc; padding-top:0.3mm; font-size:${smallFontSize}pt; word-break:break-all; overflow-wrap:break-word; line-height:1.15;">
     <span style="font-weight:bold;">製造者：</span>${escHtml(content.manufacturerName)}${content.representative ? '　' + escHtml(content.representative) : ''}
     ${content.postalCode ? '<br>' + escHtml(content.postalCode) : ''}
     ${content.address ? '<br>' + escHtml(content.address) : ''}
@@ -288,13 +290,18 @@ export function generateLabelHtml(
     .replace(new RegExp(`font-size:${smallFontSize}pt`, 'g'), `font-size:${a4SmallFontSize}pt`);
 
   let gridHtml = '';
+  // A4上から順に印刷されるように grid-auto-flow: column; を追加
   for (let p = 0; p < pages; p++) {
     const isLastPage = p === pages - 1;
-    gridHtml += `<div style="display:grid;grid-template-columns:repeat(${cols},${cellW}mm);grid-template-rows:repeat(${rows},${cellH}mm);width:210mm;height:297mm;padding:${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm;box-sizing:border-box;${isLastPage ? '' : 'page-break-after:always;'}">`;
-    for (let i = 0; i < labelsPerPage; i++) {
-      const slot = p * labelsPerPage + i;
-      const isEmpty = slot < startPos || slot >= startPos + config.printCount;
-      gridHtml += `<div style="width:${cellW}mm;height:${cellH}mm;box-sizing:border-box;">${isEmpty ? '' : cellLabel}</div>`;
+    gridHtml += `<div style="display:grid;grid-auto-flow:column;grid-template-columns:repeat(${cols},${cellW}mm);grid-template-rows:repeat(${rows},${cellH}mm);width:210mm;height:297mm;padding:${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm;box-sizing:border-box;${isLastPage ? '' : 'page-break-after:always;'}">`;
+    for (let c = 0; c < cols; c++) {
+      for (let r = 0; r < rows; r++) {
+        // 列から順に埋める場合のインデックス計算 (本来のDOM書き出し順)
+        const i = c * rows + r; 
+        const slot = p * labelsPerPage + i;
+        const isEmpty = slot < startPos || slot >= startPos + config.printCount;
+        gridHtml += `<div style="width:${cellW}mm;height:${cellH}mm;box-sizing:border-box;">${isEmpty ? '' : cellLabel}</div>`;
+      }
     }
     gridHtml += '</div>';
   }

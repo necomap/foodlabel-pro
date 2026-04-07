@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // app/api/labels/generate/route.ts - シール生成API
 // ============================================================
 
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
   const body   = await request.json();
   // フリープランの印刷制限チェック
   const limits = getPlanLimits(session.user.plan ?? 'free');
-  if (limits.maxLabelPrints !== Infinity) {
+  if (limits.maxLabelPrints !== Infinity && !body.isPreview) {
     const now = new Date();
     const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const printCounts = await prisma.$queryRaw`
@@ -281,25 +281,27 @@ export async function POST(request: Request) {
   const html    = generateLabelHtml(content, labelConfig);
 
   // 印刷履歴を保存
-  await prisma.label.create({
-    data: {
-      recipeId:       config.recipeId,
-      shopId:         config.shopId,
-      userId:         session.user.id,
-      manufactureDate: new Date(config.manufactureDate),
-      printCount:     config.printCount,
-      fontSizePt:     config.fontSizePt,
-      deviceType:     config.deviceType,
-      labelWidthMm:   config.labelWidthMm,
-      labelHeightMm:  config.labelHeightMm,
-      isPrecut:       config.isPrecut,
-      a4Cols:         config.a4Cols,
-      a4Rows:         config.a4Rows,
-      startPosition:  config.startPosition,
-      displaySettings: config.displaySettings ?? getDefaultDisplaySettings(),
-      generatedHtml:  html.substring(0, 10000), // DBサイズ制限
-    },
-  });
+  if (!body.isPreview) {
+    await prisma.label.create({
+      data: {
+        recipeId:       config.recipeId,
+        shopId:         config.shopId,
+        userId:         session.user.id,
+        manufactureDate: new Date(config.manufactureDate),
+        printCount:     config.printCount,
+        fontSizePt:     config.fontSizePt,
+        deviceType:     config.deviceType,
+        labelWidthMm:   config.labelWidthMm,
+        labelHeightMm:  config.labelHeightMm,
+        isPrecut:       config.isPrecut,
+        a4Cols:         config.a4Cols,
+        a4Rows:         config.a4Rows,
+        startPosition:  config.startPosition,
+        displaySettings: config.displaySettings ?? getDefaultDisplaySettings(),
+        generatedHtml:  html.substring(0, 10000), // DBサイズ制限
+      },
+    });
+  }
 
   console.log('DEBUG_SHOP:', JSON.stringify({
     address: shopInfo.address,

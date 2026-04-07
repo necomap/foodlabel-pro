@@ -153,7 +153,7 @@ export function generateLabelHtml(
 <div class="label" style="
   width: ${width}mm;
   min-height: ${height}mm;
-  overflow: hidden;
+  overflow: visible;
   font-size:${fontSize}pt;
   font-family: 'Noto Sans JP', 'Hiragino Sans', Meiryo, sans-serif;
   line-height: 1.4;
@@ -294,7 +294,7 @@ export function generateLabelHtml(
     for (let i = 0; i < labelsPerPage; i++) {
       const slot = p * labelsPerPage + i;
       const isEmpty = slot < startPos || slot >= startPos + config.printCount;
-      gridHtml += `<div style="width:${cellW}mm;height:${cellH}mm;overflow:hidden;box-sizing:border-box;">${isEmpty ? '' : cellLabel}</div>`;
+      gridHtml += `<div style="width:${cellW}mm;height:${cellH}mm;box-sizing:border-box;">${isEmpty ? '' : cellLabel}</div>`;
     }
     gridHtml += '</div>';
   }

@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // app/dashboard/labels/page.tsx - シール印刷ページ
 // ============================================================
 'use client';
@@ -355,6 +355,27 @@ export default function LabelsPage() {
 
   return (
     <div className="animate-fade-in space-y-5">
+      {printStats && printStats.limit !== Infinity && (
+        <div className="bg-brand-50 border border-brand-200 rounded-xl p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Info className="w-6 h-6 text-brand-500" />
+            <div>
+              <p className="text-brand-800 font-medium font-display">今月の残り印刷枚数</p>
+              <p className="text-brand-600 text-sm mt-0.5">
+                使用済み: <span className="font-bold">{printStats.used}</span>枚 / 上限: {printStats.limit}枚 
+                <span className="ml-2 px-2 py-0.5 bg-brand-100 text-brand-700 rounded-md font-medium text-xs">
+                  残り: {Math.max(0, printStats.limit - printStats.used)}枚
+                </span>
+              </p>
+            </div>
+          </div>
+          <div className="text-right hidden sm:block">
+            <p className="text-xs text-brand-500">リセット予定日</p>
+            <p className="font-medium text-brand-700 text-sm">{printStats.resetDate}</p>
+          </div>
+        </div>
+      )}
+
       <div>
         <h1 className="text-2xl font-bold text-stone-800 font-display">シール印刷</h1>
         <p className="text-stone-500 text-sm mt-0.5">製造日を入力してシールを生成・印刷します</p>
@@ -492,11 +513,17 @@ export default function LabelsPage() {
             ))}
           </div>
 
-          <button onClick={handleGenerate} disabled={loading || !recipeId}
-            className="btn-primary w-full flex items-center justify-center gap-2 py-3">
-            {loading ? <><Loader2 className="w-5 h-5 animate-spin" />生成中...</> :
-              <><RefreshCw className="w-5 h-5" />シールを生成</>}
-          </button>
+          <div className="flex gap-3 pt-2">
+            <button onClick={handlePreview} disabled={loading || !recipeId}
+              className="flex-1 flex items-center justify-center gap-2 py-3 border-2 border-brand-500 text-brand-600 hover:bg-brand-50 rounded-xl font-medium transition-all">
+              <Eye className="w-5 h-5" />1枚プレビュー
+            </button>
+            <button onClick={handleGenerate} disabled={loading || !recipeId}
+              className="btn-primary flex-1 flex items-center justify-center gap-2 py-3">
+              {loading ? <><Loader2 className="w-5 h-5 animate-spin" />処理中...</> :
+                <><RefreshCw className="w-5 h-5" />シールを生成</>}
+            </button>
+          </div>
         </div>
 
         {/* ============ プレビュー ============ */}

@@ -1,9 +1,10 @@
-﻿// ============================================================
+// ============================================================
 // lib/auth.ts - NextAuth.js v5 設定
 // ============================================================
 
 import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
+import Google from 'next-auth/providers/google';
 import { compare } from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { sendLoginNotificationEmail } from '@/lib/email';
@@ -13,6 +14,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: process.env.NEXTAUTH_SECRET,
   trustHost: true,
   providers: [
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    }),
     Credentials({
       name: 'credentials',
       credentials: {
@@ -74,9 +79,44 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
 
   callbacks: {
+    // Googleログイン時の自動ユーザー作成
+    async signIn({ user, account, profile }) {
+      if (account?.provider === 'google') {
+        if (!user.email) return false;
+        
+        // 既存ユーザーをメールアドレスで検索
+        const existingUser = await prisma.user.findUnique({
+          where: { email: user.email }
+        });
+        
+        if (!existingUser) {
+          // 新規ユーザー作成
+          await prisma.user.create({
+            data: {
+              email: user.email,
+              emailVerified: true,
+              companyName: user.name || '名称未設定',
+              plan: 'free',
+              isActive: true,
+            }
+          });
+        }
+        return true;
+      }
+      return true; // Credentials fallback
+    },
+
     // JWTにカスタムフィールドを追加
-    async jwt({ token, user }) {
-      if (user) {
+    async jwt({ token, user, account }) {
+      if (account?.provider === 'google' && user?.email) {
+        // Google認証時はDBから最新情報を取得してセット
+        const dbUser = await prisma.user.findUnique({ where: { email: user.email } });
+        if (dbUser) {
+          token.id   = dbUser.id;
+          token.plan = (dbUser.plan ?? 'free') as UserPlan;
+        }
+      } else if (user) {
+        // Credentials認証時はauthorizeで返したuserオブジェクトを使用
         token.id   = user.id;
         token.plan = (user as { plan?: UserPlan }).plan ?? 'free';
       }

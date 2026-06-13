@@ -60,9 +60,11 @@ model User {
   emailVerified        Boolean   @default(false)
   emailVerifyToken     String?
   emailVerifyExpires   DateTime?
-  passwordHash         String
+  passwordHash         String?
   passwordResetToken   String?
   passwordResetExpires DateTime?
+  loginFailCount       Int       @default(0)
+  loginLockedUntil     DateTime?
   
   // 基本情報（ラベル表示用）
   companyName    String  @db.VarChar(200)  // 社名・店舗名

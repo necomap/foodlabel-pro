@@ -154,6 +154,8 @@ export function generateLabelHtml(
 <div class="label" style="
   width: ${width}mm;
   min-height: ${height}mm;
+  max-height: ${height}mm;
+  overflow: hidden;
   font-size:${fontSize}pt;
   font-family: 'Noto Sans JP', 'Hiragino Sans', Meiryo, sans-serif;
   line-height: 1.15;
@@ -250,7 +252,28 @@ export function generateLabelHtml(
   @media print { * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 </style>
 </head>
-<body>${labels}</body>
+<body>${labels}
+<script>
+// フォント自動縮小：ラベルが枠からはみ出す場合にフォントを縮小
+document.querySelectorAll('.label').forEach(function(label) {
+  var maxH = label.style.maxHeight;
+  if (!maxH) return;
+  var maxPx = parseFloat(maxH) * 3.7795; // mm to px
+  var minSize = 5;
+  var step = 0.5;
+  var el = label;
+  while (el.scrollHeight > maxPx + 2 && parseFloat(el.style.fontSize) > minSize) {
+    var cur = parseFloat(el.style.fontSize);
+    el.style.fontSize = (cur - step) + 'pt';
+    // 内部の小フォントも縮小
+    el.querySelectorAll('[style*="font-size"]').forEach(function(child) {
+      var cs = parseFloat(child.style.fontSize);
+      if (cs > minSize) child.style.fontSize = Math.max(cs - step, minSize) + 'pt';
+    });
+  }
+});
+</script>
+</body>
 </html>`;
   }
 
@@ -309,7 +332,25 @@ export function generateLabelHtml(
   @media print { * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 </style>
 </head>
-<body>${gridHtml}</body>
+<body>${gridHtml}
+<script>
+document.querySelectorAll('.label').forEach(function(label) {
+  var maxH = label.style.maxHeight;
+  if (!maxH) return;
+  var maxPx = parseFloat(maxH) * 3.7795;
+  var minSize = 5;
+  var step = 0.5;
+  while (label.scrollHeight > maxPx + 2 && parseFloat(label.style.fontSize) > minSize) {
+    var cur = parseFloat(label.style.fontSize);
+    label.style.fontSize = (cur - step) + 'pt';
+    label.querySelectorAll('[style*="font-size"]').forEach(function(child) {
+      var cs = parseFloat(child.style.fontSize);
+      if (cs > minSize) child.style.fontSize = Math.max(cs - step, minSize) + 'pt';
+    });
+  }
+});
+</script>
+</body>
 </html>`;
 }
 

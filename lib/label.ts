@@ -154,7 +154,6 @@ export function generateLabelHtml(
 <div class="label" style="
   width: ${width}mm;
   min-height: ${height}mm;
-  overflow: hidden;
   font-size:${fontSize}pt;
   font-family: 'Noto Sans JP', 'Hiragino Sans', Meiryo, sans-serif;
   line-height: 1.15;

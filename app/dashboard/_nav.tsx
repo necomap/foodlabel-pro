@@ -6,6 +6,7 @@ import { signOut } from 'next-auth/react';
 import {
   Cookie, BookOpen, Tag, ShoppingBasket, Settings,
   LogOut, Menu, X, ChevronRight, ArrowLeftRight, HelpCircle, Shield, Crown,
+Star,
 } from 'lucide-react';
 
 const navItems = [

@@ -132,6 +132,16 @@ export default function DashboardNav({ isAdmin, isPremium, userName, userEmail }
                 </Link>
               )}
             </nav>
+            {!isPremium && (
+              <a href="/dashboard/upgrade"
+                className="flex items-center gap-2 mx-3 mb-2 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors">
+                <Star className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                <div>
+                  <p className="text-xs font-bold leading-tight">プレミアムにアップグレード</p>
+                  <p className="text-xs opacity-70">月額980円・無制限</p>
+                </div>
+              </a>
+            )}
             <div className="p-3 border-t border-cream-200">
               <button onClick={() => signOut({ callbackUrl: '/auth/login' })}
                 className="flex items-center gap-2 w-full px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-xl">

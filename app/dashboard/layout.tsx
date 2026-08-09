@@ -15,7 +15,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <DashboardNav isAdmin={isAdmin} isPremium={isPremium} userName={userName} userEmail={userEmail} />
       <main className="flex-1 lg:ml-64 min-h-screen">
         <div className="lg:hidden h-14" />
-        <div className="max-w-7xl mx-auto p-4 lg:p-6">{children}</div>
+        <div className="max-w-7xl mx-auto p-4 pb-24 lg:pb-6 lg:p-6">{children}</div>
       </main>
     </div>
   );

@@ -74,8 +74,7 @@ export default function LabelsPage() {
   const [printStats, setPrintStats] = useState<{used: number; limit: number; resetDate: string} | null>(null);
 
   // 印刷設定 (初期値はデフォルト)
-  const [mfgDate,       setMfgDate]       = useState(() => new Date().toISOString().slice(0, 10));
-  const [shelfOverride, setShelfOverride] = useState('');
+  const [mfgDate, setMfgDate] = useState('');  const [shelfOverride, setShelfOverride] = useState('');
   const [printCount,    setPrintCount]    = useState('1');
   const [fontSizePt,    setFontSizePt]    = useState('8');
   const [deviceType,    setDeviceType]    = useState<'LABEL_PRINTER'|'A4_PRINTER'>('LABEL_PRINTER');
@@ -115,6 +114,7 @@ export default function LabelsPage() {
       return v !== null ? v === 'true' : def;
     };
 
+    setMfgDate(new Date().toISOString().slice(0, 10));
     const qsRecipeId = searchParams.get('recipeId');
     if (qsRecipeId) {
       setRecipeId(qsRecipeId);
@@ -307,24 +307,38 @@ export default function LabelsPage() {
 
   return (
     <div className="animate-fade-in space-y-5">
-      {printStats && printStats.limit !== Infinity && (
+      {printStats && (
         <div className="bg-brand-50 border border-brand-200 rounded-xl p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Info className="w-6 h-6 text-brand-500" />
             <div>
-              <p className="text-brand-800 font-medium font-display">今月の残り印刷枚数</p>
-              <p className="text-brand-600 text-sm mt-0.5">
-                使用済み: <span className="font-bold">{printStats.used}</span>枚 / 上限: {printStats.limit}枚 
-                <span className="ml-2 px-2 py-0.5 bg-brand-100 text-brand-700 rounded-md font-medium text-xs">
-                  残り: {Math.max(0, printStats.limit - printStats.used)}枚
-                </span>
-              </p>
+              {printStats.isPremium ? (
+                <>
+                  <p className="text-brand-800 font-medium font-display">本日の印刷枚数</p>
+                  <p className="text-brand-600 text-sm mt-0.5">
+                    本日: <span className="font-bold">{printStats.todayCount ?? 0}</span>枚
+                    　今月合計: <span className="font-bold">{printStats.used}</span>枚
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-brand-800 font-medium font-display">今月の残り印刷枚数</p>
+                  <p className="text-brand-600 text-sm mt-0.5">
+                    使用済み: <span className="font-bold">{printStats.used}</span>枚 / 上限: {printStats.limit}枚
+                    <span className="ml-2 px-2 py-0.5 bg-brand-100 text-brand-700 rounded-md font-medium text-xs">
+                      残り: {Math.max(0, printStats.limit - printStats.used)}枚
+                    </span>
+                  </p>
+                </>
+              )}
             </div>
           </div>
-          <div className="text-right hidden sm:block">
-            <p className="text-xs text-brand-500">リセット予定日</p>
-            <p className="font-medium text-brand-700 text-sm">{printStats.resetDate}</p>
-          </div>
+          {!printStats.isPremium && (
+            <div className="text-right hidden sm:block">
+              <p className="text-xs text-brand-500">リセット予定日</p>
+              <p className="font-medium text-brand-700 text-sm">{printStats.resetDate}</p>
+            </div>
+          )}
         </div>
       )}
 

@@ -312,7 +312,7 @@ document.querySelectorAll('.label').forEach(function(label) {
   let gridHtml = '';
   for (let p = 0; p < pages; p++) {
     const isLastPage = p === pages - 1;
-    gridHtml += `<div style="display:grid;grid-template-columns:repeat(${cols},${cellW}mm);grid-template-rows:repeat(${rows},${cellH}mm);width:210mm;height:297mm;padding:${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm;box-sizing:border-box;${isLastPage ? '' : 'page-break-after:always;'}">`;
+    gridHtml += `<div style="display:grid;grid-template-columns:repeat(${cols},${cellW}mm);grid-template-rows:repeat(${rows},${cellH}mm);width:${210 - marginLeft - marginRight}mm;height:${297 - marginTop - marginBottom}mm;margin:${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm;${isLastPage ? '' : 'page-break-after:always;'}">`;
     for (let i = 0; i < labelsPerPage; i++) {
       const slot = p * labelsPerPage + i;
       const isEmpty = slot < startPos || slot >= startPos + config.printCount;
@@ -328,7 +328,7 @@ document.querySelectorAll('.label').forEach(function(label) {
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   @page { margin: 0; size: A4 portrait; }
-  html, body { width: 210mm; height: auto; margin: 0; padding: 0; background: white; }
+  html, body { width: 210mm; height: auto; margin: 0; padding: 0; background: white; overflow: hidden; }
   @media print { * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 </style>
 </head>

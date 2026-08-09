@@ -80,11 +80,7 @@ export default function DashboardNav({ isAdmin, isPremium, userName, userEmail }
             </Link>
           )}
 
-          <button onClick={() => signOut({ callbackUrl: '/auth/login' })}
-            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-stone-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors">
-            <LogOut className="w-4 h-4" />ログアウト
-          </button>
-            {!isPremium && (
+           {!isPremium && (
              <a href="/dashboard/upgrade"
                className="flex items-center gap-2 mx-3 mb-2 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors">
                <Star className="w-4 h-4 text-amber-500 flex-shrink-0" />
@@ -94,6 +90,10 @@ export default function DashboardNav({ isAdmin, isPremium, userName, userEmail }
                </div>
              </a>
            )}
+          <button onClick={() => signOut({ callbackUrl: '/auth/login' })}
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-stone-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors">
+            <LogOut className="w-4 h-4" />ログアウト
+          </button>
         </div>
       </aside>
 

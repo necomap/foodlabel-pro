@@ -114,7 +114,11 @@ export default function LabelsPage() {
       return v !== null ? v === 'true' : def;
     };
 
-    setMfgDate(new Date().toISOString().slice(0, 10));
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    setMfgDate(`${yyyy}-${mm}-${dd}`);
     const qsRecipeId = searchParams.get('recipeId');
     if (qsRecipeId) {
       setRecipeId(qsRecipeId);

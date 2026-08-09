@@ -71,7 +71,7 @@ export default function LabelsPage() {
   const [previewHtml, setPreviewHtml] = useState('');
   const [warnings, setWarnings] = useState<string[]>([]);
   const [generated, setGenerated] = useState(false);
-  const [printStats, setPrintStats] = useState<{used: number; limit: number; resetDate: string} | null>(null);
+  const [printStats, setPrintStats] = useState<{used: number; limit: number; resetDate: string; isPremium: boolean; todayCount: number} | null>(null);
 
   // 印刷設定 (初期値はデフォルト)
   const [mfgDate, setMfgDate] = useState('');  const [shelfOverride, setShelfOverride] = useState('');

@@ -87,10 +87,10 @@ export default function LabelsPage() {
   // A4プリンタ
   const [a4Cols,   setA4Cols]   = useState('3');
   const [a4Rows,   setA4Rows]   = useState('5');
-  const [marginT,  setMarginT]  = useState('10');
-  const [marginB,  setMarginB]  = useState('10');
+  const [marginT,  setMarginT]  = useState('0');
+  const [marginB,  setMarginB]  = useState('0');
   const [marginL,  setMarginL]  = useState('10');
-  const [marginR,  setMarginR]  = useState('10');
+  const [marginR,  setMarginR]  = useState('0');
   const [startPos, setStartPos] = useState('1');
   
   // A4 ラベルサイズ
@@ -425,13 +425,14 @@ export default function LabelsPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="field-label">上余白（mm）</label>
-                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={marginT} onChange={e => { setMarginT(e.target.value); updateLabelStorage('marginT', e.target.value); }} className="field-input" />
+                    <input type="text" inputMode="decimal" value={marginT} onChange={e => { setMarginT(e.target.value); updateLabelStorage('marginT', e.target.value); }} className="field-input" placeholder="0" />
                   </div>
                   <div>
                     <label className="field-label">左余白（mm）</label>
-                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={marginL} onChange={e => { setMarginL(e.target.value); updateLabelStorage('marginL', e.target.value); }} className="field-input" />
+                    <input type="text" inputMode="decimal" value={marginL} onChange={e => { setMarginL(e.target.value); updateLabelStorage('marginL', e.target.value); }} className="field-input" placeholder="0" />
                   </div>
                 </div>
+                <p className="text-xs text-stone-400">右余白・下余白はシールサイズから自動計算されます</p>
                 <div>
                   <label className="field-label">印刷開始位置</label>
                   <input type="text" inputMode="numeric" pattern="[0-9]*" value={startPos} onChange={e => { setStartPos(e.target.value); updateLabelStorage('startPos', e.target.value); }}

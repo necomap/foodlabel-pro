@@ -282,18 +282,16 @@ document.querySelectorAll('.label').forEach(function(label) {
   const rows      = config.a4Rows ?? 5;
   const labelsPerPage = cols * rows;
   const startPos  = (config.startPosition ?? 1) - 1;
-  const marginTop    = config.marginTopMm    ?? 10;
-  const marginBottom = config.marginBottomMm ?? 10;
-  const marginLeft   = config.marginLeftMm   ?? 10;
-  const marginRight  = config.marginRightMm  ?? 10;
-
-  // ラベルサイズ：指定があればそれを使用、なければ印刷領域から自動計算
-  const printAreaW = 210 - marginLeft - marginRight;
-  const printAreaH = 297 - marginTop  - marginBottom;
-  const autoCellW  = Math.floor((printAreaW / cols) * 10) / 10;
-  const autoCellH  = Math.floor((printAreaH / rows) * 10) / 10;
-  const cellW = (config as any).a4SealWidthMm  ?? autoCellW;
-  const cellH = (config as any).a4SealHeightMm ?? autoCellH;
+  const marginTop  = config.marginTopMm  ?? 0;
+  const marginLeft = config.marginLeftMm ?? 0;
+  // シールサイズが指定されている場合はそのサイズを使用、なければ印刷領域から自動計算
+  const sealW = (config as any).a4SealWidthMm;
+  const sealH = (config as any).a4SealHeightMm;
+  const cellW = sealW ?? Math.floor(((210 - marginLeft) / cols) * 10) / 10;
+  const cellH = sealH ?? Math.floor(((297 - marginTop)  / rows) * 10) / 10;
+  // 右余白・下余白は自動計算
+  const marginRight  = Math.max(210 - marginLeft - cellW * cols, 0);
+  const marginBottom = Math.max(297 - marginTop  - cellH * rows, 0);
 
   const totalSlots = startPos + config.printCount;
   const pages      = Math.ceil(totalSlots / labelsPerPage);

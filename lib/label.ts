@@ -304,6 +304,7 @@ document.querySelectorAll('.label').forEach(function(label) {
   const cellLabel = singleLabel
     .replace(`width: ${width}mm`, `width: ${cellW}mm`)
     .replace(`min-height: ${height}mm`, `height: ${cellH}mm`)
+    .replace(`max-height: ${height}mm`, `max-height: ${cellH}mm`)
     .replace(new RegExp(`font-size:${fontSize}pt`, 'g'), `font-size:${a4FontSize}pt`)
     .replace(new RegExp(`font-size:${Math.round(fontSize * 1.1)}pt`, 'g'), `font-size:${Math.round(a4FontSize * 1.1)}pt`);
 

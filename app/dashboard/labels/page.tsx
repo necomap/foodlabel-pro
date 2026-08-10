@@ -544,6 +544,7 @@ export default function LabelsPage() {
                   style={{ height: '600px', transform: `scale(${zoom/100})`, transformOrigin: 'top left', width: `${10000/zoom}%` }}
                   title="ラベルプレビュー"
                 />
+                </div>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-48 text-stone-400">

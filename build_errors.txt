@@ -5,11 +5,11 @@
 Environment variables loaded from .env
 Prisma schema loaded from prisma\schema.prisma
 
-✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 287ms
+✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 275ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
-Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
+Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
 
   ▲ Next.js 14.2.5
   - Environments: .env.local, .env
@@ -39,21 +39,48 @@ Import trace for requested module:
 ./node_modules/@auth/core/jwt.js
 ./node_modules/next-auth/jwt.js
 
+request to https://fonts.gstatic.com/s/notosansjp/v56/-F62fjtqLzI2JPCgQBnw7HFowwII2lcnk-AFfrgQrvWXpdFg3KXxAMsKMbdN.52.woff2 failed, reason: socket hang up
+
+Retrying 1/3...
+request to https://fonts.gstatic.com/s/notosansjp/v56/-F62fjtqLzI2JPCgQBnw7HFowwII2lcnk-AFfrgQrvWXpdFg3KXxAMsKMbdN.47.woff2 failed, reason: socket hang up
+
+Retrying 1/3...
+request to https://fonts.gstatic.com/s/notosansjp/v56/-F62fjtqLzI2JPCgQBnw7HFowwII2lcnk-AFfrgQrvWXpdFg3KXxAMsKMbdN.38.woff2 failed, reason: socket hang up
+
+Retrying 1/3...
+request to https://fonts.gstatic.com/s/notosansjp/v56/-F62fjtqLzI2JPCgQBnw7HFowwII2lcnk-AFfrgQrvWXpdFg3KXxAMsKMbdN.41.woff2 failed, reason: socket hang up
+
+Retrying 1/3...
+request to https://fonts.gstatic.com/s/notosansjp/v56/-F62fjtqLzI2JPCgQBnw7HFowwII2lcnk-AFfrgQrvWXpdFg3KXxAMsKMbdN.32.woff2 failed, reason: socket hang up
+
+Retrying 1/3...
+request to https://fonts.gstatic.com/s/notosansjp/v56/-F62fjtqLzI2JPCgQBnw7HFowwII2lcnk-AFfrgQrvWXpdFg3KXxAMsKMbdN.34.woff2 failed, reason: socket hang up
+
+Retrying 1/3...
+request to https://fonts.gstatic.com/s/notosansjp/v56/-F62fjtqLzI2JPCgQBnw7HFowwII2lcnk-AFfrgQrvWXpdFg3KXxAMsKMbdN.15.woff2 failed, reason: socket hang up
+
+Retrying 1/3...
+request to https://fonts.gstatic.com/s/notosansjp/v56/-F62fjtqLzI2JPCgQBnw7HFowwII2lcnk-AFfrgQrvWXpdFg3KXxAMsKMbdN.88.woff2 failed, reason: socket hang up
+
+Retrying 1/3...
+request to https://fonts.gstatic.com/s/notosansjp/v56/-F62fjtqLzI2JPCgQBnw7HFowwII2lcnk-AFfrgQrvWXpdFg3KXxAMsKMbdN.80.woff2 failed, reason: socket hang up
+
+Retrying 1/3...
  ✓ Compiled successfully
    Linting and checking validity of types ...
    Collecting page data ...
-   Generating static pages (0/52) ...
-   Generating static pages (13/52) 
-   Generating static pages (26/52) 
-   Generating static pages (39/52) 
- ✓ Generating static pages (52/52)
+   Generating static pages (0/59) ...
+   Generating static pages (14/59) 
+   Generating static pages (29/59) 
+   Generating static pages (44/59) 
+ ✓ Generating static pages (59/59)
    Finalizing page optimization ...
    Collecting build traces ...
 
 Route (app)                              Size     First Load JS
-┌ ○ /                                    189 B          94.1 kB
-├ ○ /_not-found                          871 B            88 kB
-├ ○ /about                               189 B          94.1 kB
+┌ ○ /                                    204 B          94.1 kB
+├ ○ /_not-found                          876 B            88 kB
+├ ○ /about                               204 B          94.1 kB
 ├ ○ /admin                               4.77 kB        96.9 kB
 ├ ƒ /api/admin/ingredients               0 B                0 B
 ├ ƒ /api/admin/ingredients/[id]          0 B                0 B
@@ -67,6 +94,7 @@ Route (app)                              Size     First Load JS
 ├ ƒ /api/categories                      0 B                0 B
 ├ ƒ /api/categories/[id]                 0 B                0 B
 ├ ƒ /api/contact                         0 B                0 B
+├ ƒ /api/cron/keepalive                  0 B                0 B
 ├ ƒ /api/import-export                   0 B                0 B
 ├ ƒ /api/ingredient-categories           0 B                0 B
 ├ ƒ /api/ingredient-categories/[id]      0 B                0 B
@@ -89,40 +117,51 @@ Route (app)                              Size     First Load JS
 ├ ƒ /api/user/profile                    0 B                0 B
 ├ ƒ /api/util/kana                       0 B                0 B
 ├ ○ /auth/forgot-password                2.26 kB         101 kB
-├ ○ /auth/login                          3.12 kB         106 kB
-├ ○ /auth/register                       4.01 kB         103 kB
-├ ○ /auth/reset-password                 2.96 kB         102 kB
+├ ○ /auth/login                          3.68 kB         107 kB
+├ ○ /auth/register                       4.6 kB          108 kB
+├ ○ /auth/reset-password                 2.97 kB         102 kB
 ├ ○ /auth/verify-email                   1.98 kB        95.9 kB
-├ ƒ /dashboard                           141 B          87.3 kB
+├ ○ /blog                                204 B          94.1 kB
+├ ○ /blog/allergen-guide                 165 B          87.3 kB
+├ ○ /blog/expiry-date-guide              165 B          87.3 kB
+├ ○ /blog/food-labeling-basics           165 B          87.3 kB
+├ ○ /blog/nutrition-labeling             165 B          87.3 kB
+├ ○ /blog/online-food-sales              165 B          87.3 kB
+├ ƒ /dashboard                           165 B          87.3 kB
 ├ ƒ /dashboard/contact                   2.67 kB         102 kB
-├ ƒ /dashboard/debug                     141 B          87.3 kB
-├ ƒ /dashboard/export                    385 B          87.5 kB
+├ ƒ /dashboard/debug                     165 B          87.3 kB
+├ ƒ /dashboard/export                    390 B          87.5 kB
 ├ ƒ /dashboard/help                      4.48 kB        98.4 kB
-├ ƒ /dashboard/import                    4.3 kB          103 kB
-├ ƒ /dashboard/ingredients               7.32 kB        99.5 kB
-├ ƒ /dashboard/labels                    6.09 kB        98.3 kB
-├ ƒ /dashboard/recipes                   5.36 kB         104 kB
-├ ƒ /dashboard/recipes/[id]              6.11 kB         105 kB
-├ ƒ /dashboard/recipes/[id]/edit         223 B           100 kB
-├ ƒ /dashboard/recipes/new               224 B           100 kB
-├ ƒ /dashboard/recipes/print             3.99 kB        96.2 kB
+├ ƒ /dashboard/import                    4.55 kB         104 kB
+├ ƒ /dashboard/ingredients               7.33 kB        99.5 kB
+├ ƒ /dashboard/labels                    6.9 kB         99.1 kB
+├ ƒ /dashboard/recipes                   5.42 kB         104 kB
+├ ƒ /dashboard/recipes/[id]              6.12 kB         105 kB
+├ ƒ /dashboard/recipes/[id]/edit         229 B           100 kB
+├ ƒ /dashboard/recipes/new               228 B           100 kB
+├ ƒ /dashboard/recipes/print             4 kB           96.2 kB
 ├ ƒ /dashboard/settings                  5.69 kB         102 kB
-├ ƒ /dashboard/upgrade                   2.81 kB          99 kB
-├ ○ /features                            189 B          94.1 kB
-├ ○ /help                                189 B          94.1 kB
-├ ○ /legal                               189 B          94.1 kB
-├ ○ /privacy                             189 B          94.1 kB
+├ ƒ /dashboard/upgrade                   2.83 kB          99 kB
+├ ○ /features                            204 B          94.1 kB
+├ ○ /help                                204 B          94.1 kB
+├ ○ /legal                               204 B          94.1 kB
+├ ○ /privacy                             204 B          94.1 kB
 ├ ○ /robots.txt                          0 B                0 B
 ├ ○ /sitemap.xml                         0 B                0 B
-└ ○ /terms                               189 B          94.1 kB
+└ ○ /terms                               204 B          94.1 kB
 + First Load JS shared by all            87.1 kB
-  ├ chunks/23-9a9d3d34fd9bcb9f.js        31.5 kB
-  ├ chunks/fd9d1056-79c5ad9da5262500.js  53.6 kB
+  ├ chunks/7023-7189c1ed0ba34f7a.js      31.5 kB
+  ├ chunks/fd9d1056-6ff5cbc1e2db141b.js  53.6 kB
   └ other shared chunks (total)          1.96 kB
 
 
-ƒ Middleware                             39.5 kB
+ƒ Middleware                             39.6 kB
 
 ○  (Static)   prerendered as static content
 ƒ  (Dynamic)  server-rendered on demand
 
+npm notice
+npm notice New minor version of npm available! 11.9.0 -> 11.19.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.19.0
+npm notice To update run: npm install -g npm@11.19.0
+npm notice

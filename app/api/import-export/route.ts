@@ -94,7 +94,10 @@ export async function POST(request: Request) {
   });
   const recipeCache = new Map(existingRecipes.map(r => [r.name.trim(), r]));
 
-  const recipesToProcess = importLimit === Infinity ? parsedRecipes : parsedRecipes.slice(0, importLimit);
+  // 1回あたりの処理上限（タイムアウト対策・最大20件）
+  const MAX_PER_REQUEST = 20;
+  const effectiveLimit = Math.min(importLimit, MAX_PER_REQUEST);
+  const recipesToProcess = parsedRecipes.slice(0, effectiveLimit);
   for (const pr of recipesToProcess) {
     // プラン制限：インポート上限チェック
     if (imported >= importLimit) {

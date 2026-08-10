@@ -538,9 +538,15 @@ export default function RecipeForm() {
               {/* 添加物の使用理由 */}
               {(ing as IngredientRow).isAdditive && (
                 <div className="flex items-center gap-1">
+                  {(ing as IngredientRow).additiveReason && !['甘味料として','着色料として','保存料として','増粘剤として','酸化防止剤として','発色剤として','漂白剤として','防かび剤として','乳化剤として','pH調整剤として','膨張剤として','香料として','調味料として','酸味料として','強化剤として','製造用剤として',''].includes((ing as IngredientRow).additiveReason ?? '') ? (
+                    <div className="flex items-center gap-1 flex-1">
+                      <input type="text" value={(ing as IngredientRow).additiveReason ?? ''} onChange={e => updateIngredient(ing.key, 'additiveReason', e.target.value)} className="field-input text-xs py-1 flex-1" placeholder="理由を入力" />
+                      <button type="button" onClick={() => updateIngredient(ing.key, 'additiveReason', '')} className="text-xs text-stone-400 hover:text-red-500">✕</button>
+                    </div>
+                  ) : (
                   <select
                     value={(ing as IngredientRow).additiveReason ?? ''}
-                    onChange={e => updateIngredient(ing.key, 'additiveReason', e.target.value)}
+                    onChange={e => { if(e.target.value === 'その他') { updateIngredient(ing.key, 'additiveReason', ' '); } else { updateIngredient(ing.key, 'additiveReason', e.target.value); } }}
                     className="field-input text-xs py-1 text-stone-600"
                   >
                     <option value="">理由を選択</option>

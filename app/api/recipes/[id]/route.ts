@@ -264,6 +264,8 @@ export async function PUT(request: Request, { params }: Params) {
           costPrice:             d.ing.costPrice ? Number(d.ing.costPrice) : null,
           costTotal:             d.costTotal,
           originCountry:         d.ing.originCountry || null,
+          isAdditive:            d.ing.isAdditive ?? false,
+          additiveReason:        d.ing.additiveReason ?? null,
           isPrimaryIngredient:   d.ing.isPrimaryIngredient ?? false,
           allergenOverride:      d.allergens,
           nutritionUnconfirmed:  d.nutritionUnconfirmed,

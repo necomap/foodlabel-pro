@@ -19,10 +19,12 @@ export async function POST(request: Request) {
   if (!session) return NextResponse.json({ success: false, error: '認証が必要です' }, { status: 401 });
 
 
-  const formData  = await request.formData();
-  const file      = formData.get('file') as File | null;
-  const overwrite = formData.get('overwrite') === 'true';
-  const clearAll  = formData.get('clearAll')  === 'true';
+  const formData   = await request.formData();
+  const file       = formData.get('file') as File | null;
+  const overwrite  = formData.get('overwrite')  === 'true';
+  const clearAll   = formData.get('clearAll')   === 'true';
+  const chunkIndex = parseInt(formData.get('chunkIndex') as string ?? '0');
+  const chunkSize  = parseInt(formData.get('chunkSize')  as string ?? '100');
 
   // 全上書きの場合は先に全削除
   if (clearAll) {
@@ -74,8 +76,12 @@ export async function POST(request: Request) {
   let imported = 0;
   let skipped  = 0;
 
-  const recipesToProcess = importLimit === Infinity ? parsedRecipes : parsedRecipes.slice(0, importLimit);
-  for (const pr of recipesToProcess) {
+  // チャンク処理：指定されたchunkIndexの範囲だけ処理
+  const chunkStart = chunkIndex * chunkSize;
+  const chunkEnd   = chunkStart + chunkSize;
+  const chunkRecipes = parsedRecipes.slice(chunkStart, Math.min(chunkEnd, importLimit === Infinity ? parsedRecipes.length : chunkStart + Math.min(chunkSize, importLimit)));
+  const totalChunks = Math.ceil(Math.min(parsedRecipes.length, importLimit === Infinity ? parsedRecipes.length : importLimit) / chunkSize);
+  for (const pr of chunkRecipes) {
     // プラン制限：インポート上限チェック
     if (imported >= importLimit) {
       skipped++;
@@ -249,7 +255,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     success:  true,
-    data:     { imported, skipped, total: parsedRecipes.length, errors, warnings },
+    data:     { imported, skipped, total: parsedRecipes.length, chunkIndex, totalChunks, hasMore: chunkIndex + 1 < totalChunks, errors, warnings },
     message:  `${imported}件のレシピを取り込みました${skipped > 0 ? `（${skipped}件スキップ）` : ''}`,
   });
 }

@@ -20,15 +20,36 @@ export default function ImportExportPage() {
   const handleImport = async () => {
     if (!file) { toast.error('ファイルを選択してください'); return; }
     setLoading(true); setResult(null);
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('overwrite', String(overwrite));
-    formData.append('clearAll', String(clearAll));
+    const CHUNK_SIZE = 50;
+    let chunkIndex = 0;
+    let totalImported = 0;
+    let totalSkipped = 0;
+    let hasMore = true;
     try {
-      const res = await fetch('/api/import-export', { method: 'POST', body: formData });
-      const data = await res.json();
-      if (data.success) { setResult(data.data); toast.success(`インポート完了: ${data.data?.imported ?? 0}件追加、${data.data?.skipped ?? 0}件スキップ`); }
-      else toast.error(data.error ?? 'インポートに失敗しました');
+      while (hasMore) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('overwrite', String(overwrite));
+        formData.append('clearAll', String(clearAll && chunkIndex === 0)); // 最初のチャンクのみクリア
+        formData.append('chunkIndex', String(chunkIndex));
+        formData.append('chunkSize', String(CHUNK_SIZE));
+        const res = await fetch('/api/import-export', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          toast.error(data.error ?? 'インポートに失敗しました');
+          break;
+        }
+        totalImported += data.data?.imported ?? 0;
+        totalSkipped  += data.data?.skipped  ?? 0;
+        hasMore = data.data?.hasMore ?? false;
+        chunkIndex++;
+        if (hasMore) {
+          toast.loading(`インポート中... ${totalImported}件完了`, { id: 'import-progress' });
+        }
+      }
+      toast.dismiss('import-progress');
+      toast.success(`インポート完了: ${totalImported}件追加、${totalSkipped}件スキップ`);
+      setResult({ imported: totalImported, skipped: totalSkipped, total: totalImported + totalSkipped, errors: [], warnings: [] });
     } catch { toast.error('通信エラーが発生しました'); } finally { setLoading(false); }
   };
 

@@ -141,6 +141,8 @@ export async function POST(request: Request) {
         showPhone:          shop.showPhone ?? true,
         showRepresentative: true,  // フロントのcheckboxで制御
         showEmail:          shop.showEmail ?? false,
+        qrUrl:              shop.qrUrl ?? null,
+        logoUrl:            shop.logoUrl ?? null,
       };
     }
   } else {

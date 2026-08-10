@@ -37,6 +37,14 @@ export async function POST(request: Request) {
   const formData  = await request.formData();
   const file      = formData.get('file') as File | null;
   const overwrite = formData.get('overwrite') === 'true';
+  const clearAll  = formData.get('clearAll')  === 'true';
+
+  // 全上書きの場合は先に全削除
+  if (clearAll) {
+    await prisma.$executeRaw`
+      UPDATE recipes SET "isActive" = false WHERE "userId" = ${session.user.id}
+    `;
+  }
 
   if (!file) {
     return NextResponse.json({ success: false, error: 'ファイルが選択されていません' }, { status: 400 });

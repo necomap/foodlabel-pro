@@ -11,7 +11,8 @@ export default function ImportExportPage() {
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const [tab, setTab] = useState<'import'|'export'>(searchParams?.get('tab') === 'export' ? 'export' : 'import');
   const [file, setFile] = useState<File|null>(null);
-  const [overwrite, setOverwrite] = useState(false);
+  const [overwrite,  setOverwrite]  = useState(false);
+  const [clearAll,   setClearAll]   = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ImportResult|null>(null);
   const [exportOpts, setExportOpts] = useState({ includeNutrition: true, includeSteps: true, includeCost: true });
@@ -88,6 +89,13 @@ export default function ImportExportPage() {
             <label className="flex items-start gap-3 cursor-pointer">
               <input type="checkbox" checked={overwrite} onChange={e=>setOverwrite(e.target.checked)} className="mt-0.5 accent-brand-500" />
               <div><span className="font-medium text-stone-700">同名レシピを上書きする</span><p className="text-sm text-stone-500 mt-0.5">OFFの場合、既存のレシピと同名のものはスキップされます</p></div>
+            </label>
+            <label className="flex items-start gap-3 cursor-pointer mt-3">
+              <input type="checkbox" checked={clearAll} onChange={e=>{setClearAll(e.target.checked); if(e.target.checked) setOverwrite(true);}} className="mt-0.5 accent-red-500" />
+              <div>
+                <p className="text-sm font-medium text-stone-700">全データをクリアして上書き</p>
+                <p className="text-xs text-stone-400 mt-0.5">既存のレシピをすべて削除してからインポートします。元に戻せません。</p>
+              </div>
             </label>
           </div>
           <button onClick={handleImport} disabled={!file||loading} className="btn-primary flex items-center gap-2 disabled:opacity-50">

@@ -212,6 +212,8 @@ export interface LabelContent {
   email?:          string;
   qualityControl?: string;
   comment?:        string;
+  qrUrl?:          string | null;
+  logoUrl?:        string | null;
   // 栄養成分（1個/100gあたり）
   nutritionPerUnit: {
     label:         string;  // 例: "1個あたり"

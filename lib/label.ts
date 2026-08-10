@@ -21,6 +21,8 @@ export function generateLabelContent(
     address?:       string;
     phone?:         string;
     representative?: string;
+    qrUrl?:         string | null;
+    logoUrl?:       string | null;
     email?:         string;
     showPhone:      boolean;
     showRepresentative: boolean;

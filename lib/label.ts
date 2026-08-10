@@ -233,7 +233,7 @@ export function generateLabelHtml(
   ${content.qualityControl ? `<div>${escHtml(content.qualityControl)}</div>` : ''}
   <!-- 製造者情報（ロゴ・QRコード含む） -->
   <div style="margin-top:0.3mm; border-top:0.3mm solid #ccc; padding-top:0.3mm; display:flex; align-items:flex-start; justify-content:space-between; gap:1mm;">
-    <div style="flex:1; word-break:break-all; overflow-wrap:break-word; line-height:1.15; font-size:${smallFontSize}pt;">
+    <div style="flex:1; word-break:break-all; overflow-wrap:break-word; line-height:1.15;">
     <span style="font-weight:bold;">製造者：</span>${escHtml(content.manufacturerName)}${content.representative ? '　' + escHtml(content.representative) : ''}
     ${content.postalCode ? '<br>' + escHtml(content.postalCode) : ''}
     ${content.address ? '<br>' + escHtml(content.address) : ''}

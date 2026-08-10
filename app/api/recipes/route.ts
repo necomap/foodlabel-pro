@@ -105,6 +105,7 @@ const ingredientSchema = z.object({
   displayOrder:           z.number().default(0),
   sortByWeight:           z.boolean().default(true),
   originCountry:          z.string().optional(),
+  additiveReason:         z.string().optional(),
   costPrice:              z.number().optional(),
   allergenOverride:       z.array(z.string()).optional(),
 });
@@ -302,6 +303,7 @@ export async function POST(request: Request) {
             displayOrder:           ing.displayOrder ?? idx,
             sortByWeight:           ing.sortByWeight,
             originCountry:          ing.originCountry,
+          additiveReason:         ing.additiveReason,
             costPrice:              ing.costPrice,
             costTotal:              ing.costTotal,
             allergenOverride:       ing.allergenOverride,

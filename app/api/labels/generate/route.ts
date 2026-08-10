@@ -262,6 +262,8 @@ export async function POST(request: Request) {
       displayOrder:           ing.displayOrder,
       sortByWeight:           ing.sortByWeight,
       originCountry:          ing.originCountry ?? undefined,
+      isAdditive:             ing.isAdditive ?? false,
+      additiveReason:         ing.additiveReason ?? undefined,
       costPrice:              ing.costPrice   ? Number(ing.costPrice)  : null,
       costTotal:              ing.costTotal   ? Number(ing.costTotal)  : null,
       allergenOverride:       ing.allergenOverride,

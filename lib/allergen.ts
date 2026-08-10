@@ -130,16 +130,19 @@ export function buildIngredientsLabel(
     amount:         number;
     unit:           string;
     originCountry?: string;
+    isAdditive?:    boolean;
+    additiveReason?: string;
   }>,
   allergens: string[]
 ): string {
-  // 最も重量の多い原材料（最初の原材料）の原産国を取得
-  const primaryOrigin = ingredients.length > 0 ? ingredients[0].originCountry : undefined;
+  // 原材料と添加物を分離
+  const mainIngredients = ingredients.filter(i => !i.isAdditive);
+  const additives = ingredients.filter(i => i.isAdditive);
 
-  const names = ingredients
+  // 原材料名（先頭に原産国を追加）
+  const mainNames = mainIngredients
     .map((i, idx) => {
       const name = i.ingredientName.trim();
-      // 最も重量の多い原材料（先頭）に原産国を追加
       if (idx === 0 && i.originCountry) {
         return `${name}（${i.originCountry}）`;
       }
@@ -147,8 +150,34 @@ export function buildIngredientsLabel(
     })
     .filter(Boolean);
 
+  // 添加物を理由別にグループ化
+  const additiveGroups: Record<string, string[]> = {};
+  const additivesNoReason: string[] = [];
+  additives.forEach(i => {
+    const name = i.ingredientName.trim();
+    if (!name) return;
+    if (i.additiveReason) {
+      if (!additiveGroups[i.additiveReason]) additiveGroups[i.additiveReason] = [];
+      additiveGroups[i.additiveReason].push(name);
+    } else {
+      additivesNoReason.push(name);
+    }
+  });
+
+  // 添加物テキストを生成
+  const additiveTexts: string[] = [];
+  Object.entries(additiveGroups).forEach(([reason, names]) => {
+    additiveTexts.push(`${names.join('、')}（${reason}）`);
+  });
+  if (additivesNoReason.length > 0) {
+    additiveTexts.push(additivesNoReason.join('、'));
+  }
+
   const allergenText = buildAllergenLabel(allergens);
-  return names.join('、') + allergenText;
+  const mainText = mainNames.join('、');
+  const additiveText = additiveTexts.length > 0 ? `/${additiveTexts.join('、')}` : '';
+
+  return mainText + additiveText + allergenText;
 }
 
 /**

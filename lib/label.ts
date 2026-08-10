@@ -61,6 +61,8 @@ export function generateLabelContent(
       amount: i.amount,
       unit: i.unit,
       originCountry: i.originCountry ?? undefined,
+      isAdditive: (i as any).isAdditive ?? false,
+      additiveReason: (i as any).additiveReason ?? undefined,
     })),
     allergenInfo.all
   );

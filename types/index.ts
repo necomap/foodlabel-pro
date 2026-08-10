@@ -74,6 +74,8 @@ export interface RecipeIngredientInput {
   displayOrder:            number;
   sortByWeight:            boolean;
   originCountry?:          string;
+  isAdditive?:             boolean;
+  additiveReason?:         string;
   costPrice?:              number;
   allergenOverride?:       string[];
 }

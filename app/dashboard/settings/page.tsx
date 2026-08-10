@@ -166,12 +166,25 @@ function ShopModal({ shop, saving, onClose, onSave }: { shop:Shop|null; saving:b
                 <input type="file" accept="image/*" onChange={async(e)=>{
                   const file = e.target.files?.[0];
                   if (!file) return;
+                  // ローカルプレビューをすぐに表示
+                  const localUrl = URL.createObjectURL(file);
+                  setForm(f=>({...f,logoUrl:localUrl}));
+                  // Supabaseにアップロード
                   const fd = new FormData();
                   fd.append('file', file);
-                  const res = await fetch('/api/upload', {method:'POST',body:fd});
-                  const data = await res.json();
-                  if (data.success) setForm(f=>({...f,logoUrl:data.url}));
-                  else alert(data.error ?? 'アップロードに失敗しました');
+                  try {
+                    const res = await fetch('/api/upload', {method:'POST',body:fd});
+                    const data = await res.json();
+                    if (data.success) {
+                      setForm(f=>({...f,logoUrl:data.url}));
+                    } else {
+                      alert(data.error ?? 'アップロードに失敗しました');
+                      setForm(f=>({...f,logoUrl:''}));
+                    }
+                  } catch {
+                    alert('アップロードに失敗しました');
+                    setForm(f=>({...f,logoUrl:''}));
+                  }
                 }} className="field-input" />
                 <p className="text-xs text-stone-400 mt-1">推奨：横長PNG・透過背景・2MB以下</p>
               </div>

@@ -71,6 +71,7 @@ export default function LabelsPage() {
   const [previewHtml, setPreviewHtml] = useState('');
   const [warnings, setWarnings] = useState<string[]>([]);
   const [generated, setGenerated] = useState(false);
+  const [zoom, setZoom] = useState(100);
   const [printStats, setPrintStats] = useState<{used: number; limit: number; resetDate: string; isPremium: boolean; todayCount: number} | null>(null);
 
   // 印刷設定 (初期値はデフォルト)
@@ -529,11 +530,18 @@ export default function LabelsPage() {
 
             {generated && previewHtml ? (
               <div className="border border-cream-200 rounded-xl overflow-hidden bg-white">
+                <div className="flex items-center gap-3 px-4 py-2 border-b border-cream-200 bg-cream-50">
+                  <span className="text-xs text-stone-500">ズーム</span>
+                  <input type="range" min="50" max="200" value={zoom} onChange={e => setZoom(Number(e.target.value))} className="flex-1" />
+                  <span className="text-xs text-stone-600 w-12 text-right">{zoom}%</span>
+                  <button onClick={() => setZoom(100)} className="text-xs text-brand-600 hover:underline">リセット</button>
+                </div>
+                <div style={{ overflow: 'hidden' }}>
                 <iframe
                   ref={iframeRef}
                   srcDoc={previewHtml}
                   className="w-full"
-                  style={{ height: '600px' }}
+                  style={{ height: '600px', transform: `scale(${zoom/100})`, transformOrigin: 'top left', width: `${10000/zoom}%` }}
                   title="ラベルプレビュー"
                 />
               </div>

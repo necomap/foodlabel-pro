@@ -160,7 +160,7 @@ export function generateLabelHtml(
   font-family: 'Noto Sans JP', 'Hiragino Sans', Meiryo, sans-serif;
   line-height: 1.15;
   padding: 1.2mm;
-  border: 0.3mm solid #999;
+  border: none;
   box-sizing: border-box;
   break-inside: avoid;
   page-break-inside: avoid;

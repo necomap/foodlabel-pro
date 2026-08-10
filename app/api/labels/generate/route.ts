@@ -121,7 +121,7 @@ export async function POST(request: Request) {
   if (shopId) {
     const shops = await prisma.$queryRaw`
       SELECT "shopName", "companyName", representative, "postalCode",
-             address, phone, email, "showPhone", "showRepresentative", "showEmail"
+             address, phone, email, "showPhone", "showRepresentative", "showEmail", "qrUrl", "logoUrl"
       FROM shops
       WHERE id = ${shopId} AND "userId" = ${session.user.id} AND "isActive" = true
       LIMIT 1
@@ -145,7 +145,7 @@ export async function POST(request: Request) {
     // デフォルト店舗またはユーザー情報
     const defaultShops = await prisma.$queryRaw`
       SELECT "shopName", "companyName", representative, "postalCode",
-             address, phone, email, "showPhone", "showRepresentative", "showEmail"
+             address, phone, email, "showPhone", "showRepresentative", "showEmail", "qrUrl", "logoUrl"
       FROM shops
       WHERE "userId" = ${session.user.id} AND "isActive" = true AND "isDefault" = true
       LIMIT 1

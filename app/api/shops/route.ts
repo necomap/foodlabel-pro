@@ -21,7 +21,9 @@ export async function GET() {
       email,
       "showPhone",
       "showRepresentative",
-      "isDefault"
+      "isDefault",
+      "qrUrl",
+      "logoUrl"
     FROM shops
     WHERE "userId" = ${session.user.id} AND "isActive" = true
     ORDER BY "isDefault" DESC, "createdAt" ASC
@@ -40,6 +42,8 @@ const shopSchema = z.object({
   email:              z.string().email().optional().or(z.literal('')),
   showPhone:          z.boolean().default(true),
   showRepresentative: z.boolean().default(false),
+  qrUrl:              z.string().optional().nullable(),
+  logoUrl:            z.string().optional().nullable(),
 });
 
 export async function POST(request: Request) {
@@ -56,12 +60,12 @@ export async function POST(request: Request) {
       INSERT INTO shops (
         id, "userId", "shopName", "companyName", representative,
         "postalCode", address, phone, email,
-        "showPhone", "showRepresentative",
+        "showPhone", "showRepresentative", "qrUrl", "logoUrl",
         "isDefault", "isActive", "createdAt", "updatedAt"
       ) VALUES (
         gen_random_uuid(), ${session.user.id}, ${d.shopName}, ${d.companyName ?? null}, ${d.representative ?? null},
         ${d.postalCode ?? null}, ${d.address ?? null}, ${d.phone ?? null}, ${d.email || null},
-        ${d.showPhone}, ${d.showRepresentative},
+        ${d.showPhone}, ${d.showRepresentative}, ${d.qrUrl ?? null}, ${d.logoUrl ?? null},
         false, true, NOW(), NOW()
       )
       RETURNING id::text

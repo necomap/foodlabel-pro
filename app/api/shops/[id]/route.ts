@@ -25,6 +25,8 @@ export async function PUT(request: Request, { params }: Params) {
         email                = ${body.email || null},
         "showPhone"          = ${body.showPhone ?? shop.showPhone},
         "showRepresentative" = ${body.showRepresentative ?? shop.showRepresentative},
+        "qrUrl"              = ${body.qrUrl ?? null},
+        "logoUrl"            = ${body.logoUrl ?? null},
         "updatedAt"          = NOW()
       WHERE id = ${params.id} AND "userId" = ${session.user.id}
     `;

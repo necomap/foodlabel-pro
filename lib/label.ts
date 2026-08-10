@@ -60,6 +60,7 @@ export function generateLabelContent(
       ingredientName: i.ingredientName,
       amount: i.amount,
       unit: i.unit,
+      originCountry: i.originCountry ?? undefined,
     })),
     allergenInfo.all
   );

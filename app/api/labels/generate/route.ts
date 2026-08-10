@@ -167,6 +167,8 @@ export async function POST(request: Request) {
         showPhone:          s.showPhone ?? true,
         showRepresentative: true,  // フロントのcheckboxで制御
         showEmail:          s.showEmail ?? false,
+        qrUrl:              s.qrUrl ?? null,
+        logoUrl:            s.logoUrl ?? null,
       };
     } else {
       const user = await prisma.user.findUnique({ where: { id: session.user.id } });
@@ -182,8 +184,8 @@ export async function POST(request: Request) {
           showPhone:          true,
           showRepresentative: false,
           showEmail:          false,
-          qrUrl:              s.qrUrl ?? null,
-          logoUrl:            s.logoUrl ?? null,
+          qrUrl:              null,
+          logoUrl:            null,
         };
       }
     }

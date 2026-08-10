@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import { Loader2, Plus, Store, User, Tag, CheckCircle2, Trash2, AlertTriangle, Edit2, GripVertical } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-interface Shop { id: string; shopName: string; companyName: string|null; representative: string|null; postalCode: string|null; address: string|null; phone: string|null; email: string|null; showPhone: boolean; showRepresentative: boolean; isDefault: boolean; }
+interface Shop { id: string; shopName: string; companyName: string|null; representative: string|null; postalCode: string|null; address: string|null; phone: string|null; email: string|null; showPhone: boolean; showRepresentative: boolean; isDefault: boolean; qrUrl: string|null; logoUrl: string|null; }
 interface Category { id: string; name: string; sortOrder: number; }
 
 const TABS = [
@@ -153,6 +153,8 @@ function ShopModal({ shop, saving, onClose, onSave }: { shop:Shop|null; saving:b
           </div>
           <div><label className="field-label">住所</label><input type="text" value={form.address} onChange={e=>setForm(f=>({...f,address:e.target.value}))} className="field-input" /></div>
           <div><label className="field-label">メールアドレス</label><input type="email" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} className="field-input" /></div>
+          <div><label className="field-label">QRコード用URL（任意）</label><input type="url" value={(form as any).qrUrl ?? ''} onChange={e=>setForm(f=>({...f,qrUrl:e.target.value}))} className="field-input" placeholder="https://www.instagram.com/yourshop" /><p className="text-xs text-stone-400 mt-1">InstagramやショップのURLを入力するとラベルにQRコードが印刷されます</p></div>
+          <div><label className="field-label">ロゴ画像URL（任意）</label><input type="url" value={(form as any).logoUrl ?? ''} onChange={e=>setForm(f=>({...f,logoUrl:e.target.value}))} className="field-input" placeholder="https://example.com/logo.png" /><p className="text-xs text-stone-400 mt-1">ロゴ画像のURLを入力するとラベルに表示されます</p></div>
           <div className="space-y-2 pt-1">
             <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={form.showPhone} onChange={e=>setForm(f=>({...f,showPhone:e.target.checked}))} className="accent-brand-500" /><span className="text-sm text-stone-700">電話番号をラベルに表示する</span></label>
             <div>

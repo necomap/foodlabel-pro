@@ -86,6 +86,8 @@ export function generateLabelContent(
     expiryType,
     storageMethod:   recipe.storageMethod ?? '直射日光・高温多湿を避けて保存してください。',
     manufacturerName,
+    qrUrl:       shopInfo.qrUrl ?? null,
+    logoUrl:     shopInfo.logoUrl ?? null,
     postalCode:      displaySettings.showPostalCode !== false && shopInfo.postalCode 
                        ? `〒${shopInfo.postalCode}` 
                        : '',
@@ -227,6 +229,11 @@ export function generateLabelHtml(
   ${content.comment ? `<div style="margin-bottom:0.3mm;">${escHtml(content.comment)}</div>` : ''}
   <!-- 品質管理 -->
   ${content.qualityControl ? `<div>${escHtml(content.qualityControl)}</div>` : ''}
+  <!-- ロゴ・QRコード -->
+  ${(content.logoUrl || content.qrUrl) ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5mm;">
+    ${content.logoUrl ? `<img src="${content.logoUrl}" style="max-height:8mm;max-width:20mm;object-fit:contain;" />` : '<div></div>'}
+    ${content.qrUrl ? `<img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${encodeURIComponent(content.qrUrl)}" style="width:8mm;height:8mm;" />` : ''}
+  </div>` : ''}
   <!-- 製造者情報 -->
   <div style="margin-top:0.3mm; border-top:0.3mm solid #ccc; padding-top:0.3mm; word-break:break-all; overflow-wrap:break-word; line-height:1.15;">
     <span style="font-weight:bold;">製造者：</span>${escHtml(content.manufacturerName)}${content.representative ? '　' + escHtml(content.representative) : ''}

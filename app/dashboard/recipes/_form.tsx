@@ -568,16 +568,7 @@ export default function RecipeForm() {
                     <option value="製造用剤として">製造用剤として</option>
                     <option value="その他">その他（自由入力）</option>
                   </select>
-                  {(ing as IngredientRow).additiveReason === 'その他' && (
-                    <input
-                      type="text"
-                      placeholder="理由を入力"
-                      defaultValue=""
-                      onBlur={e => { if(e.target.value.trim()) updateIngredient(ing.key, 'additiveReason', e.target.value.trim()); }}
-                      className="field-input text-xs py-1 flex-1"
-                    />
                   )}
-                </div>
               )}
               {/* 原価単価 */}
               <input type="number" value={ing.costPrice}

@@ -241,6 +241,7 @@ export async function POST(request: Request) {
       sortedIngredients.map(i => ({
         ingredientName: i.ingredient?.name ?? i.ingredientNameOverride ?? '',
         amount: Number(i.amount),
+        originCountry: i.originCountry ?? undefined,
         unit: i.unit,
       })),
       allergenInfo.all

@@ -335,6 +335,8 @@ model RecipeIngredient {
   
   // 原産国
   originCountry    String? @db.VarChar(100)
+  isAdditive         Boolean  @default(false)
+  additiveReason     String?
   isPrimaryIngredient Boolean @default(false)
   
   // 原価

@@ -5,7 +5,7 @@
 Environment variables loaded from .env
 Prisma schema loaded from prisma\schema.prisma
 
-✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 296ms
+✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 319ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
@@ -19,13 +19,15 @@ Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
    Linting and checking validity of types ...
 Failed to compile.
 
-./app/api/labels/generate/route.ts:265:35
-Type error: Property 'isAdditive' does not exist on type '{ ingredient: { name: string; allergens: string[]; }; } & { id: string; createdAt: Date; energyKcal: Decimal; protein: Decimal; fat: Decimal; carbohydrate: Decimal; ... 17 more ...; nutritionUnconfirmed: boolean; }'.
+./app/dashboard/recipes/_form.tsx:210:26
+Type error: Argument of type '{ key: string; ingredientId: string; name: string; isAdditive: any; amount: string; unit: string; costPrice: string; originCountry: string; allergenOverride: string[]; nutritionUnconfirmed: boolean; energyKcal: number; costTotal: number; }[]' is not assignable to parameter of type 'SetStateAction<IngredientRow[]>'.
+  Type '{ key: string; ingredientId: string; name: string; isAdditive: any; amount: string; unit: string; costPrice: string; originCountry: string; allergenOverride: string[]; nutritionUnconfirmed: boolean; energyKcal: number; costTotal: number; }[]' is not assignable to type 'IngredientRow[]'.
+    Property 'additiveReason' is missing in type '{ key: string; ingredientId: string; name: string; isAdditive: any; amount: string; unit: string; costPrice: string; originCountry: string; allergenOverride: string[]; nutritionUnconfirmed: boolean; energyKcal: number; costTotal: number; }' but required in type 'IngredientRow'.
 
-[0m [90m 263 |[39m       sortByWeight[33m:[39m           ing[33m.[39msortByWeight[33m,[39m[0m
-[0m [90m 264 |[39m       originCountry[33m:[39m          ing[33m.[39moriginCountry [33m?[39m[33m?[39m undefined[33m,[39m[0m
-[0m[31m[1m>[22m[39m[90m 265 |[39m       isAdditive[33m:[39m             ing[33m.[39misAdditive [33m?[39m[33m?[39m [36mfalse[39m[33m,[39m[0m
-[0m [90m     |[39m                                   [31m[1m^[22m[39m[0m
-[0m [90m 266 |[39m       additiveReason[33m:[39m         ing[33m.[39madditiveReason [33m?[39m[33m?[39m undefined[33m,[39m[0m
-[0m [90m 267 |[39m       costPrice[33m:[39m              ing[33m.[39mcostPrice   [33m?[39m [33mNumber[39m(ing[33m.[39mcostPrice)  [33m:[39m [36mnull[39m[33m,[39m[0m
-[0m [90m 268 |[39m       costTotal[33m:[39m              ing[33m.[39mcostTotal   [33m?[39m [33mNumber[39m(ing[33m.[39mcostTotal)  [33m:[39m [36mnull[39m[33m,[39m[0m
+[0m [90m 208 |[39m         }[0m
+[0m [90m 209 |[39m         [36mif[39m (r[33m.[39mingredients[33m.[39mlength [33m>[39m [35m0[39m) {[0m
+[0m[31m[1m>[22m[39m[90m 210 |[39m           setIngredients(r[33m.[39mingredients[33m.[39mmap((ing[33m,[39m i) [33m=>[39m ({[0m
+[0m [90m     |[39m                          [31m[1m^[22m[39m[0m
+[0m [90m 211 |[39m             key[33m:[39m          [32m`r${i}`[39m[33m,[39m[0m
+[0m [90m 212 |[39m             ingredientId[33m:[39m ing[33m.[39mingredientId [33m?[39m[33m?[39m [32m''[39m[33m,[39m[0m
+[0m [90m 213 |[39m             name[33m:[39m         ing[33m.[39mingredientName[33m,[39m[0m

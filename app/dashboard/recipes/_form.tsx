@@ -87,7 +87,7 @@ function IngredientSearch({ value, onChange, onSelect, onFocus, onBlur }: {
         <input
           type="text" value={value}
           onChange={e => { onChange(e.target.value); }}
-          onFocus={() => value.trim().length > 0 && results.length > 0 && setOpen(true)}
+          onFocus={() => {}}
           className="field-input pl-9 text-sm py-2"
           placeholder="食材名を入力（日本食品成分表から検索）"
         />

@@ -79,6 +79,15 @@ export async function GET(request: Request) {
     };
   });
 
+  // フリープランの場合、作成日が古い順に上限超え分をreadOnlyにする
+  const { getPlanLimits } = await import('@/lib/plan-limits');
+  const planLimits = getPlanLimits((session.user as any).plan ?? 'free');
+  if (planLimits.maxRecipes !== Infinity && items.length > planLimits.maxRecipes) {
+    const byDate = [...items].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    const readOnlyIds = new Set(byDate.slice(planLimits.maxRecipes).map((r: any) => r.id));
+    items.forEach((r: any) => { r.readOnly = readOnlyIds.has(r.id); });
+  }
+
   return NextResponse.json({
     success: true,
     data:    { items, total, page, perPage, hasMore: page * perPage < total },

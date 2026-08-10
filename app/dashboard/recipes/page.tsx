@@ -12,6 +12,7 @@ interface RecipeSummary {
   energyKcal: number|null; saltEquivalent: number|null; totalWeightG: number|null;
   allergens: string[]; hasUnconfirmedNutrition: boolean; isActive: boolean;
   createdAt: Date; updatedAt: Date;
+  readOnly?: boolean;
 }
 
 const REQUIRED_ALLERGENS = ['えび','かに','小麦','そば','卵','乳','落花生','くるみ'];
@@ -187,6 +188,7 @@ export default function RecipesPage() {
                   className="block">
                   <div className={`flex items-start justify-between mb-2 ${selectMode ? 'pl-7' : ''}`}>
                     <div className="flex-1 min-w-0 pr-3">
+                      {recipe.readOnly && <span className="text-xs bg-stone-200 text-stone-500 px-1.5 py-0.5 rounded font-medium mb-0.5 inline-block">読取専用</span>}
                       <h3 className="font-semibold text-stone-800 truncate group-hover:text-brand-700 transition-colors">{recipe.name}</h3>
                       {recipe.categoryName && <span className="text-xs text-stone-400">{recipe.categoryName}</span>}
                     </div>

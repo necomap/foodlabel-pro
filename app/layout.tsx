@@ -55,6 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             duration: 4000,
             style: { fontFamily: 'var(--font-noto-sans)', fontSize: '14px' },
             success: { iconTheme: { primary: '#d4891f', secondary: '#fff' } },
+            error: { duration: 10000, iconTheme: { primary: '#e74c3c', secondary: '#fff' } },
           }}
         />
       </body>

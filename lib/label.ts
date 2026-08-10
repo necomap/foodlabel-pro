@@ -240,9 +240,9 @@ export function generateLabelHtml(
     ${content.phone ? '<br>TEL ' + escHtml(content.phone) : ''}
     ${content.email ? '<br>' + escHtml(content.email) : ''}
     </div>
-    ${(content.logoUrl || content.qrUrl) ? `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.5mm;flex-shrink:0;">
-      ${content.logoUrl ? `<img src="${content.logoUrl}" style="max-height:8mm;max-width:15mm;object-fit:contain;" />` : ''}
-      ${content.qrUrl ? `<img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${encodeURIComponent(content.qrUrl)}" style="width:8mm;height:8mm;" />` : ''}
+    ${(content.logoUrl || content.qrUrl) ? `<div style="display:flex;flex-direction:row;align-items:center;gap:0.5mm;flex-shrink:0;">
+      ${content.logoUrl ? `<img src="${content.logoUrl}" style="max-height:6mm;max-width:12mm;object-fit:contain;" />` : ''}
+      ${content.qrUrl ? `<img src="https://api.qrserver.com/v1/create-qr-code/?size=50x50&data=${encodeURIComponent(content.qrUrl)}" style="width:6mm;height:6mm;" />` : ''}
     </div>` : ''}
   </div>
 </div>

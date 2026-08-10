@@ -348,7 +348,15 @@ export default function LabelsPage() {
       )}
 
       <div>
-        <h1 className="text-2xl font-bold text-stone-800 font-display">ラベル印刷</h1>
+        <div className="flex items-center gap-3">
+          {recipeId && (
+            <a href={`/dashboard/recipes/${recipeId}`}
+              className="flex items-center gap-1 text-sm text-brand-600 hover:underline">
+              <ChevronLeft className="w-4 h-4" />レシピに戻る
+            </a>
+          )}
+          <h1 className="text-2xl font-bold text-stone-800 font-display">ラベル印刷</h1>
+        </div>
         <p className="text-stone-500 text-sm mt-0.5">製造日を入力してラベルを生成・印刷します</p>
       </div>
 

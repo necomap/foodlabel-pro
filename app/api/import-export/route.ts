@@ -75,6 +75,25 @@ export async function POST(request: Request) {
   let skipped  = 0;
 
   // プラン制限分だけ処理
+  // 事前に全食材・全カテゴリをキャッシュして高速化
+  const allIngredients = await prisma.ingredient.findMany({
+    where: { userId: session.user.id },
+    select: { id: true, name: true, nameKana: true },
+  });
+  const ingredientCache = new Map(allIngredients.map(i => [i.name.trim(), i]));
+
+  const allCategories = await prisma.category.findMany({
+    where: { userId: session.user.id },
+    select: { id: true, name: true },
+  });
+  const categoryCache = new Map(allCategories.map(c => [c.name.trim(), c]));
+
+  const existingRecipes = await prisma.recipe.findMany({
+    where: { userId: session.user.id, isActive: true },
+    select: { id: true, name: true },
+  });
+  const recipeCache = new Map(existingRecipes.map(r => [r.name.trim(), r]));
+
   const recipesToProcess = importLimit === Infinity ? parsedRecipes : parsedRecipes.slice(0, importLimit);
   for (const pr of recipesToProcess) {
     // プラン制限：インポート上限チェック
@@ -89,27 +108,20 @@ export async function POST(request: Request) {
 
       // 既存レシピチェック（上書きしない場合はスキップ）
       if (!overwrite) {
-        const exists = await prisma.recipe.findFirst({
-          where: { userId: session.user.id, name, isActive: true },
-        });
+        const exists = recipeCache.get(name);
         if (exists) { skipped++; continue; }
       }
 
       // カテゴリを探す or 作る
       let categoryId: string | undefined;
       if (pr.category) {
-        let cat = await prisma.category.findFirst({
-          where: {
-            name:     pr.category,
-            OR: [{ userId: null }, { userId: session.user.id }],
-          },
-        });
+        let cat = categoryCache.get(pr.category.trim());
         if (!cat) {
           cat = await prisma.category.create({
             data: { userId: session.user.id, name: pr.category },
           });
+          categoryCache.set(pr.category.trim(), cat);
         }
-        categoryId = cat.id;
       }
 
       // 材料の食材マスタ検索・作成
@@ -119,14 +131,7 @@ export async function POST(request: Request) {
         if (!ingName) continue;
 
         // 食材マスタを検索（自分の + 共有）
-        let ingredient = await prisma.ingredient.findFirst({
-          where: {
-            name:     ingName,
-            isActive: true,
-            OR: [{ userId: session.user.id }, { userId: null }],
-          },
-          include: { nutritionData: true },
-        });
+        let ingredient = ingredientCache.get(ingName) as any;
 
         // なければ自動作成（手入力扱い）
         if (!ingredient) {
@@ -140,8 +145,8 @@ export async function POST(request: Request) {
             },
             include: { nutritionData: true },
           });
+          ingredientCache.set(ingName, ingredient);
         }
-
         // 栄養計算
         const amountG = ['g', 'ml'].includes(rawIng.unit) ? rawIng.amount : 0;
         const nutrition = amountG > 0 && ingredient.nutritionData

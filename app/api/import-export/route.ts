@@ -74,7 +74,8 @@ export async function POST(request: Request) {
   let imported = 0;
   let skipped  = 0;
 
-  for (const pr of parsedRecipes) {
+  const recipesToProcess = importLimit === Infinity ? parsedRecipes : parsedRecipes.slice(0, importLimit);
+  for (const pr of recipesToProcess) {
     // プラン制限：インポート上限チェック
     if (imported >= importLimit) {
       skipped++;

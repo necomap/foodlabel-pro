@@ -79,7 +79,7 @@ export async function POST(request: Request) {
     if (imported >= importLimit) {
       skipped++;
       warnings.push({ row: imported + skipped + 1, message: `フリープランの上限（${importLimit}件）に達したためスキップしました` });
-      continue;
+      break;
     }
     try {
       const name = toFullWidth(pr.name).trim();

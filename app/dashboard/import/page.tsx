@@ -79,7 +79,7 @@ export default function ImportExportPage() {
             <h3 className="font-semibold text-stone-700 mb-3">Excelファイルを選択</h3>
             <div onClick={() => fileRef.current?.click()} className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${file?'border-brand-400 bg-brand-50':'border-cream-300 hover:border-brand-300 hover:bg-cream-50'}`}>
               <FileSpreadsheet className={`w-10 h-10 mx-auto mb-3 ${file?'text-brand-500':'text-stone-300'}`} />
-              {file ? (<div><p className="font-medium text-brand-700">{file.name}</p><p className="text-sm text-stone-500 mt-1">{(file.size/1024).toFixed(0)} KB</p></div>) : (<div><p className="font-medium text-stone-600">クリックしてファイルを選択</p><p className="text-sm text-stone-400 mt-1">.xlsx, .xlsm, .xls</p></div>)}
+              {file ? (<div><p className="font-medium text-brand-700">{file.name}</p><p className="text-sm text-stone-500 mt-1">{(file.size/1024).toFixed(0)} KB</p></div>) : (<div><p className="font-medium text-stone-600">クリックしてファイルを選択</p><p className="text-sm text-stone-400 mt-1">.xlsx, .xlsm, .xls</p><p className="text-xs text-stone-400 mt-1">「DB」シートがある場合はDBシートを、ない場合は一番左のシートを読み込みます</p></div>)}
             </div>
             <input ref={fileRef} type="file" accept=".xlsx,.xlsm,.xls" className="hidden" onChange={e=>{setFile(e.target.files?.[0]??null);setResult(null);}} />
           </div>

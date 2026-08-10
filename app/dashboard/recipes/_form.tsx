@@ -566,8 +566,8 @@ export default function RecipeForm() {
                     <input
                       type="text"
                       placeholder="理由を入力"
-                      value=""
-                      onChange={e => updateIngredient(ing.key, 'additiveReason', e.target.value)}
+                      defaultValue=""
+                      onBlur={e => { if(e.target.value.trim()) updateIngredient(ing.key, 'additiveReason', e.target.value.trim()); }}
                       className="field-input text-xs py-1 flex-1"
                     />
                   )}

@@ -116,6 +116,8 @@ export async function POST(request: Request) {
     showPhone:          true,
     showRepresentative: false,
     showEmail:          false,
+    qrUrl:              null,
+    logoUrl:            null,
   };
 
   if (shopId) {
@@ -178,6 +180,8 @@ export async function POST(request: Request) {
           showPhone:          true,
           showRepresentative: false,
           showEmail:          false,
+          qrUrl:              s.qrUrl ?? null,
+          logoUrl:            s.logoUrl ?? null,
         };
       }
     }

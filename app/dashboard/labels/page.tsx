@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Printer, RefreshCw, Settings, AlertTriangle, Eye, Loader2, CheckCircle2, Info } from 'lucide-react';
+import { Printer, RefreshCw, Settings, AlertTriangle, ChevronLeft, Eye, Loader2, CheckCircle2, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface RecipeOption { id: string; name: string; shelfLifeDays: number | null; shelfLifeType: string; contentAmount: string | null; }

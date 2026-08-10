@@ -57,6 +57,9 @@ export async function GET(_req: Request, { params }: Params) {
       ingredientName: ing.ingredient?.name ?? ing.ingredientNameOverride ?? '',
       amount:         Number(ing.amount),
       unit:           ing.unit,
+      originCountry:  ing.originCountry ?? undefined,
+      isAdditive:     ing.isAdditive ?? false,
+      additiveReason: ing.additiveReason ?? undefined,
     })),
     allergenInfo.all
   );
@@ -209,7 +212,7 @@ export async function PUT(request: Request, { params }: Params) {
     const totalWeightG = ingredients.reduce((s: number, ing: any) => s + (ing.unit === 'g' || ing.unit === 'ml' ? Number(ing.amount) : 0), 0);
     const unitCount = body.unitCount ?? 1;
     const ingredientsLabel = bil(
-      ingredientDetails.map(d => ({ ingredientName: d.ing.ingredientNameOverride ?? d.ing.name ?? '', amount: Number(d.ing.amount), unit: d.ing.unit })).sort((a,b) => b.amount - a.amount),
+      ingredientDetails.map(d => ({ ingredientName: d.ing.ingredientNameOverride ?? d.ing.name ?? '', amount: Number(d.ing.amount), unit: d.ing.unit, originCountry: d.ing.originCountry ?? undefined, isAdditive: d.ing.isAdditive ?? false, additiveReason: d.ing.additiveReason ?? undefined })).sort((a,b) => b.amount - a.amount),
       allergenInfo.all
     );
 

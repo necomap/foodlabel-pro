@@ -60,9 +60,6 @@ export async function GET(_req: Request, { params }: Params) {
       originCountry:  ing.originCountry ?? undefined,
       isAdditive:     ing.isAdditive ?? false,
       additiveReason: ing.additiveReason ?? undefined,
-      originCountry:  ing.originCountry ?? undefined,
-      isAdditive:     ing.isAdditive ?? false,
-      additiveReason: ing.additiveReason ?? undefined,
     })),
     allergenInfo.all
   );

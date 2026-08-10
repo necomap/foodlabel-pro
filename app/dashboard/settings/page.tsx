@@ -135,7 +135,7 @@ function ShopsTab() {
 }
 
 function ShopModal({ shop, saving, onClose, onSave }: { shop:Shop|null; saving:boolean; onClose:()=>void; onSave:(d:Partial<Shop>&{id?:string})=>void; }) {
-  const [form, setForm] = useState({ shopName:shop?.shopName??'', companyName:shop?.companyName??'', representative:shop?.representative??'', postalCode:shop?.postalCode??'', address:shop?.address??'', phone:shop?.phone??'', email:shop?.email??'', showPhone:shop?.showPhone??true, showRepresentative:shop?.showRepresentative??false });
+  const [form, setForm] = useState({ shopName:shop?.shopName??'', companyName:shop?.companyName??'', representative:shop?.representative??'', postalCode:shop?.postalCode??'', address:shop?.address??'', phone:shop?.phone??'', email:shop?.email??'', showPhone:shop?.showPhone??true, showRepresentative:shop?.showRepresentative??false, qrUrl:(shop as any)?.qrUrl??'', logoUrl:(shop as any)?.logoUrl??'' });
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl shadow-warm-lg w-full max-w-md flex flex-col max-h-[90vh]">

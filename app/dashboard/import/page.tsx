@@ -23,10 +23,11 @@ export default function ImportExportPage() {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('overwrite', String(overwrite));
+    formData.append('clearAll', String(clearAll));
     try {
       const res = await fetch('/api/import-export', { method: 'POST', body: formData });
       const data = await res.json();
-      if (data.success) { setResult(data.data); toast.success(data.message); }
+      if (data.success) { setResult(data.data); toast.success(`インポート完了: ${data.data?.imported ?? 0}件追加、${data.data?.skipped ?? 0}件スキップ`); }
       else toast.error(data.error ?? 'インポートに失敗しました');
     } catch { toast.error('通信エラーが発生しました'); } finally { setLoading(false); }
   };

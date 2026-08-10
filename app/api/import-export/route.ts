@@ -18,8 +18,10 @@ export async function POST(request: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ success: false, error: '認証が必要です' }, { status: 401 });
 
+
 // プラン制限チェック（レシピ件数）
   const importLimits = getPlanLimits(session.user.plan ?? 'free');
+  let importLimit = Infinity;
   if (importLimits.maxRecipes !== Infinity) {
     const recipeCountResult = await prisma.$queryRaw`
       SELECT COUNT(*) as count FROM recipes WHERE "userId" = ${session.user.id} AND "isActive" = true
@@ -32,6 +34,7 @@ export async function POST(request: Request) {
         upgradeRequired: true,
       }, { status: 403 });
     }
+    importLimit = importLimits.maxRecipes - currentCount;
   }
 
   const formData  = await request.formData();
@@ -66,6 +69,12 @@ export async function POST(request: Request) {
   let skipped  = 0;
 
   for (const pr of parsedRecipes) {
+    // プラン制限：インポート上限チェック
+    if (imported >= importLimit) {
+      skipped++;
+      warnings.push({ row: imported + skipped + 1, message: `フリープランの上限（${importLimit}件）に達したためスキップしました` });
+      continue;
+    }
     try {
       const name = toFullWidth(pr.name).trim();
       if (!name) { skipped++; continue; }

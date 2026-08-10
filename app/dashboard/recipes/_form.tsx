@@ -58,9 +58,10 @@ function IngredientSearch({ value, onChange, onSelect, onFocus, onBlur }: {
   const [results, setResults] = useState<{ id: string; name: string; allergens: string[]; unitPrice: number | null; nutrition: { energyKcal: number | null } | null }[]>([]);
   const [open,    setOpen]    = useState(false);
   const [loading, setLoading] = useState(false);
+  const userTyped = useRef(false);
 
   // マウント時はドロップダウンを閉じる
-  useEffect(() => { setOpen(false); setResults([]); }, []);
+  useEffect(() => { setOpen(false); setResults([]); userTyped.current = false; }, []);
 
   const search = useCallback(async (q: string) => {
     if (!q.trim()) { setResults([]); setOpen(false); return; }
@@ -70,7 +71,7 @@ function IngredientSearch({ value, onChange, onSelect, onFocus, onBlur }: {
       const data = await res.json();
       if (data.success) {
         setResults(data.data.items);
-        setOpen(true);
+        if (userTyped.current) setOpen(true);
       }
     } finally { setLoading(false); }
   }, []);
@@ -86,7 +87,7 @@ function IngredientSearch({ value, onChange, onSelect, onFocus, onBlur }: {
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400" />
         <input
           type="text" value={value}
-          onChange={e => { onChange(e.target.value); }}
+          onChange={e => { userTyped.current = true; onChange(e.target.value); }}
           onFocus={() => {}}
           className="field-input pl-9 text-sm py-2"
           placeholder="食材名を入力（日本食品成分表から検索）"

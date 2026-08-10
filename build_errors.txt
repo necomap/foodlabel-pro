@@ -5,7 +5,7 @@
 Environment variables loaded from .env
 Prisma schema loaded from prisma\schema.prisma
 
-✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 397ms
+✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 280ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
@@ -17,19 +17,96 @@ Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
    Creating an optimized production build ...
  ✓ Compiled successfully
    Linting and checking validity of types ...
-Failed to compile.
+   Collecting page data ...
+   Generating static pages (0/60) ...
+   Generating static pages (15/60) 
+   Generating static pages (30/60) 
+   Generating static pages (45/60) 
+ ✓ Generating static pages (60/60)
+   Finalizing page optimization ...
+   Collecting build traces ...
 
-./app/dashboard/recipes/_form.tsx:251:20
-Type error: Argument of type '(prev: IngredientRow[]) => (IngredientRow | { key: string; ingredientId: string; name: string; amount: string; unit: string; costPrice: string; originCountry: string; ... 4 more ...; costTotal: any; })[]' is not assignable to parameter of type 'SetStateAction<IngredientRow[]>'.
-  Type '(prev: IngredientRow[]) => (IngredientRow | { key: string; ingredientId: string; name: string; amount: string; unit: string; costPrice: string; originCountry: string; ... 4 more ...; costTotal: any; })[]' is not assignable to type '(prevState: IngredientRow[]) => IngredientRow[]'.
-    Type '(IngredientRow | { key: string; ingredientId: string; name: string; amount: string; unit: string; costPrice: string; originCountry: string; allergenOverride: any[]; nutritionUnconfirmed: false; isAdditive: false; energyKcal: any; costTotal: any; })[]' is not assignable to type 'IngredientRow[]'.
-      Type 'IngredientRow | { key: string; ingredientId: string; name: string; amount: string; unit: string; costPrice: string; originCountry: string; allergenOverride: any[]; nutritionUnconfirmed: false; isAdditive: false; energyKcal: any; costTotal: any; }' is not assignable to type 'IngredientRow'.
-        Property 'additiveReason' is missing in type '{ key: string; ingredientId: string; name: string; amount: string; unit: string; costPrice: string; originCountry: string; allergenOverride: any[]; nutritionUnconfirmed: false; isAdditive: false; energyKcal: any; costTotal: any; }' but required in type 'IngredientRow'.
+Route (app)                              Size     First Load JS
+┌ ○ /                                    204 B          94.1 kB
+├ ○ /_not-found                          876 B            88 kB
+├ ○ /about                               204 B          94.1 kB
+├ ○ /admin                               4.77 kB        96.9 kB
+├ ƒ /api/admin/ingredients               0 B                0 B
+├ ƒ /api/admin/ingredients/[id]          0 B                0 B
+├ ƒ /api/admin/nutrition-import          0 B                0 B
+├ ƒ /api/admin/stats                     0 B                0 B
+├ ƒ /api/auth/[...nextauth]              0 B                0 B
+├ ƒ /api/auth/forgot-password            0 B                0 B
+├ ƒ /api/auth/register                   0 B                0 B
+├ ƒ /api/auth/reset-password             0 B                0 B
+├ ƒ /api/auth/verify-email               0 B                0 B
+├ ƒ /api/categories                      0 B                0 B
+├ ƒ /api/categories/[id]                 0 B                0 B
+├ ƒ /api/contact                         0 B                0 B
+├ ƒ /api/cron/keepalive                  0 B                0 B
+├ ƒ /api/import-export                   0 B                0 B
+├ ƒ /api/ingredient-categories           0 B                0 B
+├ ƒ /api/ingredient-categories/[id]      0 B                0 B
+├ ƒ /api/ingredients                     0 B                0 B
+├ ƒ /api/ingredients/[id]                0 B                0 B
+├ ƒ /api/labels/generate                 0 B                0 B
+├ ƒ /api/labels/print-stats              0 B                0 B
+├ ƒ /api/nutrition                       0 B                0 B
+├ ƒ /api/recipes                         0 B                0 B
+├ ƒ /api/recipes/[id]                    0 B                0 B
+├ ƒ /api/recipes/[id]/copy               0 B                0 B
+├ ƒ /api/recipes/[id]/toggle-active      0 B                0 B
+├ ƒ /api/shops                           0 B                0 B
+├ ƒ /api/shops/[id]                      0 B                0 B
+├ ƒ /api/shops/[id]/set-default          0 B                0 B
+├ ƒ /api/shops/[id]/unset-default        0 B                0 B
+├ ƒ /api/stripe/checkout                 0 B                0 B
+├ ƒ /api/stripe/portal                   0 B                0 B
+├ ƒ /api/stripe/webhook                  0 B                0 B
+├ ƒ /api/upload                          0 B                0 B
+├ ƒ /api/user/profile                    0 B                0 B
+├ ƒ /api/util/kana                       0 B                0 B
+├ ○ /auth/forgot-password                2.26 kB         101 kB
+├ ○ /auth/login                          3.68 kB         107 kB
+├ ○ /auth/register                       4.6 kB          108 kB
+├ ○ /auth/reset-password                 2.97 kB         102 kB
+├ ○ /auth/verify-email                   1.98 kB        95.9 kB
+├ ○ /blog                                204 B          94.1 kB
+├ ○ /blog/allergen-guide                 165 B          87.3 kB
+├ ○ /blog/expiry-date-guide              165 B          87.3 kB
+├ ○ /blog/food-labeling-basics           165 B          87.3 kB
+├ ○ /blog/nutrition-labeling             165 B          87.3 kB
+├ ○ /blog/online-food-sales              164 B          87.3 kB
+├ ƒ /dashboard                           165 B          87.3 kB
+├ ƒ /dashboard/contact                   2.67 kB         102 kB
+├ ƒ /dashboard/debug                     165 B          87.3 kB
+├ ƒ /dashboard/export                    390 B          87.5 kB
+├ ƒ /dashboard/help                      4.48 kB        98.4 kB
+├ ƒ /dashboard/import                    4.63 kB         104 kB
+├ ƒ /dashboard/ingredients               7.33 kB        99.5 kB
+├ ƒ /dashboard/labels                    7.19 kB        99.4 kB
+├ ƒ /dashboard/recipes                   5.42 kB         104 kB
+├ ƒ /dashboard/recipes/[id]              6.12 kB         105 kB
+├ ƒ /dashboard/recipes/[id]/edit         229 B           100 kB
+├ ƒ /dashboard/recipes/new               228 B           100 kB
+├ ƒ /dashboard/recipes/print             4 kB           96.2 kB
+├ ƒ /dashboard/settings                  6.22 kB         102 kB
+├ ƒ /dashboard/upgrade                   2.83 kB          99 kB
+├ ○ /features                            204 B          94.1 kB
+├ ○ /help                                204 B          94.1 kB
+├ ○ /legal                               204 B          94.1 kB
+├ ○ /privacy                             204 B          94.1 kB
+├ ○ /robots.txt                          0 B                0 B
+├ ○ /sitemap.xml                         0 B                0 B
+└ ○ /terms                               204 B          94.1 kB
++ First Load JS shared by all            87.1 kB
+  ├ chunks/7023-7189c1ed0ba34f7a.js      31.5 kB
+  ├ chunks/fd9d1056-6ff5cbc1e2db141b.js  53.6 kB
+  └ other shared chunks (total)          1.96 kB
 
-[0m [90m 249 |[39m   [90m// ---- 材料操作 ----[39m[0m
-[0m [90m 250 |[39m   [36mconst[39m addIngredient [33m=[39m () [33m=>[39m {[0m
-[0m[31m[1m>[22m[39m[90m 251 |[39m     setIngredients(prev [33m=>[39m [[33m...[39mprev[33m,[39m {[0m
-[0m [90m     |[39m                    [31m[1m^[22m[39m[0m
-[0m [90m 252 |[39m       key[33m:[39m [32m`r${Date.now()}`[39m[33m,[39m ingredientId[33m:[39m [32m''[39m[33m,[39m name[33m:[39m [32m''[39m[33m,[39m amount[33m:[39m [32m''[39m[33m,[39m unit[33m:[39m [32m'g'[39m[33m,[39m[0m
-[0m [90m 253 |[39m       costPrice[33m:[39m [32m''[39m[33m,[39m originCountry[33m:[39m [32m''[39m[33m,[39m allergenOverride[33m:[39m [][33m,[39m nutritionUnconfirmed[33m:[39m [36mfalse[39m[33m,[39m[0m
-[0m [90m 254 |[39m       isAdditive[33m:[39m [36mfalse[39m[33m,[39m energyKcal[33m:[39m [36mnull[39m[33m,[39m costTotal[33m:[39m [36mnull[39m[33m,[39m[0m
+
+ƒ Middleware                             39.6 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

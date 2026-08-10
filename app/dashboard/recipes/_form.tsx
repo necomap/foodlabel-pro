@@ -251,7 +251,7 @@ export default function RecipeForm() {
     setIngredients(prev => [...prev, {
       key: `r${Date.now()}`, ingredientId: '', name: '', amount: '', unit: 'g',
       costPrice: '', originCountry: '', allergenOverride: [], nutritionUnconfirmed: false,
-      isAdditive: false, energyKcal: null, costTotal: null,
+      isAdditive: false, additiveReason: '', energyKcal: null, costTotal: null,
     }]);
   };
 

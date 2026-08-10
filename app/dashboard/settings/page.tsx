@@ -154,7 +154,27 @@ function ShopModal({ shop, saving, onClose, onSave }: { shop:Shop|null; saving:b
           <div><label className="field-label">住所</label><input type="text" value={form.address} onChange={e=>setForm(f=>({...f,address:e.target.value}))} className="field-input" /></div>
           <div><label className="field-label">メールアドレス</label><input type="email" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} className="field-input" /></div>
           <div><label className="field-label">QRコード用URL（任意）</label><input type="url" value={(form as any).qrUrl ?? ''} onChange={e=>setForm(f=>({...f,qrUrl:e.target.value}))} className="field-input" placeholder="https://www.instagram.com/yourshop" /><p className="text-xs text-stone-400 mt-1">InstagramやショップのURLを入力するとラベルにQRコードが印刷されます</p></div>
-          <div><label className="field-label">ロゴ画像URL（任意）</label><input type="url" value={(form as any).logoUrl ?? ''} onChange={e=>setForm(f=>({...f,logoUrl:e.target.value}))} className="field-input" placeholder="https://example.com/logo.png" /><p className="text-xs text-stone-400 mt-1">ロゴ画像のURLを入力するとラベルに表示されます</p></div>
+          {/* ロゴ画像アップロード */}
+              <div>
+                <label className="field-label">ロゴ画像（任意）</label>
+                {(form as any).logoUrl && (
+                  <div className="mb-2 flex items-center gap-3">
+                    <img src={(form as any).logoUrl} alt="ロゴ" className="h-12 object-contain border rounded-lg p-1" />
+                    <button type="button" onClick={()=>setForm(f=>({...f,logoUrl:''}))} className="text-xs text-red-500 hover:underline">削除</button>
+                  </div>
+                )}
+                <input type="file" accept="image/*" onChange={async(e)=>{
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const fd = new FormData();
+                  fd.append('file', file);
+                  const res = await fetch('/api/upload', {method:'POST',body:fd});
+                  const data = await res.json();
+                  if (data.success) setForm(f=>({...f,logoUrl:data.url}));
+                  else alert(data.error ?? 'アップロードに失敗しました');
+                }} className="field-input" />
+                <p className="text-xs text-stone-400 mt-1">推奨：横長PNG・透過背景・2MB以下</p>
+              </div>
           <div className="space-y-2 pt-1">
             <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={form.showPhone} onChange={e=>setForm(f=>({...f,showPhone:e.target.checked}))} className="accent-brand-500" /><span className="text-sm text-stone-700">電話番号をラベルに表示する</span></label>
             <div>

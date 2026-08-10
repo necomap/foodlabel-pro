@@ -115,6 +115,8 @@ export async function GET(_req: Request, { params }: Params) {
         displayOrder:           ing.displayOrder,
         sortByWeight:           ing.sortByWeight,
         originCountry:          ing.originCountry,
+        isAdditive:             ing.isAdditive ?? false,
+        additiveReason:         ing.additiveReason ?? null,
         costPrice:              ing.costPrice  ? Number(ing.costPrice)  : null,
         costTotal:              ing.costTotal  ? Number(ing.costTotal)  : null,
         allergenOverride:       ing.allergenOverride,

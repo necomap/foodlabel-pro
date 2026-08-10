@@ -137,15 +137,18 @@ export function buildIngredientsLabel(
   const primaryOrigin = ingredients.length > 0 ? ingredients[0].originCountry : undefined;
 
   const names = ingredients
-    .map(i => {
+    .map((i, idx) => {
       const name = i.ingredientName.trim();
+      // 最も重量の多い原材料（先頭）に原産国を追加
+      if (idx === 0 && i.originCountry) {
+        return `${name}（${i.originCountry}）`;
+      }
       return name;
     })
     .filter(Boolean);
 
   const allergenText = buildAllergenLabel(allergens);
-  const originText = primaryOrigin ? `（${primaryOrigin}）` : '';
-  return names.join('、') + allergenText + originText;
+  return names.join('、') + allergenText;
 }
 
 /**

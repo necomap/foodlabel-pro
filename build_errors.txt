@@ -5,7 +5,7 @@
 Environment variables loaded from .env
 Prisma schema loaded from prisma\schema.prisma
 
-✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 319ms
+✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 397ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
@@ -19,15 +19,17 @@ Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
    Linting and checking validity of types ...
 Failed to compile.
 
-./app/dashboard/recipes/_form.tsx:210:26
-Type error: Argument of type '{ key: string; ingredientId: string; name: string; isAdditive: any; amount: string; unit: string; costPrice: string; originCountry: string; allergenOverride: string[]; nutritionUnconfirmed: boolean; energyKcal: number; costTotal: number; }[]' is not assignable to parameter of type 'SetStateAction<IngredientRow[]>'.
-  Type '{ key: string; ingredientId: string; name: string; isAdditive: any; amount: string; unit: string; costPrice: string; originCountry: string; allergenOverride: string[]; nutritionUnconfirmed: boolean; energyKcal: number; costTotal: number; }[]' is not assignable to type 'IngredientRow[]'.
-    Property 'additiveReason' is missing in type '{ key: string; ingredientId: string; name: string; isAdditive: any; amount: string; unit: string; costPrice: string; originCountry: string; allergenOverride: string[]; nutritionUnconfirmed: boolean; energyKcal: number; costTotal: number; }' but required in type 'IngredientRow'.
+./app/dashboard/recipes/_form.tsx:251:20
+Type error: Argument of type '(prev: IngredientRow[]) => (IngredientRow | { key: string; ingredientId: string; name: string; amount: string; unit: string; costPrice: string; originCountry: string; ... 4 more ...; costTotal: any; })[]' is not assignable to parameter of type 'SetStateAction<IngredientRow[]>'.
+  Type '(prev: IngredientRow[]) => (IngredientRow | { key: string; ingredientId: string; name: string; amount: string; unit: string; costPrice: string; originCountry: string; ... 4 more ...; costTotal: any; })[]' is not assignable to type '(prevState: IngredientRow[]) => IngredientRow[]'.
+    Type '(IngredientRow | { key: string; ingredientId: string; name: string; amount: string; unit: string; costPrice: string; originCountry: string; allergenOverride: any[]; nutritionUnconfirmed: false; isAdditive: false; energyKcal: any; costTotal: any; })[]' is not assignable to type 'IngredientRow[]'.
+      Type 'IngredientRow | { key: string; ingredientId: string; name: string; amount: string; unit: string; costPrice: string; originCountry: string; allergenOverride: any[]; nutritionUnconfirmed: false; isAdditive: false; energyKcal: any; costTotal: any; }' is not assignable to type 'IngredientRow'.
+        Property 'additiveReason' is missing in type '{ key: string; ingredientId: string; name: string; amount: string; unit: string; costPrice: string; originCountry: string; allergenOverride: any[]; nutritionUnconfirmed: false; isAdditive: false; energyKcal: any; costTotal: any; }' but required in type 'IngredientRow'.
 
-[0m [90m 208 |[39m         }[0m
-[0m [90m 209 |[39m         [36mif[39m (r[33m.[39mingredients[33m.[39mlength [33m>[39m [35m0[39m) {[0m
-[0m[31m[1m>[22m[39m[90m 210 |[39m           setIngredients(r[33m.[39mingredients[33m.[39mmap((ing[33m,[39m i) [33m=>[39m ({[0m
-[0m [90m     |[39m                          [31m[1m^[22m[39m[0m
-[0m [90m 211 |[39m             key[33m:[39m          [32m`r${i}`[39m[33m,[39m[0m
-[0m [90m 212 |[39m             ingredientId[33m:[39m ing[33m.[39mingredientId [33m?[39m[33m?[39m [32m''[39m[33m,[39m[0m
-[0m [90m 213 |[39m             name[33m:[39m         ing[33m.[39mingredientName[33m,[39m[0m
+[0m [90m 249 |[39m   [90m// ---- 材料操作 ----[39m[0m
+[0m [90m 250 |[39m   [36mconst[39m addIngredient [33m=[39m () [33m=>[39m {[0m
+[0m[31m[1m>[22m[39m[90m 251 |[39m     setIngredients(prev [33m=>[39m [[33m...[39mprev[33m,[39m {[0m
+[0m [90m     |[39m                    [31m[1m^[22m[39m[0m
+[0m [90m 252 |[39m       key[33m:[39m [32m`r${Date.now()}`[39m[33m,[39m ingredientId[33m:[39m [32m''[39m[33m,[39m name[33m:[39m [32m''[39m[33m,[39m amount[33m:[39m [32m''[39m[33m,[39m unit[33m:[39m [32m'g'[39m[33m,[39m[0m
+[0m [90m 253 |[39m       costPrice[33m:[39m [32m''[39m[33m,[39m originCountry[33m:[39m [32m''[39m[33m,[39m allergenOverride[33m:[39m [][33m,[39m nutritionUnconfirmed[33m:[39m [36mfalse[39m[33m,[39m[0m
+[0m [90m 254 |[39m       isAdditive[33m:[39m [36mfalse[39m[33m,[39m energyKcal[33m:[39m [36mnull[39m[33m,[39m costTotal[33m:[39m [36mnull[39m[33m,[39m[0m

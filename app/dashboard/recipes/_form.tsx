@@ -220,6 +220,7 @@ export default function RecipeForm() {
             nutritionUnconfirmed: ing.nutritionUnconfirmed,
             energyKcal:   ing.nutrition.energyKcal,
             costTotal:    ing.costTotal,
+            additiveReason: (ing as any).additiveReason ?? '',
           })));
         }
         if (r.steps.length > 0) setSteps(r.steps);

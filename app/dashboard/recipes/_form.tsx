@@ -59,6 +59,9 @@ function IngredientSearch({ value, onChange, onSelect, onFocus, onBlur }: {
   const [open,    setOpen]    = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // マウント時はドロップダウンを閉じる
+  useEffect(() => { setOpen(false); setResults([]); }, []);
+
   const search = useCallback(async (q: string) => {
     if (!q.trim()) { setResults([]); setOpen(false); return; }
     setLoading(true);

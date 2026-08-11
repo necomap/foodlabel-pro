@@ -562,24 +562,7 @@ export default function RecipeForm() {
                     <option value="製造用剤として">製造用剤として</option>
                     <option value="その他">その他（自由入力）</option>
                   </select>
-                  {((ing as IngredientRow).additiveReason === 'その他' || (!([
-                    "甘味料として",
-                    "着色料として",
-                    "保存料として",
-                    "増粘剤として",
-                    "酸化防止剤として",
-                    "発色剤として",
-                    "漂白剤として",
-                    "防かび剤として",
-                    "乳化剤として",
-                    "pH調整剤として",
-                    "膨張剤として",
-                    "香料として",
-                    "調味料として",
-                    "酸味料として",
-                    "強化剤として",
-                    "製造用剤として",
-                    ''].includes((ing as IngredientRow).additiveReason ?? ''))) && (
+                  {((ing as IngredientRow).additiveReason === 'その他' || (!(['甘味料として','着色料として','保存料として','増粘剤として','酸化防止剤として','発色剤として','漂白剤として','防かび剤として','乳化剤として','pH調整剤として','膨張剤として','香料として','調味料として','酸味料として','強化剤として','製造用剤として',''].includes((ing as IngredientRow).additiveReason ?? '')))) && (
                     <input type="text"
                       value={(ing as IngredientRow).additiveReason === 'その他' ? '' : (ing as IngredientRow).additiveReason ?? ''}
                       onChange={e => updateIngredient(ing.key, 'additiveReason', e.target.value)}

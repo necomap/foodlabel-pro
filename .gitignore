@@ -39,3 +39,4 @@ __pycache__/
 *.pyc
 *.pyo
 migration_log.csv
+build_errors.txt 

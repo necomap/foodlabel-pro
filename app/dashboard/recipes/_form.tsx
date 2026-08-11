@@ -568,6 +568,7 @@ export default function RecipeForm() {
                     <option value="製造用剤として">製造用剤として</option>
                     <option value="その他">その他（自由入力）</option>
                   </select>
+                </div>
                   )}
               )}
               {/* 原価単価 */}

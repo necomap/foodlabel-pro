@@ -537,11 +537,11 @@ export default function RecipeForm() {
               </label>
               {/* 添加物の使用理由 */}
               {(ing as IngredientRow).isAdditive && (
-                <div className="flex flex-col gap-1 mt-1 w-full">
+                <div className="flex flex-col gap-1 mt-1">
                   <select
                     value={["甘味料として", "着色料として", "保存料として", "増粘剤として", "酸化防止剤として", "発色剤として", "漂白剤として", "防かび剤として", "乳化剤として", "pH調整剤として", "膨張剤として", "香料として", "調味料として", "酸味料として", "強化剤として", "製造用剤として"].includes((ing as IngredientRow).additiveReason ?? '') ? (ing as IngredientRow).additiveReason ?? '' : ((ing as IngredientRow).additiveReason ? 'その他' : '')}
                     onChange={e => updateIngredient(ing.key, 'additiveReason', e.target.value)}
-                    className="field-input text-xs py-1 text-stone-600"
+                    className="field-input text-xs py-1 text-stone-600 w-auto max-w-xs"
                   >
                     <option value="">使用理由を選択</option>
                     <option value="甘味料として">甘味料として</option>

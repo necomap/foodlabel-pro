@@ -537,19 +537,13 @@ export default function RecipeForm() {
               </label>
               {/* 添加物の使用理由 */}
               {(ing as IngredientRow).isAdditive && (
-                <div className="flex items-center gap-1">
-                  {(ing as IngredientRow).additiveReason && !['甘味料として','着色料として','保存料として','増粘剤として','酸化防止剤として','発色剤として','漂白剤として','防かび剤として','乳化剤として','pH調整剤として','膨張剤として','香料として','調味料として','酸味料として','強化剤として','製造用剤として',''].includes((ing as IngredientRow).additiveReason ?? '') ? (
-                    <div className="flex items-center gap-1 flex-1">
-                      <input type="text" value={(ing as IngredientRow).additiveReason ?? ''} onChange={e => updateIngredient(ing.key, 'additiveReason', e.target.value)} className="field-input text-xs py-1 flex-1" placeholder="理由を入力" />
-                      <button type="button" onClick={() => updateIngredient(ing.key, 'additiveReason', '')} className="text-xs text-stone-400 hover:text-red-500">✕</button>
-                    </div>
-                  ) : (
+                <div className="flex flex-col gap-1 mt-1 w-full">
                   <select
-                    value={(ing as IngredientRow).additiveReason ?? ''}
-                    onChange={e => { if(e.target.value === 'その他') { updateIngredient(ing.key, 'additiveReason', ' '); } else { updateIngredient(ing.key, 'additiveReason', e.target.value); } }}
+                    value={["甘味料として", "着色料として", "保存料として", "増粘剤として", "酸化防止剤として", "発色剤として", "漂白剤として", "防かび剤として", "乳化剤として", "pH調整剤として", "膨張剤として", "香料として", "調味料として", "酸味料として", "強化剤として", "製造用剤として"].includes((ing as IngredientRow).additiveReason ?? '') ? (ing as IngredientRow).additiveReason ?? '' : ((ing as IngredientRow).additiveReason ? 'その他' : '')}
+                    onChange={e => updateIngredient(ing.key, 'additiveReason', e.target.value)}
                     className="field-input text-xs py-1 text-stone-600"
                   >
-                    <option value="">理由を選択</option>
+                    <option value="">使用理由を選択</option>
                     <option value="甘味料として">甘味料として</option>
                     <option value="着色料として">着色料として</option>
                     <option value="保存料として">保存料として</option>
@@ -568,8 +562,32 @@ export default function RecipeForm() {
                     <option value="製造用剤として">製造用剤として</option>
                     <option value="その他">その他（自由入力）</option>
                   </select>
-                </div>
+                  {((ing as IngredientRow).additiveReason === 'その他' || (!([
+                    "甘味料として",
+                    "着色料として",
+                    "保存料として",
+                    "増粘剤として",
+                    "酸化防止剤として",
+                    "発色剤として",
+                    "漂白剤として",
+                    "防かび剤として",
+                    "乳化剤として",
+                    "pH調整剤として",
+                    "膨張剤として",
+                    "香料として",
+                    "調味料として",
+                    "酸味料として",
+                    "強化剤として",
+                    "製造用剤として",
+                    ''].includes((ing as IngredientRow).additiveReason ?? ''))) && (
+                    <input type="text"
+                      value={(ing as IngredientRow).additiveReason === 'その他' ? '' : (ing as IngredientRow).additiveReason ?? ''}
+                      onChange={e => updateIngredient(ing.key, 'additiveReason', e.target.value)}
+                      placeholder="使用理由を直接入力"
+                      className="field-input text-xs py-1"
+                    />
                   )}
+                </div>
               )}
               {/* 原価単価 */}
               <input type="number" value={ing.costPrice}

@@ -225,7 +225,8 @@ export interface LabelContent {
   logoHeightMm?:   number;
   qrSizeMm?:       number;
   barcode?:        string;
-  showBarcode?:    boolean;
+  showBarcode?:     boolean;
+  showBarcodeText?: boolean;
   barcodeHeightMm?: number;
   barcodeHeightPx?: number;
   // 栄養成分（1個/100gあたり）

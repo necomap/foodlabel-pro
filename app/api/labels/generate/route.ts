@@ -297,6 +297,10 @@ export async function POST(request: Request) {
     displaySettings: config.displaySettings ?? getDefaultDisplaySettings(),
   };
 
+  // フロントエンドからサイズ指定がある場合は上書き
+  if (labelConfig.logoHeightMm) shopInfo.logoHeightMm = labelConfig.logoHeightMm;
+  if (labelConfig.qrSizeMm)     shopInfo.qrSizeMm     = labelConfig.qrSizeMm;
+
   const content = generateLabelContent(recipeDetail, labelConfig, shopInfo);
   const html    = generateLabelHtml(content, labelConfig);
 

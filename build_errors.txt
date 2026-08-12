@@ -5,7 +5,7 @@
 Environment variables loaded from .env
 Prisma schema loaded from prisma\schema.prisma
 
-✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 374ms
+✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 404ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
@@ -76,7 +76,7 @@ Route (app)                              Size     First Load JS
 ├ ○ /blog/expiry-date-guide              165 B          87.3 kB
 ├ ○ /blog/food-labeling-basics           165 B          87.3 kB
 ├ ○ /blog/nutrition-labeling             165 B          87.3 kB
-├ ○ /blog/online-food-sales              164 B          87.3 kB
+├ ○ /blog/online-food-sales              165 B          87.3 kB
 ├ ƒ /dashboard                           165 B          87.3 kB
 ├ ƒ /dashboard/contact                   2.67 kB         102 kB
 ├ ƒ /dashboard/debug                     165 B          87.3 kB
@@ -98,7 +98,7 @@ Route (app)                              Size     First Load JS
 ├ ○ /privacy                             204 B          94.1 kB
 ├ ○ /robots.txt                          0 B                0 B
 ├ ○ /sitemap.xml                         0 B                0 B
-└ ○ /terms                               204 B          94.1 kB
+└ ○ /terms                               202 B          94.1 kB
 + First Load JS shared by all            87.1 kB
   ├ chunks/7023-7189c1ed0ba34f7a.js      31.5 kB
   ├ chunks/fd9d1056-6ff5cbc1e2db141b.js  53.6 kB

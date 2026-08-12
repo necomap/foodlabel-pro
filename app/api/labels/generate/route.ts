@@ -44,8 +44,10 @@ const labelConfigSchema = z.object({
     showComment:        z.boolean().default(true),
     nutritionNote:      z.string().default('※推定値'),
   }).optional(),
-  logoHeightMm:    z.number().int().min(4).max(20).optional(),
-  qrSizeMm:        z.number().int().min(4).max(20).optional(),
+  logoHeightMm:     z.number().int().min(4).max(20).optional(),
+  qrSizeMm:         z.number().int().min(4).max(20).optional(),
+  showBarcode:      z.boolean().optional(),
+  barcodeHeightMm:  z.number().int().min(5).max(15).optional(),
 });
 
 export async function POST(request: Request) {
@@ -302,6 +304,10 @@ export async function POST(request: Request) {
   // フロントエンドからサイズ指定がある場合は上書き
   if (labelConfig.logoHeightMm) shopInfo.logoHeightMm = labelConfig.logoHeightMm;
   if (labelConfig.qrSizeMm)     shopInfo.qrSizeMm     = labelConfig.qrSizeMm;
+
+  // バーコード設定をrecipeDetailに追加
+  (recipeDetail as any).showBarcode     = labelConfig.showBarcode !== false;
+  (recipeDetail as any).barcodeHeightMm = labelConfig.barcodeHeightMm ?? 7;
 
   const content = generateLabelContent(recipeDetail, labelConfig, shopInfo);
   const html    = generateLabelHtml(content, labelConfig);

@@ -106,8 +106,10 @@ export default function LabelsPage() {
   const [showCholest,  setShowCholest]  = useState(false);
   const [showComment,  setShowComment]  = useState(true);
   const [showQC,       setShowQC]       = useState(true);
-  const [logoHeightMm, setLogoHeightMm] = useState(8);
-  const [qrSizeMm,     setQrSizeMm]     = useState(6);
+  const [logoHeightMm,   setLogoHeightMm]   = useState(8);
+  const [qrSizeMm,       setQrSizeMm]       = useState(6);
+  const [showBarcode,    setShowBarcode]    = useState(true);
+  const [barcodeHeightMm, setBarcodeHeightMm] = useState(7);
 
   // ▼ 初期マウント時にlocalStorageから設定を復元 (Hydration Mismatch防止)
   useEffect(() => {
@@ -158,8 +160,10 @@ export default function LabelsPage() {
     setShowCholest(getB('showCholest', false));
     setShowComment(getB('showComment', true));
     setShowQC(getB('showQC', true));
-    if (getL('logoHeightMm')) setLogoHeightMm(Number(getL('logoHeightMm')));
-    if (getL('qrSizeMm'))     setQrSizeMm(Number(getL('qrSizeMm')));
+    if (getL('logoHeightMm'))    setLogoHeightMm(Number(getL('logoHeightMm')));
+    if (getL('qrSizeMm'))        setQrSizeMm(Number(getL('qrSizeMm')));
+    if (getL('showBarcode') !== null) setShowBarcode(getL('showBarcode') !== 'false');
+    if (getL('barcodeHeightMm')) setBarcodeHeightMm(Number(getL('barcodeHeightMm')));
   }, [searchParams]);
 
   useEffect(() => {
@@ -234,6 +238,8 @@ export default function LabelsPage() {
         },
         logoHeightMm,
         qrSizeMm,
+        showBarcode,
+        barcodeHeightMm,
       };
       const res = await fetch('/api/labels/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
@@ -291,6 +297,8 @@ export default function LabelsPage() {
         },
         logoHeightMm,
         qrSizeMm,
+        showBarcode,
+        barcodeHeightMm,
       };
 
       const res  = await fetch('/api/labels/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -504,7 +512,7 @@ export default function LabelsPage() {
 
           {/* ロゴ・QRサイズ調整 */}
           <div className="card space-y-3">
-            <h2 className="section-title">ロゴ・QRコードサイズ</h2>
+            <h2 className="section-title">ロゴ・QRコード・バーコード</h2>
             <div>
               <label className="field-label">ロゴの高さ: {logoHeightMm}mm</label>
               <input type="range" min="4" max="20" value={logoHeightMm}
@@ -520,6 +528,19 @@ export default function LabelsPage() {
               <div className="flex justify-between text-xs text-stone-400"><span>4mm（小）</span><span>20mm（大）</span></div>
               <p className="text-xs text-amber-600 mt-1">※6mm未満はスマホで読み込めない場合があります</p>
             </div>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={showBarcode} onChange={e => { setShowBarcode(e.target.checked); localStorage.setItem('label_showBarcode', String(e.target.checked)); }} className="accent-brand-500" />
+              <span className="text-sm font-medium text-stone-700">バーコードを表示</span>
+            </label>
+            {showBarcode && (
+              <div>
+                <label className="field-label">バーコード縦幅: {barcodeHeightMm}mm</label>
+                <input type="range" min="5" max="15" value={barcodeHeightMm}
+                  onChange={e => { setBarcodeHeightMm(Number(e.target.value)); localStorage.setItem('label_barcodeHeightMm', e.target.value); }}
+                  className="w-full accent-brand-500" />
+                <div className="flex justify-between text-xs text-stone-400"><span>5mm（細）</span><span>15mm（太）</span></div>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3 pt-2">

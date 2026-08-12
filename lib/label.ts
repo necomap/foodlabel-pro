@@ -234,6 +234,10 @@ export function generateLabelHtml(
       </tr>` : ''}
     </table>
   </div>
+  <!-- バーコード -->
+  ${content.barcode && content.showBarcode !== false ? `<div style="text-align:center;margin-bottom:0.3mm;">
+    <img src="https://barcodeapi.org/api/auto/${encodeURIComponent(content.barcode)}?height=${content.barcodeHeightPx ?? 30}" style="max-width:100%;height:${content.barcodeHeightMm ?? 7}mm;" onerror="this.style.display='none'" />
+  </div>` : ''}
   <!-- コメント -->
   ${content.comment ? `<div style="margin-bottom:0.3mm;">${escHtml(content.comment)}</div>` : ''}
   <!-- 品質管理 -->

@@ -220,6 +220,10 @@ export interface LabelContent {
   logoUrl?:        string | null;
   logoHeightMm?:   number;
   qrSizeMm?:       number;
+  barcode?:        string;
+  showBarcode?:    boolean;
+  barcodeHeightMm?: number;
+  barcodeHeightPx?: number;
   // 栄養成分（1個/100gあたり）
   nutritionPerUnit: {
     label:         string;  // 例: "1個あたり"

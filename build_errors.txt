@@ -5,50 +5,27 @@
 Environment variables loaded from .env
 Prisma schema loaded from prisma\schema.prisma
 
-✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 264ms
+✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 271ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
-Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
 
   ▲ Next.js 14.2.5
   - Environments: .env.local, .env
 
    Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
 Failed to compile.
 
-./lib/label.ts
-Error: 
-  [31mx[0m Expected a semicolon
-     ,-[[36;1;4mC:\Users\emma\Documents\foodlabel-pro\lib\label.ts[0m:266:1]
- [2m266[0m |   // ラベルプリンタ用：ラベルのみ
- [2m267[0m |   if (config.deviceType === 'LABEL_PRINTER') {
- [2m268[0m |     const labels = Array(config.printCount).fill(singleLabel).join('\n');
- [2m269[0m |     return `<!DOCTYPE html>
-     : [31;1m                      ^^^^[0m
- [2m270[0m | <html lang="ja">
- [2m271[0m | <head>
- [2m272[0m | <meta charset="UTF-8">
-     `----
+./lib/label.ts:140:5
+Type error: Object literal may only specify known properties, but 'showBarcodeText' does not exist in type 'LabelContent'. Did you mean to write 'showBarcode'?
 
-  [31mx[0m Expected '>', got 'charset'
-     ,-[[36;1;4mC:\Users\emma\Documents\foodlabel-pro\lib\label.ts[0m:269:1]
- [2m269[0m |     return `<!DOCTYPE html>
- [2m270[0m | <html lang="ja">
- [2m271[0m | <head>
- [2m272[0m | <meta charset="UTF-8">
-     : [31;1m      ^^^^^^^[0m
- [2m273[0m | <style>
- [2m274[0m |   @page { margin: 0; size: ${width}mm auto; }
- [2m275[0m |   body { margin: 0; padding: 0; } html, body { height: auto !important; }
-     `----
-
-Caused by:
-    Syntax Error
-
-Import trace for requested module:
-./lib/label.ts
-./app/api/labels/generate/route.ts
-
-
-> Build failed because of webpack errors
+[0m [90m 138 |[39m     barcode[33m:[39m         recipe[33m.[39mbarcode [33m?[39m[33m?[39m undefined[33m,[39m[0m
+[0m [90m 139 |[39m     showBarcode[33m:[39m     (recipe [36mas[39m any)[33m.[39mshowBarcode [33m!==[39m [36mfalse[39m[33m,[39m[0m
+[0m[31m[1m>[22m[39m[90m 140 |[39m     showBarcodeText[33m:[39m (recipe [36mas[39m any)[33m.[39mshowBarcodeText [33m!==[39m [36mfalse[39m[33m,[39m[0m
+[0m [90m     |[39m     [31m[1m^[22m[39m[0m
+[0m [90m 141 |[39m     barcodeHeightMm[33m:[39m (recipe [36mas[39m any)[33m.[39mbarcodeHeightMm [33m?[39m[33m?[39m [35m7[39m[33m,[39m[0m
+[0m [90m 142 |[39m     barcodeHeightPx[33m:[39m [33mMath[39m[33m.[39mround(((recipe [36mas[39m any)[33m.[39mbarcodeHeightMm [33m?[39m[33m?[39m [35m7[39m) [33m*[39m [35m11.8[39m)[33m,[39m[0m
+[0m [90m 143 |[39m   }[33m;[39m[0m

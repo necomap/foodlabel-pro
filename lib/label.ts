@@ -262,7 +262,7 @@ export function generateLabelHtml(
     <img src="https://barcodeapi.org/api/auto/${encodeURIComponent(content.barcode)}?height=${content.barcodeHeightPx ?? 30}${content.showBarcodeText === false ? '&text=none' : ''}" style="max-width:100%;height:${content.barcodeHeightMm ?? 7}mm;" onerror="this.style.display='none'" />
   </div>` : ''}
 </div>
-\`;
+`;
   // ラベルプリンタ用：ラベルのみ
   if (config.deviceType === 'LABEL_PRINTER') {
     const labels = Array(config.printCount).fill(singleLabel).join('\n');

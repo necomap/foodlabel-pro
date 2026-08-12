@@ -193,6 +193,7 @@ export default function RecipeForm() {
         setShelfLifeType(r.shelfLifeType);
         setContentAmount(r.contentAmount ?? '');
         setStorageMethod(r.storageMethod ?? '');
+        setBarcode(r.barcode ?? '');
         setNotes(r.notes ?? '');
         setPrintComment(r.printComment ?? '');
         setQualityControl(r.qualityControl ?? '');

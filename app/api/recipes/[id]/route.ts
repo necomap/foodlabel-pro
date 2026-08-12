@@ -93,7 +93,7 @@ export async function GET(_req: Request, { params }: Params) {
       contentAmount:  recipe.contentAmount,
       storageMethod:  recipe.storageMethod,
       notes:          recipe.notes,
-          barcode:            body.barcode ?? null,
+      barcode:        body.barcode ?? null,
       printComment:   recipe.printComment,
       qualityControl: recipe.qualityControl,
       bakingConditions: recipe.bakingConditions as unknown as BakingStep[] | null,

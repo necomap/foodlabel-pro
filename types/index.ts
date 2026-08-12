@@ -171,6 +171,8 @@ export interface LabelDisplaySettings {
 export interface LabelConfig {
   logoHeightMm?: number;
   qrSizeMm?:     number;
+  showBarcode?:     boolean;
+  barcodeHeightMm?: number;
   recipeId?:        string;
   shopId?:         string;
   manufactureDate?: string;  // YYYY-MM-DD

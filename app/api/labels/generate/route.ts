@@ -242,6 +242,7 @@ export async function POST(request: Request) {
     costRate:       recipe.costRate   ? Number(recipe.costRate)   : null,
     contentAmount:  recipe.contentAmount,
     storageMethod:  recipe.storageMethod,
+    barcode:        recipe.barcode ?? null,
     notes:          recipe.notes,
     printComment:   recipe.printComment,
     qualityControl: recipe.qualityControl,

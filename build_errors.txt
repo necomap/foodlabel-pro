@@ -5,11 +5,11 @@
 Environment variables loaded from .env
 Prisma schema loaded from prisma\schema.prisma
 
-✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 251ms
+✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 342ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
-Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
 
   ▲ Next.js 14.2.5
   - Environments: .env.local, .env
@@ -19,13 +19,13 @@ Tip: Need your database queries to be 1000x faster? Accelerate offers you that a
    Linting and checking validity of types ...
 Failed to compile.
 
-./app/api/labels/generate/route.ts:163:7
-Type error: Type '{ shopName: any; companyName: any; postalCode: any; address: any; phone: any; representative: any; email: any; showPhone: any; showRepresentative: true; showEmail: any; qrUrl: any; logoUrl: any; }' is missing the following properties from type '{ shopName: string; companyName: string; postalCode: string; address: string; phone: string; representative: string; email: string; showPhone: boolean; showRepresentative: boolean; showEmail: boolean; qrUrl: any; logoUrl: any; logoHeightMm: number; qrSizeMm: number; }': logoHeightMm, qrSizeMm
+./lib/label.ts:98:5
+Type error: Object literal may only specify known properties, and 'logoHeightMm' does not exist in type 'LabelContent'.
 
-[0m [90m 161 |[39m     [36mif[39m (defaultShops[[35m0[39m]) {[0m
-[0m [90m 162 |[39m       [36mconst[39m s [33m=[39m defaultShops[[35m0[39m][33m;[39m[0m
-[0m[31m[1m>[22m[39m[90m 163 |[39m       shopInfo [33m=[39m {[0m
-[0m [90m     |[39m       [31m[1m^[22m[39m[0m
-[0m [90m 164 |[39m         shopName[33m:[39m           s[33m.[39mshopName [33m?[39m[33m?[39m [32m''[39m[33m,[39m[0m
-[0m [90m 165 |[39m         companyName[33m:[39m        s[33m.[39mcompanyName [33m?[39m[33m?[39m s[33m.[39mshopName [33m?[39m[33m?[39m [32m''[39m[33m,[39m[0m
-[0m [90m 166 |[39m         postalCode[33m:[39m         s[33m.[39mpostalCode [33m?[39m[33m?[39m [32m''[39m[33m,[39m[0m
+[0m [90m  96 |[39m     qrUrl[33m:[39m       shopInfo[33m.[39mqrUrl [33m?[39m[33m?[39m [36mnull[39m[33m,[39m[0m
+[0m [90m  97 |[39m     logoUrl[33m:[39m     shopInfo[33m.[39mlogoUrl [33m?[39m[33m?[39m [36mnull[39m[33m,[39m[0m
+[0m[31m[1m>[22m[39m[90m  98 |[39m     logoHeightMm[33m:[39m shopInfo[33m.[39mlogoHeightMm [33m?[39m[33m?[39m [35m8[39m[33m,[39m[0m
+[0m [90m     |[39m     [31m[1m^[22m[39m[0m
+[0m [90m  99 |[39m     qrSizeMm[33m:[39m    shopInfo[33m.[39mqrSizeMm [33m?[39m[33m?[39m [35m6[39m[33m,[39m[0m
+[0m [90m 100 |[39m     postalCode[33m:[39m      displaySettings[33m.[39mshowPostalCode [33m!==[39m [36mfalse[39m [33m&&[39m shopInfo[33m.[39mpostalCode [0m
+[0m [90m 101 |[39m                        [33m?[39m [32m`〒${shopInfo.postalCode}`[39m [0m

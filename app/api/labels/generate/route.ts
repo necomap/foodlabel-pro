@@ -173,6 +173,8 @@ export async function POST(request: Request) {
         showEmail:          s.showEmail ?? false,
         qrUrl:              s.qrUrl ?? null,
         logoUrl:            s.logoUrl ?? null,
+        logoHeightMm:       s.logoHeightMm ?? 8,
+        qrSizeMm:           s.qrSizeMm ?? 6,
       };
     } else {
       const user = await prisma.user.findUnique({ where: { id: session.user.id } });

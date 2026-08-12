@@ -140,6 +140,7 @@ export default function RecipeForm() {
   const [shelfLifeType, setShelfLifeType] = useState<'BEST_BEFORE'|'USE_BY'>('BEST_BEFORE');
   const [contentAmount, setContentAmount] = useState('');
   const [storageMethod, setStorageMethod] = useState('直射日光・高温多湿を避けて保存してください。');
+  const [barcode,       setBarcode]       = useState('');
   const [notes,         setNotes]         = useState('');
   const [printComment,  setPrintComment]  = useState('');
   const [qualityControl, setQualityControl] = useState('');
@@ -301,6 +302,7 @@ export default function RecipeForm() {
         shelfLifeType,
         contentAmount: contentAmount.trim() || undefined,
         storageMethod: storageMethod.trim() || undefined,
+        barcode: barcode.trim() || undefined,
         notes: notes.trim() || undefined,
         printComment: printComment.trim() || undefined,
         qualityControl: qualityControl.trim() || undefined,
@@ -449,6 +451,13 @@ export default function RecipeForm() {
           <label className="field-label">保存方法</label>
           <input type="text" value={storageMethod} onChange={e => setStorageMethod(e.target.value)}
             className="field-input" />
+        </div>
+
+        <div>
+          <label className="field-label">バーコード（任意）</label>
+          <input type="text" value={barcode} onChange={e => setBarcode(e.target.value)}
+            className="field-input" placeholder="例: 4901234567890（JAN-13）" />
+          <p className="field-hint">JAN-13（13桁）・JAN-8（8桁）・UPC-A（12桁）・Code128に対応</p>
         </div>
 
         <div className="grid sm:grid-cols-2 gap-4">

@@ -103,6 +103,7 @@ export interface RecipeInput {
   shelfLifeType:    ShelfLifeType;
   contentAmount?:   string;
   storageMethod?:   string;
+  barcode?:         string;
   notes?:           string;
   printComment?:    string;
   qualityControl?:  string;

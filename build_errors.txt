@@ -5,7 +5,7 @@
 Environment variables loaded from .env
 Prisma schema loaded from prisma\schema.prisma
 
-✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 283ms
+✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 258ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 

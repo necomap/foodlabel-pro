@@ -44,6 +44,8 @@ const labelConfigSchema = z.object({
     showComment:        z.boolean().default(true),
     nutritionNote:      z.string().default('※推定値'),
   }).optional(),
+  logoHeightMm:    z.number().int().min(4).max(20).optional(),
+  qrSizeMm:        z.number().int().min(4).max(20).optional(),
 });
 
 export async function POST(request: Request) {

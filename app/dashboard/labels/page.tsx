@@ -106,6 +106,8 @@ export default function LabelsPage() {
   const [showCholest,  setShowCholest]  = useState(false);
   const [showComment,  setShowComment]  = useState(true);
   const [showQC,       setShowQC]       = useState(true);
+  const [logoHeightMm, setLogoHeightMm] = useState(8);
+  const [qrSizeMm,     setQrSizeMm]     = useState(6);
 
   // ▼ 初期マウント時にlocalStorageから設定を復元 (Hydration Mismatch防止)
   useEffect(() => {
@@ -156,6 +158,8 @@ export default function LabelsPage() {
     setShowCholest(getB('showCholest', false));
     setShowComment(getB('showComment', true));
     setShowQC(getB('showQC', true));
+    if (getL('logoHeightMm')) setLogoHeightMm(Number(getL('logoHeightMm')));
+    if (getL('qrSizeMm'))     setQrSizeMm(Number(getL('qrSizeMm')));
   }, [searchParams]);
 
   useEffect(() => {
@@ -228,6 +232,8 @@ export default function LabelsPage() {
           showQualityControl: showQC, showComment,
           nutritionNote: '※推定値',
         },
+        logoHeightMm,
+        qrSizeMm,
       };
       const res = await fetch('/api/labels/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
@@ -283,6 +289,8 @@ export default function LabelsPage() {
           showQualityControl: showQC, showComment,
           nutritionNote: '※推定値',
         },
+        logoHeightMm,
+        qrSizeMm,
       };
 
       const res  = await fetch('/api/labels/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -492,6 +500,26 @@ export default function LabelsPage() {
                 </div>
               </label>
             ))}
+          </div>
+
+          {/* ロゴ・QRサイズ調整 */}
+          <div className="card space-y-3">
+            <h2 className="section-title">ロゴ・QRコードサイズ</h2>
+            <div>
+              <label className="field-label">ロゴの高さ: {logoHeightMm}mm</label>
+              <input type="range" min="4" max="20" value={logoHeightMm}
+                onChange={e => { setLogoHeightMm(Number(e.target.value)); localStorage.setItem('label_logoHeightMm', e.target.value); }}
+                className="w-full accent-brand-500" />
+              <div className="flex justify-between text-xs text-stone-400"><span>4mm</span><span>20mm</span></div>
+            </div>
+            <div>
+              <label className="field-label">QRコードサイズ: {qrSizeMm}mm</label>
+              <input type="range" min="4" max="20" value={qrSizeMm}
+                onChange={e => { setQrSizeMm(Number(e.target.value)); localStorage.setItem('label_qrSizeMm', e.target.value); }}
+                className="w-full accent-brand-500" />
+              <div className="flex justify-between text-xs text-stone-400"><span>4mm（小）</span><span>20mm（大）</span></div>
+              <p className="text-xs text-amber-600 mt-1">※6mm未満はスマホで読み込めない場合があります</p>
+            </div>
           </div>
 
           <div className="flex gap-3 pt-2">

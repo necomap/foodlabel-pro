@@ -230,6 +230,7 @@ export async function PUT(request: Request, { params }: Params) {
         shelfLifeType:   body.shelfLifeType ?? 'USE_BY',
         contentAmount:   body.contentAmount,
         storageMethod:   body.storageMethod,
+        barcode:         body.barcode ?? null,
         notes:           body.notes,
         printComment:    body.printComment,
         qualityControl:  body.qualityControl,

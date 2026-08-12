@@ -171,6 +171,7 @@ model Recipe {
   shelfLifeType    ShelfLifeType      @default(BEST_BEFORE)
   contentAmount    String?            @db.VarChar(50)
   storageMethod    String?            @default("直射日光・高温多湿を避けて保存してください。")
+  barcode          String?
   notes            String?
   printComment     String?
   qualityControl   String?            @db.VarChar(100)

@@ -5,11 +5,11 @@
 Environment variables loaded from .env
 Prisma schema loaded from prisma\schema.prisma
 
-✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 262ms
+✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 271ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
-Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
 
   ▲ Next.js 14.2.5
   - Environments: .env.local, .env
@@ -19,13 +19,13 @@ Tip: Need your database queries to be 1000x faster? Accelerate offers you that a
    Linting and checking validity of types ...
 Failed to compile.
 
-./app/api/recipes/[id]/route.ts:96:31
+./app/api/recipes/[id]/route.ts:96:23
 Type error: Cannot find name 'body'.
 
 [0m [90m 94 |[39m       storageMethod[33m:[39m  recipe[33m.[39mstorageMethod[33m,[39m[0m
 [0m [90m 95 |[39m       notes[33m:[39m          recipe[33m.[39mnotes[33m,[39m[0m
-[0m[31m[1m>[22m[39m[90m 96 |[39m           barcode[33m:[39m            body[33m.[39mbarcode [33m?[39m[33m?[39m [36mnull[39m[33m,[39m[0m
-[0m [90m    |[39m                               [31m[1m^[22m[39m[0m
+[0m[31m[1m>[22m[39m[90m 96 |[39m       barcode[33m:[39m        body[33m.[39mbarcode [33m?[39m[33m?[39m [36mnull[39m[33m,[39m[0m
+[0m [90m    |[39m                       [31m[1m^[22m[39m[0m
 [0m [90m 97 |[39m       printComment[33m:[39m   recipe[33m.[39mprintComment[33m,[39m[0m
 [0m [90m 98 |[39m       qualityControl[33m:[39m recipe[33m.[39mqualityControl[33m,[39m[0m
 [0m [90m 99 |[39m       bakingConditions[33m:[39m recipe[33m.[39mbakingConditions [36mas[39m unknown [36mas[39m [33mBakingStep[39m[] [33m|[39m [36mnull[39m[33m,[39m[0m

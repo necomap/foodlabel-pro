@@ -139,6 +139,7 @@ export interface RecipeDetail extends RecipeSummary {
   qualityControl:  string | null;
   contentAmount:   string | null;
   storageMethod:   string | null;
+  barcode:         string | null;
   bakingConditions: BakingStep[] | null;
   ingredients:     RecipeIngredientDetail[];
   steps:           string[];

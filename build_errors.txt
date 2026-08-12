@@ -5,11 +5,11 @@
 Environment variables loaded from .env
 Prisma schema loaded from prisma\schema.prisma
 
-✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 258ms
+✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 321ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
-Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
 
   ▲ Next.js 14.2.5
   - Environments: .env.local, .env
@@ -19,13 +19,13 @@ Tip: Need your database queries to be 1000x faster? Accelerate offers you that a
    Linting and checking validity of types ...
 Failed to compile.
 
-./app/dashboard/recipes/_form.tsx:196:22
-Type error: Property 'barcode' does not exist on type 'RecipeDetail'.
+./app/api/labels/generate/route.ts:232:9
+Type error: Property 'barcode' is missing in type '{ id: string; name: string; nameKana: string; categoryName: string; unitCount: number; shelfLifeDays: number; shelfLifeType: "BEST_BEFORE" | "USE_BY"; salePrice: number; unitCost: number; costRate: number; ... 17 more ...; steps: string[]; }' but required in type 'RecipeDetail'.
 
-[0m [90m 194 |[39m         setContentAmount(r[33m.[39mcontentAmount [33m?[39m[33m?[39m [32m''[39m)[33m;[39m[0m
-[0m [90m 195 |[39m         setStorageMethod(r[33m.[39mstorageMethod [33m?[39m[33m?[39m [32m''[39m)[33m;[39m[0m
-[0m[31m[1m>[22m[39m[90m 196 |[39m         setBarcode(r[33m.[39mbarcode [33m?[39m[33m?[39m [32m''[39m)[33m;[39m[0m
-[0m [90m     |[39m                      [31m[1m^[22m[39m[0m
-[0m [90m 197 |[39m         setNotes(r[33m.[39mnotes [33m?[39m[33m?[39m [32m''[39m)[33m;[39m[0m
-[0m [90m 198 |[39m         setPrintComment(r[33m.[39mprintComment [33m?[39m[33m?[39m [32m''[39m)[33m;[39m[0m
-[0m [90m 199 |[39m         setQualityControl(r[33m.[39mqualityControl [33m?[39m[33m?[39m [32m''[39m)[33m;[39m[0m
+[0m [90m 230 |[39m   }[33m;[39m[0m
+[0m [90m 231 |[39m[0m
+[0m[31m[1m>[22m[39m[90m 232 |[39m   [36mconst[39m recipeDetail[33m:[39m [33mRecipeDetail[39m [33m=[39m {[0m
+[0m [90m     |[39m         [31m[1m^[22m[39m[0m
+[0m [90m 233 |[39m     id[33m:[39m             recipe[33m.[39mid[33m,[39m[0m
+[0m [90m 234 |[39m     name[33m:[39m           recipe[33m.[39mname[33m,[39m[0m
+[0m [90m 235 |[39m     nameKana[33m:[39m       recipe[33m.[39mnameKana[33m,[39m[0m

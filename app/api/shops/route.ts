@@ -44,6 +44,8 @@ const shopSchema = z.object({
   showRepresentative: z.boolean().default(false),
   qrUrl:              z.string().optional().nullable(),
   logoUrl:            z.string().optional().nullable(),
+  logoHeightMm:       z.number().int().min(4).max(20).default(8),
+  qrSizeMm:           z.number().int().min(4).max(20).default(6),
 });
 
 export async function POST(request: Request) {
@@ -60,12 +62,12 @@ export async function POST(request: Request) {
       INSERT INTO shops (
         id, "userId", "shopName", "companyName", representative,
         "postalCode", address, phone, email,
-        "showPhone", "showRepresentative", "qrUrl", "logoUrl",
+        "showPhone", "showRepresentative", "qrUrl", "logoUrl", "logoHeightMm", "qrSizeMm",
         "isDefault", "isActive", "createdAt", "updatedAt"
       ) VALUES (
         gen_random_uuid(), ${session.user.id}, ${d.shopName}, ${d.companyName ?? null}, ${d.representative ?? null},
         ${d.postalCode ?? null}, ${d.address ?? null}, ${d.phone ?? null}, ${d.email || null},
-        ${d.showPhone}, ${d.showRepresentative}, ${d.qrUrl ?? null}, ${d.logoUrl ?? null},
+        ${d.showPhone}, ${d.showRepresentative}, ${d.qrUrl ?? null}, ${d.logoUrl ?? null}, ${d.logoHeightMm ?? 8}, ${d.qrSizeMm ?? 6},
         false, true, NOW(), NOW()
       )
       RETURNING id::text

@@ -118,12 +118,14 @@ export async function POST(request: Request) {
     showEmail:          false,
     qrUrl:              null,
     logoUrl:            null,
+    logoHeightMm:       8,
+    qrSizeMm:           6,
   };
 
   if (shopId) {
     const shops = await prisma.$queryRaw`
       SELECT "shopName", "companyName", representative, "postalCode",
-             address, phone, email, "showPhone", "showRepresentative", "showEmail", "qrUrl", "logoUrl"
+             address, phone, email, "showPhone", "showRepresentative", "showEmail", "qrUrl", "logoUrl", "logoHeightMm", "qrSizeMm"
       FROM shops
       WHERE id = ${shopId} AND "userId" = ${session.user.id} AND "isActive" = true
       LIMIT 1
@@ -143,13 +145,15 @@ export async function POST(request: Request) {
         showEmail:          shop.showEmail ?? false,
         qrUrl:              shop.qrUrl ?? null,
         logoUrl:            shop.logoUrl ?? null,
+        logoHeightMm:       shop.logoHeightMm ?? 8,
+        qrSizeMm:           shop.qrSizeMm ?? 6,
       };
     }
   } else {
     // デフォルト店舗またはユーザー情報
     const defaultShops = await prisma.$queryRaw`
       SELECT "shopName", "companyName", representative, "postalCode",
-             address, phone, email, "showPhone", "showRepresentative", "showEmail", "qrUrl", "logoUrl"
+             address, phone, email, "showPhone", "showRepresentative", "showEmail", "qrUrl", "logoUrl", "logoHeightMm", "qrSizeMm"
       FROM shops
       WHERE "userId" = ${session.user.id} AND "isActive" = true AND "isDefault" = true
       LIMIT 1

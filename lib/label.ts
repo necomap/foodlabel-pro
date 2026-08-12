@@ -23,6 +23,8 @@ export function generateLabelContent(
     representative?: string;
     qrUrl?:         string | null;
     logoUrl?:       string | null;
+    logoHeightMm?:  number;
+    qrSizeMm?:      number;
     email?:         string;
     showPhone:      boolean;
     showRepresentative: boolean;
@@ -93,6 +95,8 @@ export function generateLabelContent(
     manufacturerName,
     qrUrl:       shopInfo.qrUrl ?? null,
     logoUrl:     shopInfo.logoUrl ?? null,
+    logoHeightMm: shopInfo.logoHeightMm ?? 8,
+    qrSizeMm:    shopInfo.qrSizeMm ?? 6,
     postalCode:      displaySettings.showPostalCode !== false && shopInfo.postalCode 
                        ? `〒${shopInfo.postalCode}` 
                        : '',
@@ -245,7 +249,7 @@ export function generateLabelHtml(
     </div>
     ${(content.logoUrl || content.qrUrl) ? `<div style="display:flex;flex-direction:row;align-items:center;gap:0.5mm;flex-shrink:0;">
       ${content.logoUrl ? `<img src="${content.logoUrl}" style="max-height:6mm;max-width:12mm;object-fit:contain;" />` : ''}
-      ${content.qrUrl ? `<img src="https://api.qrserver.com/v1/create-qr-code/?size=50x50&data=${encodeURIComponent(content.qrUrl)}" style="width:6mm;height:6mm;" />` : ''}
+      ${content.qrUrl ? `<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(content.qrUrl)}" style="width:${content.qrSizeMm ?? 6}mm;height:${content.qrSizeMm ?? 6}mm;" />` : ''}
     </div>` : ''}
   </div>
 </div>

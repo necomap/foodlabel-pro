@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import { Loader2, Plus, Store, User, Tag, CheckCircle2, Trash2, AlertTriangle, Edit2, GripVertical } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-interface Shop { id: string; shopName: string; companyName: string|null; representative: string|null; postalCode: string|null; address: string|null; phone: string|null; email: string|null; showPhone: boolean; showRepresentative: boolean; isDefault: boolean; qrUrl: string|null; logoUrl: string|null; }
+interface Shop { id: string; shopName: string; companyName: string|null; representative: string|null; postalCode: string|null; address: string|null; phone: string|null; email: string|null; showPhone: boolean; showRepresentative: boolean; isDefault: boolean; qrUrl: string|null; logoUrl: string|null; logoHeightMm: number; qrSizeMm: number; }
 interface Category { id: string; name: string; sortOrder: number; }
 
 const TABS = [
@@ -135,7 +135,7 @@ function ShopsTab() {
 }
 
 function ShopModal({ shop, saving, onClose, onSave }: { shop:Shop|null; saving:boolean; onClose:()=>void; onSave:(d:Partial<Shop>&{id?:string})=>void; }) {
-  const [form, setForm] = useState({ shopName:shop?.shopName??'', companyName:shop?.companyName??'', representative:shop?.representative??'', postalCode:shop?.postalCode??'', address:shop?.address??'', phone:shop?.phone??'', email:shop?.email??'', showPhone:shop?.showPhone??true, showRepresentative:shop?.showRepresentative??false, qrUrl:(shop as any)?.qrUrl??'', logoUrl:(shop as any)?.logoUrl??'' });
+  const [form, setForm] = useState({ shopName:shop?.shopName??'', companyName:shop?.companyName??'', representative:shop?.representative??'', postalCode:shop?.postalCode??'', address:shop?.address??'', phone:shop?.phone??'', email:shop?.email??'', showPhone:shop?.showPhone??true, showRepresentative:shop?.showRepresentative??false, qrUrl:(shop as any)?.qrUrl??'', logoUrl:(shop as any)?.logoUrl??"", logoHeightMm:(shop as any)?.logoHeightMm??8, qrSizeMm:(shop as any)?.qrSizeMm??6 });
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl shadow-warm-lg w-full max-w-md flex flex-col max-h-[90vh]">
@@ -154,6 +154,7 @@ function ShopModal({ shop, saving, onClose, onSave }: { shop:Shop|null; saving:b
           <div><label className="field-label">住所</label><input type="text" value={form.address} onChange={e=>setForm(f=>({...f,address:e.target.value}))} className="field-input" /></div>
           <div><label className="field-label">メールアドレス</label><input type="email" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))} className="field-input" /></div>
           <div><label className="field-label">QRコード用URL（任意）</label><input type="url" value={(form as any).qrUrl ?? ''} onChange={e=>setForm(f=>({...f,qrUrl:e.target.value}))} className="field-input" placeholder="https://www.instagram.com/yourshop" /><p className="text-xs text-stone-400 mt-1">InstagramやショップのURLを入力するとラベルにQRコードが印刷されます</p></div>
+          <div><label className="field-label">QRコードサイズ（mm）</label><input type="number" min="4" max="20" value={(form as any).qrSizeMm ?? 6} onChange={e=>setForm(f=>({...f,qrSizeMm:Number(e.target.value)}))} className="field-input" /><p className="text-xs text-stone-400 mt-1">推奨：6mm以上（小さすぎるとスマホで読み込めない場合があります）</p></div>
           {/* ロゴ画像アップロード */}
               <div>
                 <label className="field-label">ロゴ画像（任意）</label>
@@ -188,6 +189,11 @@ function ShopModal({ shop, saving, onClose, onSave }: { shop:Shop|null; saving:b
                 }} className="field-input" />
                 <p className="text-xs text-stone-400 mt-1">推奨：横長PNG・透過背景・2MB以下</p>
               </div>
+                    <div>
+                      <label className="field-label">ロゴの高さ（mm）</label>
+                      <input type="number" min="4" max="20" value={(form as any).logoHeightMm ?? 8} onChange={e=>setForm(f=>({...f,logoHeightMm:Number(e.target.value)}))} className="field-input" />
+                      <p className="text-xs text-stone-400 mt-1">ラベルに印刷するロゴの高さです（幅は自動調整）</p>
+                    </div>
           <div className="space-y-2 pt-1">
             <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={form.showPhone} onChange={e=>setForm(f=>({...f,showPhone:e.target.checked}))} className="accent-brand-500" /><span className="text-sm text-stone-700">電話番号をラベルに表示する</span></label>
             <div>

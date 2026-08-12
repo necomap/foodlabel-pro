@@ -27,6 +27,8 @@ export async function PUT(request: Request, { params }: Params) {
         "showRepresentative" = ${body.showRepresentative ?? shop.showRepresentative},
         "qrUrl"              = ${body.qrUrl ?? null},
         "logoUrl"            = ${body.logoUrl ?? null},
+        "logoHeightMm"       = ${body.logoHeightMm ?? 8},
+        "qrSizeMm"           = ${body.qrSizeMm ?? 6},
         "updatedAt"          = NOW()
       WHERE id = ${params.id} AND "userId" = ${session.user.id}
     `;

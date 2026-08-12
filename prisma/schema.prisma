@@ -59,6 +59,8 @@ model Shop {
   updatedAt          DateTime @updatedAt
   qrUrl              String?
   logoUrl            String?
+  logoHeightMm       Int      @default(8)
+  qrSizeMm           Int      @default(6)
   labels             Label[]
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 

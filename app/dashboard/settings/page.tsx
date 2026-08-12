@@ -72,7 +72,7 @@ function ProfileTab() {
         <div><label className="field-label">郵便番号</label><input type="text" value={profile.postalCode} onChange={e=>setProfile(p=>({...p,postalCode:e.target.value}))} className="field-input" placeholder="000-0000" /></div>
         <div className="sm:col-span-2"><label className="field-label">住所</label><input type="text" value={profile.address} onChange={e=>setProfile(p=>({...p,address:e.target.value}))} className="field-input" /></div>
       </div>
-      <button onClick={handleSave} disabled={saving || !!(form as any)._uploading} className="btn-primary flex items-center gap-2">
+      <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center gap-2">
         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}保存する
       </button>
     </div>

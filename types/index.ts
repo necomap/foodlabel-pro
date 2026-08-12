@@ -216,6 +216,8 @@ export interface LabelContent {
   comment?:        string;
   qrUrl?:          string | null;
   logoUrl?:        string | null;
+  logoHeightMm?:   number;
+  qrSizeMm?:       number;
   // 栄養成分（1個/100gあたり）
   nutritionPerUnit: {
     label:         string;  // 例: "1個あたり"

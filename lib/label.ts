@@ -149,6 +149,23 @@ export function generateLabelContent(
  * @param config - 印刷設定
  * @param count - 枚数（A4の場合はページ全体）
  */
+
+/** JAN-13のチェックデジットを検証 */
+function isValidJan13(code: string): boolean {
+  if (!/^\d{13}$/.test(code)) return false;
+  const digits = code.split('').map(Number);
+  const sum = digits.slice(0, 12).reduce((acc, d, i) => acc + d * (i % 2 === 0 ? 1 : 3), 0);
+  const check = (10 - (sum % 10)) % 10;
+  return check === digits[12];
+}
+
+/** バーコードの種類を自動判定してAPIのパスを返す */
+function getBarcodeApiPath(code: string): string {
+  if (isValidJan13(code)) return 'ean13';
+  if (/^\d{8}$/.test(code) || /^\d{12}$/.test(code)) return 'code128';
+  return 'code128';
+}
+
 export function generateLabelHtml(
   content: LabelContent,
   config: LabelConfig
@@ -259,7 +276,7 @@ export function generateLabelHtml(
   </div>
   <!-- バーコード（一番下） -->
   ${content.barcode && content.showBarcode !== false ? `<div style="text-align:center;margin-top:0.5mm;">
-    <img src="https://barcodeapi.org/api/auto/${encodeURIComponent(content.barcode)}?height=${content.barcodeHeightPx ?? 30}${content.showBarcodeText === false ? '&text=none' : ''}" style="max-width:100%;height:${content.barcodeHeightMm ?? 7}mm;" onerror="this.style.display='none'" />
+    <img src="https://barcodeapi.org/api/${getBarcodeApiPath(content.barcode)}/${encodeURIComponent(content.barcode)}?height=${content.barcodeHeightPx ?? 30}${content.showBarcodeText === false ? '&text=none' : ''}" style="max-width:100%;height:${content.barcodeHeightMm ?? 7}mm;" onerror="this.style.display='none'" />
   </div>` : ''}
 </div>
 `;

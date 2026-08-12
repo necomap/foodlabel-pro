@@ -188,8 +188,8 @@ export async function POST(request: Request) {
           showPhone:          true,
           showRepresentative: false,
           showEmail:          false,
-          logoHeightMm:       s.logoHeightMm ?? 8,
-          qrSizeMm:           s.qrSizeMm ?? 6,
+          logoHeightMm:       8,
+          qrSizeMm:           6,
           qrUrl:              null,
           logoUrl:            null,
         };

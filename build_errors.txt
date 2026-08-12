@@ -4,18 +4,8 @@
 
 Environment variables loaded from .env
 Prisma schema loaded from prisma\schema.prisma
-┌─────────────────────────────────────────────────────────┐
-│  Update available 6.19.2 -> 7.9.1                       │
-│                                                         │
-│  This is a major update - please follow the guide at    │
-│  https://pris.ly/d/major-version-upgrade                │
-│                                                         │
-│  Run the following to update                            │
-│    npm i --save-dev prisma@latest                       │
-│    npm i @prisma/client@latest                          │
-└─────────────────────────────────────────────────────────┘
 
-✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 282ms
+✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 251ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 

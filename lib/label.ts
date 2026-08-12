@@ -248,7 +248,7 @@ export function generateLabelHtml(
     ${content.email ? '<br>' + escHtml(content.email) : ''}
     </div>
     ${(content.logoUrl || content.qrUrl) ? `<div style="display:flex;flex-direction:row;align-items:center;gap:0.5mm;flex-shrink:0;">
-      ${content.logoUrl ? `<img src="${content.logoUrl}" style="max-height:6mm;max-width:12mm;object-fit:contain;" />` : ''}
+      ${content.logoUrl ? `<img src="${content.logoUrl}" style="max-height:${content.logoHeightMm ?? 8}mm;max-width:${(content.logoHeightMm ?? 8) * 2.5}mm;object-fit:contain;" />` : ''}
       ${content.qrUrl ? `<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(content.qrUrl)}" style="width:${content.qrSizeMm ?? 6}mm;height:${content.qrSizeMm ?? 6}mm;" />` : ''}
     </div>` : ''}
   </div>

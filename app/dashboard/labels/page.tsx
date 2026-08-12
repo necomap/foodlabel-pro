@@ -108,8 +108,9 @@ export default function LabelsPage() {
   const [showQC,       setShowQC]       = useState(true);
   const [logoHeightMm,   setLogoHeightMm]   = useState(8);
   const [qrSizeMm,       setQrSizeMm]       = useState(6);
-  const [showBarcode,    setShowBarcode]    = useState(true);
+  const [showBarcode,     setShowBarcode]     = useState(true);
   const [barcodeHeightMm, setBarcodeHeightMm] = useState(7);
+  const [showBarcodeText, setShowBarcodeText] = useState(true);
 
   // ▼ 初期マウント時にlocalStorageから設定を復元 (Hydration Mismatch防止)
   useEffect(() => {
@@ -162,8 +163,9 @@ export default function LabelsPage() {
     setShowQC(getB('showQC', true));
     if (getL('logoHeightMm'))    setLogoHeightMm(Number(getL('logoHeightMm')));
     if (getL('qrSizeMm'))        setQrSizeMm(Number(getL('qrSizeMm')));
-    if (getL('showBarcode') !== null) setShowBarcode(getL('showBarcode') !== 'false');
-    if (getL('barcodeHeightMm')) setBarcodeHeightMm(Number(getL('barcodeHeightMm')));
+    if (getL('showBarcode') !== null)     setShowBarcode(getL('showBarcode') !== 'false');
+    if (getL('barcodeHeightMm'))          setBarcodeHeightMm(Number(getL('barcodeHeightMm')));
+    if (getL('showBarcodeText') !== null) setShowBarcodeText(getL('showBarcodeText') !== 'false');
   }, [searchParams]);
 
   useEffect(() => {
@@ -240,6 +242,7 @@ export default function LabelsPage() {
         qrSizeMm,
         showBarcode,
         barcodeHeightMm,
+        showBarcodeText,
       };
       const res = await fetch('/api/labels/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
@@ -299,6 +302,7 @@ export default function LabelsPage() {
         qrSizeMm,
         showBarcode,
         barcodeHeightMm,
+        showBarcodeText,
       };
 
       const res  = await fetch('/api/labels/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -540,6 +544,12 @@ export default function LabelsPage() {
                   className="w-full accent-brand-500" />
                 <div className="flex justify-between text-xs text-stone-400"><span>5mm（細）</span><span>15mm（太）</span></div>
               </div>
+            )}
+            {showBarcode && (
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked={showBarcodeText} onChange={e => { setShowBarcodeText(e.target.checked); localStorage.setItem('label_showBarcodeText', String(e.target.checked)); }} className="accent-brand-500" />
+                <span className="text-sm font-medium text-stone-700">バーコード数値を表示</span>
+              </label>
             )}
           </div>
 

@@ -137,6 +137,7 @@ export function generateLabelContent(
     warnings,
     barcode:         recipe.barcode ?? undefined,
     showBarcode:     (recipe as any).showBarcode !== false,
+    showBarcodeText: (recipe as any).showBarcodeText !== false,
     barcodeHeightMm: (recipe as any).barcodeHeightMm ?? 7,
     barcodeHeightPx: Math.round(((recipe as any).barcodeHeightMm ?? 7) * 11.8),
   };
@@ -238,10 +239,6 @@ export function generateLabelHtml(
       </tr>` : ''}
     </table>
   </div>
-  <!-- バーコード -->
-  ${content.barcode && content.showBarcode !== false ? `<div style="text-align:center;margin-bottom:0.3mm;">
-    <img src="https://barcodeapi.org/api/auto/${encodeURIComponent(content.barcode)}?height=${content.barcodeHeightPx ?? 30}" style="max-width:100%;height:${content.barcodeHeightMm ?? 7}mm;" onerror="this.style.display='none'" />
-  </div>` : ''}
   <!-- コメント -->
   ${content.comment ? `<div style="margin-bottom:0.3mm;">${escHtml(content.comment)}</div>` : ''}
   <!-- 品質管理 -->
@@ -260,8 +257,12 @@ export function generateLabelHtml(
       ${content.qrUrl ? `<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(content.qrUrl)}" style="width:${content.qrSizeMm ?? 6}mm;height:${content.qrSizeMm ?? 6}mm;" />` : ''}
     </div>` : ''}
   </div>
+  <!-- バーコード（一番下） -->
+  ${content.barcode && content.showBarcode !== false ? `<div style="text-align:center;margin-top:0.5mm;">
+    <img src="https://barcodeapi.org/api/auto/${encodeURIComponent(content.barcode)}?height=${content.barcodeHeightPx ?? 30}${content.showBarcodeText === false ? '&text=none' : ''}" style="max-width:100%;height:${content.barcodeHeightMm ?? 7}mm;" onerror="this.style.display='none'" />
+  </div>` : ''}
 </div>
-`;
+\`;
   // ラベルプリンタ用：ラベルのみ
   if (config.deviceType === 'LABEL_PRINTER') {
     const labels = Array(config.printCount).fill(singleLabel).join('\n');

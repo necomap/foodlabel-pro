@@ -72,7 +72,7 @@ function ProfileTab() {
         <div><label className="field-label">郵便番号</label><input type="text" value={profile.postalCode} onChange={e=>setProfile(p=>({...p,postalCode:e.target.value}))} className="field-input" placeholder="000-0000" /></div>
         <div className="sm:col-span-2"><label className="field-label">住所</label><input type="text" value={profile.address} onChange={e=>setProfile(p=>({...p,address:e.target.value}))} className="field-input" /></div>
       </div>
-      <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center gap-2">
+      <button onClick={handleSave} disabled={saving || !!(form as any)._uploading} className="btn-primary flex items-center gap-2">
         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}保存する
       </button>
     </div>
@@ -167,9 +167,9 @@ function ShopModal({ shop, saving, onClose, onSave }: { shop:Shop|null; saving:b
                 <input type="file" accept="image/*" onChange={async(e)=>{
                   const file = e.target.files?.[0];
                   if (!file) return;
-                  // ローカルプレビューをすぐに表示
+                  // ローカルプレビューをすぐに表示（blob URLは一時的）
                   const localUrl = URL.createObjectURL(file);
-                  setForm(f=>({...f,logoUrl:localUrl}));
+                  setForm(f=>({...f,logoUrl:localUrl,_uploading:true}));
                   // Supabaseにアップロード
                   const fd = new FormData();
                   fd.append('file', file);
@@ -177,16 +177,17 @@ function ShopModal({ shop, saving, onClose, onSave }: { shop:Shop|null; saving:b
                     const res = await fetch('/api/upload', {method:'POST',body:fd});
                     const data = await res.json();
                     if (data.success) {
-                      setForm(f=>({...f,logoUrl:data.url}));
+                      setForm(f=>({...f,logoUrl:data.url,_uploading:false}));
                     } else {
                       alert(data.error ?? 'アップロードに失敗しました');
-                      setForm(f=>({...f,logoUrl:''}));
+                      setForm(f=>({...f,logoUrl:'',_uploading:false}));
                     }
                   } catch {
                     alert('アップロードに失敗しました');
-                    setForm(f=>({...f,logoUrl:''}));
+                    setForm(f=>({...f,logoUrl:'',_uploading:false}));
                   }
                 }} className="field-input" />
+                {(form as any)._uploading && <p className="text-xs text-amber-600 mt-1">⏳ アップロード中...完了後に保存してください</p>}
                 <p className="text-xs text-stone-400 mt-1">推奨：横長PNG・透過背景・2MB以下</p>
               </div>
                     <div>
@@ -204,7 +205,7 @@ function ShopModal({ shop, saving, onClose, onSave }: { shop:Shop|null; saving:b
         </div>
         <div className="flex gap-3 p-5 border-t border-cream-200 flex-shrink-0">
           <button onClick={onClose} className="btn-secondary flex-1">キャンセル</button>
-          <button onClick={()=>onSave({...form,id:shop?.id})} disabled={saving} className="btn-primary flex-1 flex items-center justify-center gap-2">
+          <button onClick={()=>onSave({...form,id:shop?.id})} disabled={saving || !!(form as any)._uploading} className="btn-primary flex-1 flex items-center justify-center gap-2">
             {saving?<Loader2 className="w-4 h-4 animate-spin" />:null}{shop?'更新する':'追加する'}
           </button>
         </div>

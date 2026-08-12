@@ -15,38 +15,27 @@ Prisma schema loaded from prisma\schema.prisma
 │    npm i @prisma/client@latest                          │
 └─────────────────────────────────────────────────────────┘
 
-✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 258ms
+✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 282ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
-Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
+Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
 
   ▲ Next.js 14.2.5
   - Environments: .env.local, .env
 
    Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
 Failed to compile.
 
-./app/dashboard/recipes/_form.tsx
-Error: 
-  [31mx[0m Unexpected token `div`. Expected jsx identifier
-     ,-[[36;1;4mC:\Users\emma\Documents\foodlabel-pro\app\dashboard\recipes\_form.tsx[0m:350:1]
- [2m350[0m |   }
- [2m351[0m | 
- [2m352[0m |   return (
- [2m353[0m |     <div className="max-w-3xl space-y-5 animate-fade-in">
-     : [31;1m     ^^^[0m
- [2m354[0m |       {/* ヘッダー */}
- [2m355[0m |       <div className="flex items-center gap-3">
- [2m356[0m |         <button onClick={() => router.back()} className="btn-ghost p-2">
-     `----
+./app/api/labels/generate/route.ts:163:7
+Type error: Type '{ shopName: any; companyName: any; postalCode: any; address: any; phone: any; representative: any; email: any; showPhone: any; showRepresentative: true; showEmail: any; qrUrl: any; logoUrl: any; }' is missing the following properties from type '{ shopName: string; companyName: string; postalCode: string; address: string; phone: string; representative: string; email: string; showPhone: boolean; showRepresentative: boolean; showEmail: boolean; qrUrl: any; logoUrl: any; logoHeightMm: number; qrSizeMm: number; }': logoHeightMm, qrSizeMm
 
-Caused by:
-    Syntax Error
-
-Import trace for requested module:
-./app/dashboard/recipes/_form.tsx
-./app/dashboard/recipes/new/page.tsx
-
-
-> Build failed because of webpack errors
+[0m [90m 161 |[39m     [36mif[39m (defaultShops[[35m0[39m]) {[0m
+[0m [90m 162 |[39m       [36mconst[39m s [33m=[39m defaultShops[[35m0[39m][33m;[39m[0m
+[0m[31m[1m>[22m[39m[90m 163 |[39m       shopInfo [33m=[39m {[0m
+[0m [90m     |[39m       [31m[1m^[22m[39m[0m
+[0m [90m 164 |[39m         shopName[33m:[39m           s[33m.[39mshopName [33m?[39m[33m?[39m [32m''[39m[33m,[39m[0m
+[0m [90m 165 |[39m         companyName[33m:[39m        s[33m.[39mcompanyName [33m?[39m[33m?[39m s[33m.[39mshopName [33m?[39m[33m?[39m [32m''[39m[33m,[39m[0m
+[0m [90m 166 |[39m         postalCode[33m:[39m         s[33m.[39mpostalCode [33m?[39m[33m?[39m [32m''[39m[33m,[39m[0m

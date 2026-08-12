@@ -135,6 +135,10 @@ export function generateLabelContent(
     },
     isEstimated: true,  // 推定値として表示
     warnings,
+    barcode:         recipe.barcode ?? undefined,
+    showBarcode:     (recipe as any).showBarcode !== false,
+    barcodeHeightMm: (recipe as any).barcodeHeightMm ?? 7,
+    barcodeHeightPx: Math.round(((recipe as any).barcodeHeightMm ?? 7) * 11.8),
   };
 }
 

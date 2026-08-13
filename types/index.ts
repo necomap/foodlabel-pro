@@ -202,6 +202,9 @@ export interface LabelConfig {
   a4SealHeightMm?: number;
   // 表示設定
   displaySettings?: LabelDisplaySettings;
+  showBarcode?:     boolean;
+  showBarcodeText?: boolean;
+  barcodeHeightMm?: number;
 }
 
 // ============================================================

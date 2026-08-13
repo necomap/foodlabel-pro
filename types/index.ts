@@ -168,6 +168,9 @@ export interface LabelDisplaySettings {
   showQualityControl?: boolean;
   showComment?:        boolean;
   nutritionNote?:      string;
+  showBarcode?:     boolean;
+  showBarcodeText?: boolean;
+  barcodeHeightMm?: number;
 }
 
 export interface LabelConfig {

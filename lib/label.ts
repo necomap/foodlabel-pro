@@ -276,7 +276,7 @@ export function generateLabelHtml(
   </div>
   <!-- バーコード（一番下） -->
   ${content.barcode && content.showBarcode !== false ? `<div style="text-align:center;margin-top:0.5mm;width:100%;clear:both;">
-    <img src="https://barcodeapi.org/api/${getBarcodeApiPath(content.barcode)}/${encodeURIComponent(content.barcode)}?height=${content.barcodeHeightPx ?? 30}${content.showBarcodeText === false ? '&text=none' : ''}" style="display:block;width:100%;height:${content.barcodeHeightMm ?? 7}mm;object-fit:fill;" onerror="this.style.display='none'" />
+    <img src="https://barcodeapi.org/api/${getBarcodeApiPath(content.barcode)}/${encodeURIComponent(content.barcode)}?height=${content.barcodeHeightPx ?? 30}${content.showBarcodeText === false ? '&text=none' : ''}" style="display:block;max-width:100%;height:${content.barcodeHeightMm ?? 7}mm;object-fit:contain;" onerror="this.style.display='none'" />
   </div>` : ''}
 </div>
 `;

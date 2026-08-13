@@ -308,6 +308,8 @@ export async function POST(request: Request) {
 
   // バーコード設定をrecipeDetailに追加
   (recipeDetail as any).showBarcode     = labelConfig.showBarcode !== false;
+  (recipeDetail as any).showBarcode     = labelConfig.showBarcode !== false;
+  (recipeDetail as any).showBarcodeText  = labelConfig.showBarcodeText !== false;
   (recipeDetail as any).barcodeHeightMm = labelConfig.barcodeHeightMm ?? 7;
 
   const content = generateLabelContent(recipeDetail, labelConfig, shopInfo);

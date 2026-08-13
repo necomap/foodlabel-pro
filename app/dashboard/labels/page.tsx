@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Printer, RefreshCw, Settings, AlertTriangle, ChevronLeft, Eye, Loader2, CheckCircle2, Info } from 'lucide-react';
+import { Printer, RefreshCw, Settings, AlertTriangle, ChevronLeft, ChevronDown, Eye, Loader2, CheckCircle2, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface RecipeOption { id: string; name: string; shelfLifeDays: number | null; shelfLifeType: string; contentAmount: string | null; }
@@ -116,6 +116,11 @@ export default function LabelsPage() {
   const [packageWidthMm,  setPackageWidthMm]  = useState('');
   const [packageHeightMm, setPackageHeightMm] = useState('');
 
+  // レシピ内容確認パネル（編集画面に飛ばずにその場で確認する用）
+  const [recipeDetail,        setRecipeDetail]        = useState<any>(null);
+  const [showRecipeDetail,    setShowRecipeDetail]    = useState(false);
+  const [loadingRecipeDetail, setLoadingRecipeDetail] = useState(false);
+
   // ▼ 初期マウント時にlocalStorageから設定を復元 (Hydration Mismatch防止)
   useEffect(() => {
     const getL = (k: string) => localStorage.getItem('label_' + k);
@@ -219,7 +224,28 @@ export default function LabelsPage() {
   useEffect(() => {
     const r = recipes.find(r => r.id === recipeId);
     if (r?.shelfLifeDays != null) setShelfOverride(String(r.shelfLifeDays));
+    // レシピを切り替えたら確認パネルは閉じる（古い内容の誤表示防止）
+    setShowRecipeDetail(false);
+    setRecipeDetail(null);
   }, [recipeId, recipes]);
+
+  const toggleRecipeDetail = async () => {
+    if (!recipeId) { toast.error('レシピを選択してください'); return; }
+    if (showRecipeDetail) { setShowRecipeDetail(false); return; }
+    if (recipeDetail) { setShowRecipeDetail(true); return; }
+    setLoadingRecipeDetail(true);
+    try {
+      const res = await fetch(`/api/recipes/${recipeId}`);
+      const data = await res.json();
+      if (data.success) {
+        setRecipeDetail(data.data);
+        setShowRecipeDetail(true);
+      } else {
+        toast.error(data.error ?? 'レシピ詳細の取得に失敗しました');
+      }
+    } catch { toast.error('通信エラーが発生しました'); }
+    finally { setLoadingRecipeDetail(false); }
+  };
 
   const handlePreview = async () => {
     if (!recipeId) { toast.error('レシピを選択してください'); return; }
@@ -420,6 +446,56 @@ export default function LabelsPage() {
                 onChange={(v) => { setRecipeId(v); updateLabelStorage('recipeId', v); }}
               />
             </div>
+
+            {recipeId && (
+              <div>
+                <button type="button" onClick={toggleRecipeDetail} disabled={loadingRecipeDetail}
+                  className="flex items-center gap-1.5 text-sm text-brand-600 hover:underline disabled:opacity-50">
+                  {loadingRecipeDetail ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronDown className={`w-4 h-4 transition-transform ${showRecipeDetail ? 'rotate-180' : ''}`} />}
+                  レシピ内容を確認
+                </button>
+                {showRecipeDetail && recipeDetail && (
+                  <div className="mt-2 p-3 rounded-lg bg-stone-50 border border-stone-200 text-sm space-y-2 max-h-96 overflow-y-auto">
+                    <div><span className="font-medium text-stone-600">名称：</span>{recipeDetail.categoryName || '（未設定）'}</div>
+                    <div><span className="font-medium text-stone-600">内容量：</span>{recipeDetail.contentAmount || '（未設定）'}</div>
+                    <div><span className="font-medium text-stone-600">{recipeDetail.shelfLifeType === 'BEST_BEFORE' ? '賞味期限' : '消費期限'}：</span>{recipeDetail.shelfLifeDays ?? '（未設定）'}日</div>
+                    <div><span className="font-medium text-stone-600">保存方法：</span>{recipeDetail.storageMethod || '（未設定）'}</div>
+                    <div><span className="font-medium text-stone-600">バーコード：</span>{recipeDetail.barcode || '（未設定）'}</div>
+                    <div><span className="font-medium text-stone-600">原材料名：</span>{recipeDetail.ingredientsLabel || '（未設定）'}</div>
+                    <div><span className="font-medium text-stone-600">アレルゲン：</span>{recipeDetail.allergensLabel || 'なし'}</div>
+                    <div>
+                      <span className="font-medium text-stone-600">栄養成分（1個あたり）：</span>
+                      熱量{recipeDetail.nutritionPerUnit?.energyKcal ?? '-'}kcal・
+                      たんぱく質{recipeDetail.nutritionPerUnit?.protein ?? '-'}g・
+                      脂質{recipeDetail.nutritionPerUnit?.fat ?? '-'}g・
+                      炭水化物{recipeDetail.nutritionPerUnit?.carbohydrate ?? '-'}g・
+                      食塩相当量{recipeDetail.nutritionPerUnit?.saltEquivalent ?? '-'}g
+                      {recipeDetail.nutritionPerUnit?.sugar != null && `・糖質${recipeDetail.nutritionPerUnit.sugar}g`}
+                      {recipeDetail.nutritionPerUnit?.dietaryFiber != null && `・食物繊維${recipeDetail.nutritionPerUnit.dietaryFiber}g`}
+                      {recipeDetail.nutritionPerUnit?.cholesterol != null && `・コレステロール${recipeDetail.nutritionPerUnit.cholesterol}mg`}
+                    </div>
+                    {recipeDetail.printComment && <div><span className="font-medium text-stone-600">コメント：</span>{recipeDetail.printComment}</div>}
+                    {recipeDetail.qualityControl && <div><span className="font-medium text-stone-600">品質管理：</span>{recipeDetail.qualityControl}</div>}
+                    {recipeDetail.notes && <div><span className="font-medium text-stone-600">メモ：</span>{recipeDetail.notes}</div>}
+                    {recipeDetail.ingredients?.length > 0 && (
+                      <details>
+                        <summary className="font-medium text-stone-600 cursor-pointer">原材料明細（{recipeDetail.ingredients.length}件）</summary>
+                        <ul className="mt-1 pl-4 list-disc space-y-0.5">
+                          {recipeDetail.ingredients.map((ing: any) => (
+                            <li key={ing.id}>
+                              {ing.ingredientName} {ing.amount}{ing.unit}
+                              {ing.originCountry ? `（${ing.originCountry}）` : ''}
+                              {ing.isAdditive ? `［添加物：${ing.additiveReason ?? ''}］` : ''}
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
+                    <a href={`/dashboard/recipes/${recipeId}`} className="inline-block text-brand-600 hover:underline pt-1">編集画面を開く →</a>
+                  </div>
+                )}
+              </div>
+            )}
             <div>
               <label className="field-label">店舗</label>
               <select value={shopId} onChange={e => { setShopId(e.target.value); updateLabelStorage('shopId', e.target.value); }} className="field-select">

@@ -201,10 +201,28 @@ export default function RecipeDetailPage() {
               <div className="font-medium">{recipe.shelfLifeDays}日間</div>
             </div>
           )}
+          {recipe.barcode && (
+            <div className="bg-cream-50 rounded-xl p-3">
+              <div className="text-xs text-stone-400 mb-1">バーコード</div>
+              <div className="font-medium font-mono">{recipe.barcode}</div>
+            </div>
+          )}
           {recipe.storageMethod && (
             <div className="bg-cream-50 rounded-xl p-3 sm:col-span-2">
               <div className="text-xs text-stone-400 mb-1">保存方法</div>
               <div className="font-medium text-xs">{recipe.storageMethod}</div>
+            </div>
+          )}
+          {recipe.printComment && (
+            <div className="bg-cream-50 rounded-xl p-3 sm:col-span-2">
+              <div className="text-xs text-stone-400 mb-1">ラベルコメント</div>
+              <div className="font-medium text-xs">{recipe.printComment}</div>
+            </div>
+          )}
+          {recipe.qualityControl && (
+            <div className="bg-cream-50 rounded-xl p-3 sm:col-span-2">
+              <div className="text-xs text-stone-400 mb-1">品質管理表示</div>
+              <div className="font-medium text-xs">{recipe.qualityControl}</div>
             </div>
           )}
         </div>

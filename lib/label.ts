@@ -185,6 +185,35 @@ export function generateLabelHtml(
   const escHtml = (s: string) =>
     s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+  // 栄養成分：必須5項目（法令上の表示順固定）＋ ON になっている任意項目を末尾に追加し、
+  // 左列に切り上げ半分・右列に残りを詰めて、非表示項目があっても左右の行数バランスを保つ
+  const nutritionItems: Array<{ label: string; value: string }> = [
+    { label: '熱量',      value: `${content.nutritionPerUnit.energyKcal}kcal` },
+    { label: 'たんぱく質', value: `${content.nutritionPerUnit.protein}g` },
+    { label: '脂質',      value: `${content.nutritionPerUnit.fat}g` },
+    { label: '炭水化物',   value: `${content.nutritionPerUnit.carbohydrate}g` },
+    { label: '食塩相当量', value: `${content.nutritionPerUnit.saltEquivalent}g` },
+  ];
+  if (content.nutritionPerUnit.sugar != null) {
+    nutritionItems.push({ label: '糖質', value: `${content.nutritionPerUnit.sugar}g` });
+  }
+  if (content.nutritionPerUnit.dietaryFiber != null) {
+    nutritionItems.push({ label: '食物繊維', value: `${content.nutritionPerUnit.dietaryFiber}g` });
+  }
+  if (content.nutritionPerUnit.cholesterol != null) {
+    nutritionItems.push({ label: 'コレステロール', value: `${content.nutritionPerUnit.cholesterol}mg` });
+  }
+  const nutritionLeftCount = Math.ceil(nutritionItems.length / 2);
+  const nutritionLeftItems  = nutritionItems.slice(0, nutritionLeftCount);
+  const nutritionRightItems = nutritionItems.slice(nutritionLeftCount);
+  const nutritionRowsHtml = nutritionLeftItems.map((item, i) => {
+    const right = nutritionRightItems[i];
+    return `<tr>
+        <td>${item.label}</td><td style="text-align:right;">${item.value}</td>
+        ${right ? `<td style="padding-left:2mm;">${right.label}</td><td style="text-align:right;">${right.value}</td>` : '<td></td><td></td>'}
+      </tr>`;
+  }).join('');
+
   const singleLabel = `
 <div class="label" style="
   width: ${width}mm;
@@ -231,31 +260,7 @@ export function generateLabelHtml(
       栄養成分表示（${escHtml(content.nutritionPerUnit.label)}）${content.isEstimated ? '※推定値' : ''}
     </div>
     <table style="width:100%; border-collapse:collapse;">
-      <tr>
-        <td>熱量</td><td style="text-align:right;">${content.nutritionPerUnit.energyKcal}kcal</td>
-        <td style="padding-left:2mm;">炭水化物</td><td style="text-align:right;">${content.nutritionPerUnit.carbohydrate}g</td>
-      </tr>
-      <tr>
-        <td>たんぱく質</td><td style="text-align:right;">${content.nutritionPerUnit.protein}g</td>
-        <td style="padding-left:2mm;">食塩相当量</td><td style="text-align:right;">${content.nutritionPerUnit.saltEquivalent}g</td>
-      </tr>
-      <tr>
-        <td>脂質</td><td style="text-align:right;">${content.nutritionPerUnit.fat}g</td>
-        ${content.nutritionPerUnit.dietaryFiber != null
-          ? `<td style="padding-left:2mm;">食物繊維</td><td style="text-align:right;">${content.nutritionPerUnit.dietaryFiber}g</td>`
-          : '<td></td><td></td>'
-        }
-      </tr>
-      ${content.nutritionPerUnit.sugar != null ? `
-      <tr>
-        <td></td><td></td>
-        <td style="padding-left:2mm;">糖質</td><td style="text-align:right;">${content.nutritionPerUnit.sugar}g</td>
-      </tr>` : ''}
-      ${content.nutritionPerUnit.cholesterol != null ? `
-      <tr>
-        <td></td><td></td>
-        <td style="padding-left:2mm;">コレステロール</td><td style="text-align:right;">${content.nutritionPerUnit.cholesterol}mg</td>
-      </tr>` : ''}
+      ${nutritionRowsHtml}
     </table>
   </div>
   <!-- コメント -->

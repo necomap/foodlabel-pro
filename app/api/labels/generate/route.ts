@@ -49,6 +49,8 @@ const labelConfigSchema = z.object({
   showBarcode:      z.boolean().optional(),
   showBarcodeText:  z.boolean().optional(),
   barcodeHeightMm:  z.number().int().min(5).max(15).optional(),
+  packageWidthMm:   z.number().positive().optional(),
+  packageHeightMm:  z.number().positive().optional(),
 });
 
 export async function POST(request: Request) {

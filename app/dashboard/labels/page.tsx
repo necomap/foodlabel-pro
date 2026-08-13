@@ -112,6 +112,10 @@ export default function LabelsPage() {
   const [barcodeHeightMm, setBarcodeHeightMm] = useState(7);
   const [showBarcodeText, setShowBarcodeText] = useState(true);
 
+  // 表示可能面積（法令上の文字サイズ下限判定用・任意入力）
+  const [packageWidthMm,  setPackageWidthMm]  = useState('');
+  const [packageHeightMm, setPackageHeightMm] = useState('');
+
   // ▼ 初期マウント時にlocalStorageから設定を復元 (Hydration Mismatch防止)
   useEffect(() => {
     const getL = (k: string) => localStorage.getItem('label_' + k);
@@ -166,6 +170,8 @@ export default function LabelsPage() {
     if (getL('showBarcode') !== null)     setShowBarcode(getL('showBarcode') !== 'false');
     if (getL('barcodeHeightMm'))          setBarcodeHeightMm(Number(getL('barcodeHeightMm')));
     if (getL('showBarcodeText') !== null) setShowBarcodeText(getL('showBarcodeText') !== 'false');
+    if (getL('packageWidthMm') !== null)  setPackageWidthMm(getL('packageWidthMm')!);
+    if (getL('packageHeightMm') !== null) setPackageHeightMm(getL('packageHeightMm')!);
   }, [searchParams]);
 
   useEffect(() => {
@@ -194,6 +200,19 @@ export default function LabelsPage() {
   const updateLabelStorage = (key: string, val: string) => {
     localStorage.setItem('label_' + key, val);
   };
+
+  // 表示可能面積から法令上の文字サイズ下限を計算
+  // 150cm²超: 8pt以上 / 150cm²以下: 5.5pt以上（食品表示基準）
+  // 容器全体サイズが未入力の場合はシールサイズから推定（実際の容器全体の面積と異なる場合あり）
+  const computeDisplayAreaCm2 = () => {
+    const pw = parseFloat(packageWidthMm);
+    const ph = parseFloat(packageHeightMm);
+    if (pw > 0 && ph > 0) return (pw / 10) * (ph / 10);
+    const lw = parseFloat(labelW) || 60;
+    const lh = parseFloat(labelH) || 60;
+    return (lw / 10) * (lh / 10);
+  };
+  const computeLegalMinFontPt = () => (computeDisplayAreaCm2() > 150 ? 8 : 5.5);
 
 
 
@@ -243,6 +262,8 @@ export default function LabelsPage() {
         showBarcode,
         barcodeHeightMm,
         showBarcodeText,
+        packageWidthMm:  packageWidthMm  ? parseFloat(packageWidthMm)  : undefined,
+        packageHeightMm: packageHeightMm ? parseFloat(packageHeightMm) : undefined,
       };
       const res = await fetch('/api/labels/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await res.json();
@@ -260,10 +281,12 @@ export default function LabelsPage() {
   const handleGenerate = async () => {
     if (!recipeId) { toast.error('レシピを選択してください'); return; }
 
-    // フォントサイズ警告
+    // フォントサイズ警告（表示可能面積に応じた法令上の下限を下回る場合）
     const fs = parseFloat(fontSizePt);
-    if (fs < 7 && fs >= 6) {
-      if (!confirm(`フォントサイズ${fontSizePt}ptは規定（8pt）より小さい設定です。\nこのサイズは貼付け面が小さい商品のみ使用可能です。続けますか？`)) return;
+    const legalMinFontPt = computeLegalMinFontPt();
+    if (fs < legalMinFontPt) {
+      const areaCm2 = computeDisplayAreaCm2();
+      if (!confirm(`フォントサイズ${fontSizePt}ptは、現在の表示可能面積（約${areaCm2.toFixed(1)}cm²）での法令上の下限（${legalMinFontPt}pt）を下回っています。\n続けますか？`)) return;
     }
 
     setLoading(true);
@@ -303,6 +326,8 @@ export default function LabelsPage() {
         showBarcode,
         barcodeHeightMm,
         showBarcodeText,
+        packageWidthMm:  packageWidthMm  ? parseFloat(packageWidthMm)  : undefined,
+        packageHeightMm: packageHeightMm ? parseFloat(packageHeightMm) : undefined,
       };
 
       const res  = await fetch('/api/labels/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -433,7 +458,17 @@ export default function LabelsPage() {
               <label className="field-label">フォントサイズ（pt）</label>
               <input type="text" inputMode="numeric" pattern="[0-9]*" value={fontSizePt} onChange={e => { setFontSizePt(e.target.value); updateLabelStorage('fontSizePt', e.target.value); }}
                 className="field-input" min="6" max="12" step="0.5" />
-              <p className="field-hint">規定値: 8pt（最小: 6pt ※貼付面が小さい場合のみ）</p>
+              <p className="field-hint">法令上の下限（現在の表示可能面積 約{computeDisplayAreaCm2().toFixed(1)}cm²）: {computeLegalMinFontPt()}pt</p>
+            </div>
+            <div>
+              <label className="field-label">容器全体のサイズ（mm・任意）</label>
+              <div className="grid grid-cols-2 gap-3">
+                <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="幅" value={packageWidthMm}
+                  onChange={e => { setPackageWidthMm(e.target.value); updateLabelStorage('packageWidthMm', e.target.value); }} className="field-input" />
+                <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="高さ" value={packageHeightMm}
+                  onChange={e => { setPackageHeightMm(e.target.value); updateLabelStorage('packageHeightMm', e.target.value); }} className="field-input" />
+              </div>
+              <p className="field-hint">シールを貼る容器・袋全体のサイズです。未入力の場合はシールサイズから推定します（実際の容器面積と異なる場合があります）。文字サイズの法令上の下限判定に使用します。</p>
             </div>
 
             {deviceType === 'LABEL_PRINTER' ? (

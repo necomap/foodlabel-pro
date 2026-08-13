@@ -174,11 +174,21 @@ export function generateLabelHtml(
   const { fontSizePt, labelWidthMm, labelHeightMm } = config;
   const width = labelWidthMm ?? 60;
   const height = labelHeightMm ?? 60;
+  // 表示可能面積から法令上の文字サイズ下限を判定（食品表示基準）
+  // 150cm²超: 8pt以上 / 150cm²以下: 5.5pt以上
+  // 容器全体サイズ（packageWidthMm/packageHeightMm）が未入力の場合はシールサイズから推定
+  // （実際の容器全体の表示可能面積とは異なる場合がある簡易推定）
+  const packageWidthMm  = (config as any).packageWidthMm as number | undefined;
+  const packageHeightMm = (config as any).packageHeightMm as number | undefined;
+  const displayAreaCm2 = (packageWidthMm && packageHeightMm)
+    ? (packageWidthMm / 10) * (packageHeightMm / 10)
+    : (width / 10) * (height / 10);
+  const legalMinFontPt = displayAreaCm2 > 150 ? 8 : 5.5;
   // ラベルサイズに合わせてフォントサイズを自動調整
-  // 基準: 60mm×60mmで8pt。面積比で縮小（最小5pt）
+  // 基準: 60mm×60mmで8pt。面積比で縮小（下限は法令上の最小値）
   const baseFontSize = fontSizePt ?? 8;
   const areaRatio = Math.sqrt((width * height) / (60 * 60));
-  const autoFontSize = Math.max(Math.round(baseFontSize * areaRatio * 10) / 10, 5);
+  const autoFontSize = Math.max(Math.round(baseFontSize * areaRatio * 10) / 10, legalMinFontPt);
   const fontSize = autoFontSize;
   // バーコード幅：シールの横幅に応じて自動計算（25mm〜45mmの範囲、リーダーで読み取れる実用サイズ）
   const barcodeWidthMm = Math.min(Math.max(Math.round(width * 0.7 * 10) / 10, 25), 45);
@@ -307,12 +317,12 @@ ${content.barcode && content.showBarcode !== false ? `<div style="text-align:cen
 </head>
 <body>${labels}
 <script>
-// フォント自動縮小：ラベルが枠からはみ出す場合にフォントを縮小
+// フォント自動縮小：ラベルが枠からはみ出す場合にフォントを縮小（下限は法令上の最小値）
 document.querySelectorAll('.label').forEach(function(label) {
   var maxH = label.style.maxHeight;
   if (!maxH) return;
   var maxPx = parseFloat(maxH) * 3.7795; // mm to px
-  var minSize = 5;
+  var minSize = ${legalMinFontPt};
   var step = 0.5;
   var el = label;
   while (el.scrollHeight > maxPx + 2 && parseFloat(el.style.fontSize) > minSize) {
@@ -324,19 +334,29 @@ document.querySelectorAll('.label').forEach(function(label) {
       if (cs > minSize) child.style.fontSize = Math.max(cs - step, minSize) + 'pt';
     });
   }
+  // 法令上の下限まで縮小しても収まらない場合はフラグを立てる（勝手にこれ以上は縮小しない）
+  if (el.scrollHeight > maxPx + 2) {
+    el.setAttribute('data-overflow', 'true');
+  }
 });
 ${isPreview ? `
-// プレビュー限定：実際に表示されているフォントサイズをバッジで表示
+// プレビュー限定：実際に表示されているフォントサイズ、またはオーバーフロー警告をバッジで表示
 (function() {
   var firstLabel = document.querySelector('.label');
   if (!firstLabel) return;
   var actualSize = parseFloat(firstLabel.style.fontSize);
   var baseSize = ${fontSize};
+  var overflow = firstLabel.getAttribute('data-overflow') === 'true';
   var badge = document.createElement('div');
-  badge.textContent = actualSize < baseSize
-    ? '自動縮小: ' + baseSize.toFixed(1) + 'pt → ' + actualSize.toFixed(1) + 'pt'
-    : '表示フォントサイズ: ' + actualSize.toFixed(1) + 'pt';
-  badge.style.cssText = 'position:fixed;top:4px;right:4px;background:#333;color:#fff;font-size:10px;padding:2px 6px;border-radius:3px;z-index:9999;font-family:sans-serif;white-space:nowrap;';
+  if (overflow) {
+    badge.textContent = '⚠ 文字サイズ' + actualSize.toFixed(1) + 'pt（法令上の下限）でも内容が収まっていません。シールを大きくするか表示内容を減らしてください';
+    badge.style.cssText = 'position:fixed;top:4px;left:4px;right:4px;background:#c0392b;color:#fff;font-size:11px;padding:4px 8px;border-radius:3px;z-index:9999;font-family:sans-serif;';
+  } else {
+    badge.textContent = actualSize < baseSize
+      ? '自動縮小: ' + baseSize.toFixed(1) + 'pt → ' + actualSize.toFixed(1) + 'pt'
+      : '表示フォントサイズ: ' + actualSize.toFixed(1) + 'pt';
+    badge.style.cssText = 'position:fixed;top:4px;right:4px;background:#333;color:#fff;font-size:10px;padding:2px 6px;border-radius:3px;z-index:9999;font-family:sans-serif;white-space:nowrap;';
+  }
   document.body.appendChild(badge);
 })();
 ` : ''}
@@ -366,7 +386,7 @@ ${isPreview ? `
 
   // A4セルサイズに合わせてフォントサイズを再計算
   const a4AreaRatio = Math.sqrt((cellW * cellH) / (60 * 60));
-  const a4FontSize = Math.max(Math.round((fontSizePt ?? 8) * a4AreaRatio * 10) / 10, 5);
+  const a4FontSize = Math.max(Math.round((fontSizePt ?? 8) * a4AreaRatio * 10) / 10, legalMinFontPt);
 
   // ラベルHTMLをセルサイズとフォントサイズに合わせて調整
   const cellLabel = singleLabel
@@ -405,7 +425,7 @@ document.querySelectorAll('.label').forEach(function(label) {
   var maxH = label.style.maxHeight;
   if (!maxH) return;
   var maxPx = parseFloat(maxH) * 3.7795;
-  var minSize = 5;
+  var minSize = ${legalMinFontPt};
   var step = 0.5;
   while (label.scrollHeight > maxPx + 2 && parseFloat(label.style.fontSize) > minSize) {
     var cur = parseFloat(label.style.fontSize);
@@ -415,6 +435,9 @@ document.querySelectorAll('.label').forEach(function(label) {
       if (cs > minSize) child.style.fontSize = Math.max(cs - step, minSize) + 'pt';
     });
   }
+  if (label.scrollHeight > maxPx + 2) {
+    label.setAttribute('data-overflow', 'true');
+  }
 });
 ${isPreview ? `
 (function() {
@@ -422,11 +445,17 @@ ${isPreview ? `
   if (!firstLabel) return;
   var actualSize = parseFloat(firstLabel.style.fontSize);
   var baseSize = ${a4FontSize};
+  var overflow = firstLabel.getAttribute('data-overflow') === 'true';
   var badge = document.createElement('div');
-  badge.textContent = actualSize < baseSize
-    ? '自動縮小: ' + baseSize.toFixed(1) + 'pt → ' + actualSize.toFixed(1) + 'pt'
-    : '表示フォントサイズ: ' + actualSize.toFixed(1) + 'pt';
-  badge.style.cssText = 'position:fixed;top:4px;right:4px;background:#333;color:#fff;font-size:10px;padding:2px 6px;border-radius:3px;z-index:9999;font-family:sans-serif;white-space:nowrap;';
+  if (overflow) {
+    badge.textContent = '⚠ 文字サイズ' + actualSize.toFixed(1) + 'pt（法令上の下限）でも内容が収まっていません。シールを大きくするか表示内容を減らしてください';
+    badge.style.cssText = 'position:fixed;top:4px;left:4px;right:4px;background:#c0392b;color:#fff;font-size:11px;padding:4px 8px;border-radius:3px;z-index:9999;font-family:sans-serif;';
+  } else {
+    badge.textContent = actualSize < baseSize
+      ? '自動縮小: ' + baseSize.toFixed(1) + 'pt → ' + actualSize.toFixed(1) + 'pt'
+      : '表示フォントサイズ: ' + actualSize.toFixed(1) + 'pt';
+    badge.style.cssText = 'position:fixed;top:4px;right:4px;background:#333;color:#fff;font-size:10px;padding:2px 6px;border-radius:3px;z-index:9999;font-family:sans-serif;white-space:nowrap;';
+  }
   document.body.appendChild(badge);
 })();
 ` : ''}

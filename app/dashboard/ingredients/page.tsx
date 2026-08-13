@@ -396,9 +396,9 @@ export default function IngredientsPage() {
                   <td className="hidden sm:table-cell text-sm text-stone-500">{STORAGE_LABELS[ing.storage]??ing.storage}</td>
                   <td>
                     {ing.isOwnRecord && (
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                        <button onClick={()=>setModal({open:true,ingredient:ing})} className="p-1.5 text-stone-300 hover:text-brand-500"><Edit2 className="w-4 h-4" /></button>
-                        <button onClick={()=>handleDelete(ing.id,ing.name)} className="p-1.5 text-stone-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                      <div className="flex gap-1">
+                        <button onClick={()=>setModal({open:true,ingredient:ing})} className="p-1.5 text-stone-400 hover:text-brand-500"><Edit2 className="w-4 h-4" /></button>
+                        <button onClick={()=>handleDelete(ing.id,ing.name)} className="p-1.5 text-stone-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     )}
                   </td>

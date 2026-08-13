@@ -308,7 +308,7 @@ ${content.barcode && content.showBarcode !== false ? `<div style="text-align:cen
 <head>
 <meta charset="UTF-8">
 <style>
-  @page { margin: 0; size: ${width}mm auto; }
+  @page { margin: 0; size: ${width}mm ${height}mm; }
   body { margin: 0; padding: 0; } html, body { height: auto !important; }
   .label { break-after: page; }
   .label:last-child { break-after: avoid; page-break-after: avoid; }

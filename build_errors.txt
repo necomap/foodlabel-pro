@@ -5,11 +5,11 @@
 Environment variables loaded from .env
 Prisma schema loaded from prisma\schema.prisma
 
-✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 339ms
+✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 273ms
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
-Tip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate
+Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
 
   ▲ Next.js 14.2.5
   - Environments: .env.local, .env
@@ -76,7 +76,7 @@ Route (app)                              Size     First Load JS
 ├ ○ /blog/expiry-date-guide              165 B          87.3 kB
 ├ ○ /blog/food-labeling-basics           165 B          87.3 kB
 ├ ○ /blog/nutrition-labeling             165 B          87.3 kB
-├ ○ /blog/online-food-sales              164 B          87.3 kB
+├ ○ /blog/online-food-sales              165 B          87.3 kB
 ├ ƒ /dashboard                           165 B          87.3 kB
 ├ ƒ /dashboard/contact                   2.67 kB         102 kB
 ├ ƒ /dashboard/debug                     165 B          87.3 kB

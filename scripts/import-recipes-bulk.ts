@@ -96,6 +96,7 @@ function parseRow(row: Record<string, any>) {
   return {
     name:           strOrNull(row['品名']),
     nameKana:       strOrNull(row['カナ']),
+    barcode:        strOrNull(row['No']),
     categoryName:   strOrNull(row['カテゴリ']),
     unitCount:      numOrNull(row['仕上数量']) ?? 1,
     salePrice:      numOrNull(row['販売価格']),
@@ -229,6 +230,7 @@ async function main() {
         categoryId,
         name: r.name!,
         nameKana: r.nameKana,
+        barcode: r.barcode,
         unitCount: r.unitCount,
         salePrice: r.salePrice,
         shelfLifeDays: r.shelfLifeDays,

@@ -187,7 +187,7 @@ export default function LabelsPage() {
       .catch(() => {});
 
     // レシピ一覧を取得
-    fetch('/api/recipes?perPage=200').then(r => r.json()).then(d => {
+    fetch('/api/recipes?perPage=1000').then(r => r.json()).then(d => {
       if (d.success) setRecipes(d.data.items.map((r: RecipeOption) => ({ id: r.id, name: r.name, shelfLifeDays: r.shelfLifeDays, shelfLifeType: r.shelfLifeType, contentAmount: r.contentAmount })));
     });
     // 店舗一覧を取得

@@ -82,7 +82,7 @@ async function main() {
   const allergyReview: { name: string; value: string }[] = [];
   let linkedByCode = 0, manualNutrition = 0, noNutrition = 0, created = 0, updated = 0;
 
-  for (const [name, row] of byName) {
+  for (const [name, row] of Array.from(byName.entries())) {
     const foodCode = numOrNull(row['食品番号']);
     let nutritionId: number | null = null;
     let manualFields: Record<string, number | null> = {};

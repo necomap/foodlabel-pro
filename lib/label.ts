@@ -350,14 +350,14 @@ ${isPreview ? `
   var badge = document.createElement('div');
   if (overflow) {
     badge.textContent = '⚠ 文字サイズ' + actualSize.toFixed(1) + 'pt（法令上の下限）でも内容が収まっていません。シールを大きくするか表示内容を減らしてください';
-    badge.style.cssText = 'position:fixed;top:4px;left:4px;right:4px;background:#c0392b;color:#fff;font-size:11px;padding:4px 8px;border-radius:3px;z-index:9999;font-family:sans-serif;';
+    badge.style.cssText = 'background:#c0392b;color:#fff;font-size:11px;padding:4px 8px;font-family:sans-serif;';
   } else {
     badge.textContent = actualSize < baseSize
       ? '自動縮小: ' + baseSize.toFixed(1) + 'pt → ' + actualSize.toFixed(1) + 'pt'
       : '表示フォントサイズ: ' + actualSize.toFixed(1) + 'pt';
-    badge.style.cssText = 'position:fixed;top:4px;right:4px;background:#333;color:#fff;font-size:10px;padding:2px 6px;border-radius:3px;z-index:9999;font-family:sans-serif;white-space:nowrap;';
+    badge.style.cssText = 'background:#333;color:#fff;font-size:10px;padding:2px 6px;font-family:sans-serif;white-space:nowrap;';
   }
-  document.body.appendChild(badge);
+  document.body.insertBefore(badge, document.body.firstChild);
 })();
 ` : ''}
 </script>
@@ -449,14 +449,14 @@ ${isPreview ? `
   var badge = document.createElement('div');
   if (overflow) {
     badge.textContent = '⚠ 文字サイズ' + actualSize.toFixed(1) + 'pt（法令上の下限）でも内容が収まっていません。シールを大きくするか表示内容を減らしてください';
-    badge.style.cssText = 'position:fixed;top:4px;left:4px;right:4px;background:#c0392b;color:#fff;font-size:11px;padding:4px 8px;border-radius:3px;z-index:9999;font-family:sans-serif;';
+    badge.style.cssText = 'background:#c0392b;color:#fff;font-size:11px;padding:4px 8px;font-family:sans-serif;';
   } else {
     badge.textContent = actualSize < baseSize
       ? '自動縮小: ' + baseSize.toFixed(1) + 'pt → ' + actualSize.toFixed(1) + 'pt'
       : '表示フォントサイズ: ' + actualSize.toFixed(1) + 'pt';
-    badge.style.cssText = 'position:fixed;top:4px;right:4px;background:#333;color:#fff;font-size:10px;padding:2px 6px;border-radius:3px;z-index:9999;font-family:sans-serif;white-space:nowrap;';
+    badge.style.cssText = 'background:#333;color:#fff;font-size:10px;padding:2px 6px;font-family:sans-serif;white-space:nowrap;';
   }
-  document.body.appendChild(badge);
+  document.body.insertBefore(badge, document.body.firstChild);
 })();
 ` : ''}
 </script>

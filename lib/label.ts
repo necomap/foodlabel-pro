@@ -275,8 +275,10 @@ export function generateLabelHtml(
     </div>` : ''}
   </div>
   <!-- バーコード（一番下） -->
-${content.barcode && content.showBarcode !== false ? `<div style="text-align:center;margin-top:0.5mm;width:100%;overflow:hidden;height:${content.barcodeHeightMm ?? 10}mm;display:flex;align-items:center;justify-content:center;">
-    <img src="https://barcodeapi.org/api/${getBarcodeApiPath(content.barcode)}/${encodeURIComponent(content.barcode)}?height=${content.barcodeHeightPx ?? 300}${content.showBarcodeText === false ? '&text=none' : ''}" style="height:100%;width:auto;max-width:100%;object-fit:contain;" onerror="this.style.display='none'" />
+${content.barcode && content.showBarcode !== false ? `<div style="text-align:center;margin-top:0.5mm;width:100%;">
+    <div style="display:inline-block;width:40mm;max-width:90%;height:${content.barcodeHeightMm ?? 10}mm;overflow:hidden;">
+      <img src="https://barcodeapi.org/api/${getBarcodeApiPath(content.barcode)}/${encodeURIComponent(content.barcode)}?height=${content.barcodeHeightPx ?? 300}${content.showBarcodeText === false ? '&text=none' : ''}" style="width:100%;height:100%;object-fit:cover;object-position:bottom;" onerror="this.parentElement.style.display='none'" />
+    </div>
   </div>` : ''}
 </div>
 `;

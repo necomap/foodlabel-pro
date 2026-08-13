@@ -313,7 +313,7 @@ export async function POST(request: Request) {
   (recipeDetail as any).barcodeHeightMm = labelConfig.barcodeHeightMm ?? 7;
 
   const content = generateLabelContent(recipeDetail, labelConfig, shopInfo);
-  const html    = generateLabelHtml(content, labelConfig);
+  const html    = generateLabelHtml(content, labelConfig, body.isPreview === true);
 
   // 印刷履歴を保存
   if (!body.isPreview) {

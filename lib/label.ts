@@ -168,7 +168,8 @@ function getBarcodeApiPath(code: string): string {
 
 export function generateLabelHtml(
   content: LabelContent,
-  config: LabelConfig
+  config: LabelConfig,
+  isPreview: boolean = false
 ): string {
   const { fontSizePt, labelWidthMm, labelHeightMm } = config;
   const width = labelWidthMm ?? 60;
@@ -324,6 +325,21 @@ document.querySelectorAll('.label').forEach(function(label) {
     });
   }
 });
+${isPreview ? `
+// プレビュー限定：実際に表示されているフォントサイズをバッジで表示
+(function() {
+  var firstLabel = document.querySelector('.label');
+  if (!firstLabel) return;
+  var actualSize = parseFloat(firstLabel.style.fontSize);
+  var baseSize = ${fontSize};
+  var badge = document.createElement('div');
+  badge.textContent = actualSize < baseSize
+    ? '自動縮小: ' + baseSize.toFixed(1) + 'pt → ' + actualSize.toFixed(1) + 'pt'
+    : '表示フォントサイズ: ' + actualSize.toFixed(1) + 'pt';
+  badge.style.cssText = 'position:fixed;top:4px;right:4px;background:#333;color:#fff;font-size:10px;padding:2px 6px;border-radius:3px;z-index:9999;font-family:sans-serif;white-space:nowrap;';
+  document.body.appendChild(badge);
+})();
+` : ''}
 </script>
 </body>
 </html>`;
@@ -400,6 +416,20 @@ document.querySelectorAll('.label').forEach(function(label) {
     });
   }
 });
+${isPreview ? `
+(function() {
+  var firstLabel = document.querySelector('.label');
+  if (!firstLabel) return;
+  var actualSize = parseFloat(firstLabel.style.fontSize);
+  var baseSize = ${a4FontSize};
+  var badge = document.createElement('div');
+  badge.textContent = actualSize < baseSize
+    ? '自動縮小: ' + baseSize.toFixed(1) + 'pt → ' + actualSize.toFixed(1) + 'pt'
+    : '表示フォントサイズ: ' + actualSize.toFixed(1) + 'pt';
+  badge.style.cssText = 'position:fixed;top:4px;right:4px;background:#333;color:#fff;font-size:10px;padding:2px 6px;border-radius:3px;z-index:9999;font-family:sans-serif;white-space:nowrap;';
+  document.body.appendChild(badge);
+})();
+` : ''}
 </script>
 </body>
 </html>`;

@@ -543,6 +543,9 @@ export default function LabelsPage() {
                   onChange={e => { setBarcodeHeightMm(Number(e.target.value)); localStorage.setItem('label_barcodeHeightMm', e.target.value); }}
                   className="w-full accent-brand-500" />
                 <div className="flex justify-between text-xs text-stone-400"><span>5mm（細）</span><span>15mm（太）</span></div>
+                {barcodeHeightMm < 7 && showBarcodeText && (
+                  <p className="text-xs text-amber-600 mt-1">※7mm未満は数値表示ONだとリーダーで読み取れない場合があります。数値表示をOFFにすると読み取りやすくなります。</p>
+                )}
               </div>
             )}
             {showBarcode && (

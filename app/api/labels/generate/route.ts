@@ -47,6 +47,7 @@ const labelConfigSchema = z.object({
   logoHeightMm:     z.number().int().min(4).max(20).optional(),
   qrSizeMm:         z.number().int().min(4).max(20).optional(),
   showBarcode:      z.boolean().optional(),
+  showBarcodeText:  z.boolean().optional(),
   barcodeHeightMm:  z.number().int().min(5).max(15).optional(),
 });
 

@@ -179,6 +179,8 @@ export function generateLabelHtml(
   const areaRatio = Math.sqrt((width * height) / (60 * 60));
   const autoFontSize = Math.max(Math.round(baseFontSize * areaRatio * 10) / 10, 5);
   const fontSize = autoFontSize;
+  // バーコード幅：シールの横幅に応じて自動計算（25mm〜45mmの範囲、リーダーで読み取れる実用サイズ）
+  const barcodeWidthMm = Math.min(Math.max(Math.round(width * 0.7 * 10) / 10, 25), 45);
 
   const escHtml = (s: string) =>
     s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -276,7 +278,7 @@ export function generateLabelHtml(
   </div>
   <!-- バーコード（一番下） -->
 ${content.barcode && content.showBarcode !== false ? `<div style="text-align:center;margin-top:0.5mm;width:100%;">
-    <div style="display:inline-block;width:40mm;max-width:90%;height:${content.barcodeHeightMm ?? 10}mm;overflow:hidden;">
+    <div style="display:inline-block;width:${barcodeWidthMm}mm;max-width:95%;height:${content.barcodeHeightMm ?? 10}mm;overflow:hidden;">
       <img src="https://barcodeapi.org/api/${getBarcodeApiPath(content.barcode)}/${encodeURIComponent(content.barcode)}?height=${content.barcodeHeightPx ?? 300}${content.showBarcodeText === false ? '&text=none' : ''}" style="width:100%;height:100%;object-fit:cover;object-position:bottom;" onerror="this.parentElement.style.display='none'" />
     </div>
   </div>` : ''}

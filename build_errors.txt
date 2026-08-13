@@ -5,7 +5,11 @@
 Environment variables loaded from .env
 Prisma schema loaded from prisma\schema.prisma
 
+<<<<<<< HEAD
 ✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 271ms
+=======
+✔ Generated Prisma Client (v6.19.2) to .\node_modules\@prisma\client in 273ms
+>>>>>>> parent of 53afed9 (reset barcode HTML to working state)
 
 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
 
@@ -76,7 +80,11 @@ Route (app)                              Size     First Load JS
 ├ ○ /blog/expiry-date-guide              165 B          87.3 kB
 ├ ○ /blog/food-labeling-basics           165 B          87.3 kB
 ├ ○ /blog/nutrition-labeling             165 B          87.3 kB
+<<<<<<< HEAD
 ├ ○ /blog/online-food-sales              165 B          87.3 kB
+=======
+├ ○ /blog/online-food-sales              164 B          87.3 kB
+>>>>>>> parent of 53afed9 (reset barcode HTML to working state)
 ├ ƒ /dashboard                           165 B          87.3 kB
 ├ ƒ /dashboard/contact                   2.67 kB         102 kB
 ├ ƒ /dashboard/debug                     165 B          87.3 kB

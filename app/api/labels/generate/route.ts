@@ -97,7 +97,7 @@ export async function POST(request: Request) {
       category:    { select: { name: true } },
       ingredients: {
         orderBy: [{ sortByWeight: 'desc' }, { displayOrder: 'asc' }],
-        include: { ingredient: { select: { name: true, allergens: true } } },
+        include: { ingredient: { select: { name: true, allergens: true, genericName: true } } },
       },
       steps: { orderBy: { stepNumber: 'asc' } },
     },
@@ -216,7 +216,7 @@ export async function POST(request: Request) {
     sortedIngredients.map(ing => ({
       allergens:        ing.ingredient?.allergens ?? [],
       allergenOverride: ing.allergenOverride,
-      ingredientName:   ing.ingredient?.name ?? ing.ingredientNameOverride ?? '',
+      ingredientName:   ing.ingredient?.genericName || ing.ingredient?.name || ing.ingredientNameOverride || '',
     }))
   );
 
@@ -255,7 +255,7 @@ export async function POST(request: Request) {
     nutrition:      totalNutrition,
     ingredientsLabel: buildIngredientsLabel(
       sortedIngredients.map(i => ({
-        ingredientName: i.ingredient?.name ?? i.ingredientNameOverride ?? '',
+        ingredientName: i.ingredient?.genericName || i.ingredient?.name || i.ingredientNameOverride || '',
         amount: Number(i.amount),
         originCountry: i.originCountry ?? undefined,
         unit: i.unit,
@@ -271,7 +271,7 @@ export async function POST(request: Request) {
     ingredients: sortedIngredients.map(ing => ({
       id:                     ing.id,
       ingredientId:           ing.ingredientId ?? undefined,
-      ingredientName:         ing.ingredient?.name ?? ing.ingredientNameOverride ?? '',
+      ingredientName:         ing.ingredient?.genericName || ing.ingredient?.name || ing.ingredientNameOverride || '',
       ingredientNameOverride: ing.ingredientNameOverride ?? undefined,
       amount:                 Number(ing.amount),
       unit:                   ing.unit,

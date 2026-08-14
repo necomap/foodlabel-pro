@@ -145,7 +145,7 @@ function ShopModal({ shop, saving, onClose, onSave }: { shop:Shop|null; saving:b
         </div>
         <div className="p-5 space-y-4 overflow-y-auto flex-1">
           <div><label className="field-label">店舗名 <span className="text-red-500">*</span></label><input type="text" value={form.shopName} onChange={e=>setForm(f=>({...f,shopName:e.target.value}))} className="field-input" /></div>
-          <div><label className="field-label">法人名（任意）</label><input type="text" value={form.companyName} onChange={e=>setForm(f=>({...f,companyName:e.target.value}))} className="field-input" placeholder="店舗名と異なる場合のみ" /></div>
+          <div><label className="field-label">法人名（任意）</label><input type="text" value={form.companyName} onChange={e=>setForm(f=>({...f,companyName:e.target.value}))} className="field-input" placeholder="店舗名と異なる場合のみ" /><p className="field-hint">食品表示基準では屋号（店舗名）のみの表示は認められていません。法人の場合は正式な法人名、個人事業主の場合は個人名の入力が必要です。未入力の場合は店舗名がそのまま印字されます。</p></div>
           <div><label className="field-label">代表者名</label><input type="text" value={form.representative} onChange={e=>setForm(f=>({...f,representative:e.target.value}))} className="field-input" placeholder="例: 田中 太郎" /></div>
           <div className="grid grid-cols-2 gap-3">
             <div><label className="field-label">郵便番号</label><input type="text" value={form.postalCode} onChange={e=>setForm(f=>({...f,postalCode:e.target.value}))} className="field-input" /></div>

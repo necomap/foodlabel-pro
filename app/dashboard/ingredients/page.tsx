@@ -102,6 +102,7 @@ function IngredientModal({ ingredient, categories, onClose, onSaved }: {
   const [form, setForm] = useState({
     name:            ingredient?.name ?? '',
     nameKana:        ingredient?.nameKana ?? '',
+    genericName:     (ingredient as any)?.genericName ?? '',
     ingredientCategoryId: ingredient?.ingredientCategoryId ?? '',
     purchaseUnitG:   ingredient?.purchaseUnitG ? String(ingredient.purchaseUnitG) : '',
     purchasePrice:   ingredient?.purchasePrice ? String(ingredient.purchasePrice) : '',
@@ -133,6 +134,7 @@ function IngredientModal({ ingredient, categories, onClose, onSaved }: {
       const payload = {
         name:          form.name.trim(),
         nameKana:      form.nameKana.trim()||undefined,
+        genericName:   form.genericName.trim()||undefined,
         nutritionId:   selectedNutritionId??undefined,
         ingredientCategoryId: form.ingredientCategoryId || undefined,
         purchaseUnitG: form.purchaseUnitG ? parseInt(form.purchaseUnitG) : undefined,
@@ -194,6 +196,18 @@ function IngredientModal({ ingredient, categories, onClose, onSaved }: {
                 }}
                 className="field-input" placeholder="例: ジュンキョウリキコ" />
               <p className="field-hint">ひらがなで入力するとカタカナに自動変換されます</p>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="field-label">
+                ラベル表示用の一般名
+                <span className="text-stone-400 text-xs ml-1">（任意・空欄なら食材名をそのまま表示）</span>
+              </label>
+              <input type="text" value={form.genericName}
+                onChange={e => setForm(f => ({...f, genericName: e.target.value}))}
+                className="field-input" placeholder="例: 無塩バター よつ葉 → バター" />
+              {(ingredient as any)?.genericNameConfirmed === false && (
+                <p className="field-hint text-amber-600">⚠ 自動推測された仮の値です。内容を確認してください</p>
+              )}
             </div>
           </div>
           <div>
@@ -371,6 +385,12 @@ export default function IngredientsPage() {
                 <tr key={ing.id} className="group">
                   <td>
                     <div className="font-medium text-stone-800">{ing.name}</div>
+                    {(ing as any).genericName && (
+                      <div className="text-xs text-brand-600">
+                        表示名: {(ing as any).genericName}
+                        {(ing as any).genericNameConfirmed === false && <span className="text-amber-500 ml-1">（要確認）</span>}
+                      </div>
+                    )}
                     {ing.nameKana && <div className="text-xs text-stone-400">{ing.nameKana}</div>}
                     {!ing.isOwnRecord && <span className="badge badge-gray text-[10px] mt-0.5">共有</span>}
                   </td>

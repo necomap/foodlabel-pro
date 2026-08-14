@@ -34,6 +34,9 @@ export async function PUT(request: Request, { params }: Params) {
       name,
       nameKana:        body.nameKana        ?? ing.nameKana,
       nameSearch:      `${name}${body.nameKana ?? ''}`,
+      genericName:          body.genericName !== undefined ? (body.genericName || null) : (ing as any).genericName,
+      // ユーザーが画面から明示的に一般名を触ったら「確定済み」扱いにする（自動仮入力の要確認フラグを解除）
+      genericNameConfirmed: body.genericName !== undefined ? true : (ing as any).genericNameConfirmed,
       nutritionId:     body.nutritionId     ?? ing.nutritionId,
       nutritionVariant: body.nutritionVariant ?? ing.nutritionVariant,
       purchaseUnitG:   body.purchaseUnitG   ?? ing.purchaseUnitG,

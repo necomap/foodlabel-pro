@@ -177,6 +177,8 @@ export async function PUT(request: Request, { params }: Params) {
         let nutritionPer100g: any = {};
         let allergens: string[] = ing.allergenOverride ?? [];
         let nutritionUnconfirmed = false;
+        // ラベル表示名：食材マスタに一般名が設定されていればそちらを優先（例:「無塩バター よつ葉」→「バター」）
+        let displayName = ing.ingredientNameOverride ?? ing.name ?? '';
 
         if (ing.ingredientId) {
           const rec = await prisma.ingredient.findUnique({
@@ -185,6 +187,7 @@ export async function PUT(request: Request, { params }: Params) {
           });
           if (rec) {
             allergens = ing.allergenOverride?.length ? ing.allergenOverride : rec.allergens;
+            if ((rec as any).genericName) displayName = (rec as any).genericName;
             if (rec.nutritionData || rec.energyKcalManual != null) {
               nutritionPer100g = {
                 energyKcal:     rec.energyKcalManual != null ? Number(rec.energyKcalManual) : (rec.nutritionData?.energyKcal != null ? Number(rec.nutritionData.energyKcal) : null),
@@ -203,13 +206,13 @@ export async function PUT(request: Request, { params }: Params) {
         const amount = Number(ing.amount);
         const nutrition = calcNutritionForAmount(nutritionPer100g, amount);
         const costTotal = ing.costPrice && amount ? Number(ing.costPrice) * amount : null;
-        return { ing, allergens, nutrition, nutritionUnconfirmed, costTotal };
+        return { ing, allergens, nutrition, nutritionUnconfirmed, costTotal, displayName };
       })
     );
 
     const allergenInfo = car(ingredientDetails.map(d => ({
       allergens: d.allergens, allergenOverride: d.ing.allergenOverride ?? [],
-      ingredientName: d.ing.ingredientNameOverride ?? d.ing.name ?? '',
+      ingredientName: d.displayName,
     })));
     const totalNutrition = sumNutrition(ingredientDetails.map(d => ({ nutrition: d.nutrition })));
     const totalCost = ingredientDetails.reduce((s, d) => s + (d.costTotal ?? 0), 0);
@@ -218,7 +221,7 @@ export async function PUT(request: Request, { params }: Params) {
     const wasteAmountG = body.wasteAmountG ? Number(body.wasteAmountG) : 0;
     const wasteRatio = (totalWeightG > 0 && wasteAmountG > 0) ? Math.round((wasteAmountG / totalWeightG) * 100 * 100) / 100 : 0;
     const ingredientsLabel = bil(
-      ingredientDetails.map(d => ({ ingredientName: d.ing.ingredientNameOverride ?? d.ing.name ?? '', amount: Number(d.ing.amount), unit: d.ing.unit, originCountry: d.ing.originCountry ?? undefined, isAdditive: d.ing.isAdditive ?? false, additiveReason: d.ing.additiveReason ?? undefined })).sort((a,b) => b.amount - a.amount),
+      ingredientDetails.map(d => ({ ingredientName: d.displayName, amount: Number(d.ing.amount), unit: d.ing.unit, originCountry: d.ing.originCountry ?? undefined, isAdditive: d.ing.isAdditive ?? false, additiveReason: d.ing.additiveReason ?? undefined })).sort((a,b) => b.amount - a.amount),
       allergenInfo.all
     );
 

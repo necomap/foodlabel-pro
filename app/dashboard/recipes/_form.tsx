@@ -482,9 +482,9 @@ export default function RecipeForm() {
               className="field-input" placeholder="例: 380" min="0" />
           </div>
           <div>
-            <label className="field-label">品質管理</label>
+            <label className="field-label">お客様へのお願い・注意事項</label>
             <input type="text" value={qualityControl} onChange={e => setQualityControl(e.target.value)}
-              className="field-input" placeholder="例: 脱酸素剤" />
+              className="field-input" placeholder="例: はちみつを使用しています。なるべく早めにお召し上がりください。" />
           </div>
         </div>
 

@@ -221,7 +221,7 @@ export default function RecipeDetailPage() {
           )}
           {recipe.qualityControl && (
             <div className="bg-cream-50 rounded-xl p-3 sm:col-span-2">
-              <div className="text-xs text-stone-400 mb-1">品質管理表示</div>
+              <div className="text-xs text-stone-400 mb-1">お客様へのお願い・注意事項</div>
               <div className="font-medium text-xs">{recipe.qualityControl}</div>
             </div>
           )}

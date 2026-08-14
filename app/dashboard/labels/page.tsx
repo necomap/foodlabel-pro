@@ -507,7 +507,7 @@ export default function LabelsPage() {
                       {recipeDetail.nutritionPerUnit?.cholesterol != null && `・コレステロール${recipeDetail.nutritionPerUnit.cholesterol}mg`}
                     </div>
                     {recipeDetail.printComment && <div><span className="font-medium text-stone-600">コメント：</span>{recipeDetail.printComment}</div>}
-                    {recipeDetail.qualityControl && <div><span className="font-medium text-stone-600">品質管理：</span>{recipeDetail.qualityControl}</div>}
+                    {recipeDetail.qualityControl && <div><span className="font-medium text-stone-600">お客様へのお願い・注意事項：</span>{recipeDetail.qualityControl}</div>}
                     {recipeDetail.notes && <div><span className="font-medium text-stone-600">メモ：</span>{recipeDetail.notes}</div>}
                     {recipeDetail.ingredients?.length > 0 && (
                       <details open>
@@ -666,7 +666,7 @@ export default function LabelsPage() {
               { label: '食物繊維を表示', value: showFiber,   onChange: (v:boolean)=>{setShowFiber(v);localStorage.setItem('label_showFiber',String(v));} },
               { label: '糖質を表示',     value: showSugar,   onChange: (v:boolean)=>{setShowSugar(v);localStorage.setItem('label_showSugar',String(v));} },
               { label: 'コレステロールを表示', value: showCholest, onChange: (v:boolean)=>{setShowCholest(v);localStorage.setItem('label_showCholest',String(v));} },
-              { label: '品質管理を表示', value: showQC,      onChange: (v:boolean)=>{setShowQC(v);localStorage.setItem('label_showQC',String(v));} },
+              { label: 'お客様へのお願い・注意事項を表示', value: showQC,      onChange: (v:boolean)=>{setShowQC(v);localStorage.setItem('label_showQC',String(v));} },
               { label: 'コメントを表示', value: showComment, onChange: (v:boolean)=>{setShowComment(v);localStorage.setItem('label_showComment',String(v));} },
             ].map(item => (
               <label key={item.label} className="flex items-start gap-3 cursor-pointer">

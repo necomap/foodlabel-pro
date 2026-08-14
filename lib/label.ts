@@ -274,10 +274,11 @@ export function generateLabelHtml(
       ${nutritionRowsHtml}
     </table>
   </div>
-  <!-- コメント -->
-  ${content.comment ? `<div style="margin-bottom:0.3mm;">${escHtml(content.comment)}</div>` : ''}
-  <!-- 品質管理 -->
-  ${content.qualityControl ? `<div>${escHtml(content.qualityControl)}</div>` : ''}
+  <!-- 注意事項（コメント＋お客様へのお願い） -->
+  ${(content.comment || content.qualityControl) ? `<div style="border:0.3mm solid #ccc; padding:0.5mm 1mm; margin-bottom:0.3mm;">
+    ${content.comment ? `<div>${escHtml(content.comment)}</div>` : ''}
+    ${content.qualityControl ? `<div>${escHtml(content.qualityControl)}</div>` : ''}
+  </div>` : ''}
   <!-- 製造者情報（ロゴ・QRコード含む） -->
   <div style="margin-top:0.3mm; border-top:0.3mm solid #ccc; padding-top:0.3mm; display:flex; align-items:flex-start; justify-content:space-between; gap:1mm;">
     <div style="flex:1; word-break:break-all; overflow-wrap:break-word; line-height:1.15;">

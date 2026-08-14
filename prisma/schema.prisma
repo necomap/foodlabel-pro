@@ -171,6 +171,7 @@ model Recipe {
   wasteRatio       Decimal            @default(0) @db.Decimal(5, 2)
   moldType         String?            @db.VarChar(50)
   wasteAmountG     Decimal?           @db.Decimal(10, 2)
+  packagingNotes   String[]           @default([])  // 使用資材メモ（印刷しない・将来の在庫管理用）
   salePrice        Decimal?           @db.Decimal(10, 2)
   shelfLifeDays    Int?
   shelfLifeType    ShelfLifeType      @default(BEST_BEFORE)

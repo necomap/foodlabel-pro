@@ -606,6 +606,31 @@ export default function LabelsPage() {
               <p className="field-hint">シールを貼る容器・袋全体のサイズです。未入力の場合はシールサイズから推定します（実際の容器面積と異なる場合があります）。文字サイズの法令上の下限判定に使用します。</p>
             </div>
 
+            <div>
+              <label className="field-label">識別マーク（リサイクルマーク）</label>
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-1">
+                {[
+                  { key: 'plastic',  label: 'プラ' },
+                  { key: 'paper',    label: '紙' },
+                  { key: 'pet',      label: 'PET' },
+                  { key: 'steel',    label: 'スチール缶' },
+                  { key: 'aluminum', label: 'アルミ缶' },
+                ].map(m => (
+                  <label key={m.key} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                    <input type="checkbox" checked={recycleMarks.includes(m.key)}
+                      onChange={e => {
+                        const next = e.target.checked ? [...recycleMarks, m.key] : recycleMarks.filter(k => k !== m.key);
+                        setRecycleMarks(next);
+                        localStorage.setItem('label_recycleMarks', JSON.stringify(next));
+                      }}
+                      className="accent-brand-500" />
+                    {m.label}
+                  </label>
+                ))}
+              </div>
+              <p className="field-hint">バーコードの隣に小さく印字されます（ラベルプリンタ・A4どちらでも表示されます。簡易的な再現版です）</p>
+            </div>
+
             {deviceType === 'LABEL_PRINTER' ? (
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -718,31 +743,6 @@ export default function LabelsPage() {
                 )}
               </div>
             )}
-            <div>
-              <label className="field-label">識別マーク（リサイクルマーク）</label>
-              <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-1">
-                {[
-                  { key: 'plastic',  label: 'プラ' },
-                  { key: 'paper',    label: '紙' },
-                  { key: 'pet',      label: 'PET' },
-                  { key: 'steel',    label: 'スチール缶' },
-                  { key: 'aluminum', label: 'アルミ缶' },
-                ].map(m => (
-                  <label key={m.key} className="flex items-center gap-1.5 text-sm cursor-pointer">
-                    <input type="checkbox" checked={recycleMarks.includes(m.key)}
-                      onChange={e => {
-                        const next = e.target.checked ? [...recycleMarks, m.key] : recycleMarks.filter(k => k !== m.key);
-                        setRecycleMarks(next);
-                        localStorage.setItem('label_recycleMarks', JSON.stringify(next));
-                      }}
-                      className="accent-brand-500" />
-                    {m.label}
-                  </label>
-                ))}
-              </div>
-              <p className="field-hint">バーコードの隣に小さく印字されます（簡易的な再現版です）</p>
-            </div>
-            {showBarcode && (
               <label className="flex items-center gap-3 cursor-pointer">
                 <input type="checkbox" checked={showBarcodeText} onChange={e => { setShowBarcodeText(e.target.checked); localStorage.setItem('label_showBarcodeText', String(e.target.checked)); }} className="accent-brand-500" />
                 <span className="text-sm font-medium text-stone-700">バーコード数値を表示</span>

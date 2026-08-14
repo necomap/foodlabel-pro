@@ -215,7 +215,7 @@ export default function RecipeDetailPage() {
           )}
           {recipe.printComment && (
             <div className="bg-cream-50 rounded-xl p-3 sm:col-span-2">
-              <div className="text-xs text-stone-400 mb-1">ラベルコメント</div>
+              <div className="text-xs text-stone-400 mb-1">印字コメント</div>
               <div className="font-medium text-xs">{recipe.printComment}</div>
             </div>
           )}

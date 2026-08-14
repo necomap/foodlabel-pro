@@ -512,7 +512,7 @@ export default function RecipeForm() {
             <label className="field-label">印字コメント</label>
             <textarea value={printComment} onChange={e => setPrintComment(e.target.value)}
               className="field-input resize-none text-sm" rows={2}
-              placeholder="例: バニラビーンズを使用しています" />
+              placeholder="例: なるべく早めにお召し上がりください" />
           </div>
         </div>
       </div>

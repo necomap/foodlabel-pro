@@ -510,7 +510,7 @@ export default function LabelsPage() {
                       {recipeDetail.nutritionPerUnit?.dietaryFiber != null && `・食物繊維${recipeDetail.nutritionPerUnit.dietaryFiber}g`}
                       {recipeDetail.nutritionPerUnit?.cholesterol != null && `・コレステロール${recipeDetail.nutritionPerUnit.cholesterol}mg`}
                     </div>
-                    {recipeDetail.printComment && <div><span className="font-medium text-stone-600">コメント：</span>{recipeDetail.printComment}</div>}
+                    {recipeDetail.printComment && <div><span className="font-medium text-stone-600">印字コメント：</span>{recipeDetail.printComment}</div>}
                     {recipeDetail.qualityControl && <div><span className="font-medium text-stone-600">お客様へのお願い・注意事項：</span>{recipeDetail.qualityControl}</div>}
                     {recipeDetail.notes && <div><span className="font-medium text-stone-600">メモ：</span>{recipeDetail.notes}</div>}
                     {recipeDetail.ingredients?.length > 0 && (
@@ -697,7 +697,7 @@ export default function LabelsPage() {
               { label: '糖質を表示',     value: showSugar,   onChange: (v:boolean)=>{setShowSugar(v);localStorage.setItem('label_showSugar',String(v));} },
               { label: 'コレステロールを表示', value: showCholest, onChange: (v:boolean)=>{setShowCholest(v);localStorage.setItem('label_showCholest',String(v));} },
               { label: 'お客様へのお願い・注意事項を表示', value: showQC,      onChange: (v:boolean)=>{setShowQC(v);localStorage.setItem('label_showQC',String(v));} },
-              { label: 'コメントを表示', value: showComment, onChange: (v:boolean)=>{setShowComment(v);localStorage.setItem('label_showComment',String(v));} },
+              { label: '印字コメントを表示', value: showComment, onChange: (v:boolean)=>{setShowComment(v);localStorage.setItem('label_showComment',String(v));} },
             ].map(item => (
               <label key={item.label} className="flex items-start gap-3 cursor-pointer">
                 <input type="checkbox" checked={item.value} onChange={e => item.onChange(e.target.checked)}

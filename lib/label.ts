@@ -242,14 +242,17 @@ const RECYCLE_MARK_DEFS: Record<string, RecycleMarkDef> = {
 function buildRecycleMarkSvg(markKey: string, heightMm: number): string {
   const def = RECYCLE_MARK_DEFS[markKey];
   if (!def) return '';
-  const iconHeight = Math.max(heightMm - 3, 4);
   if (def.kind === 'placeholder') {
     // 公式データ未確認のため仮表示（枠囲みテキスト）。実データ入手後に本物のマークへ差し替えること。
     return `<div style="display:inline-flex;align-items:center;justify-content:center;height:${heightMm}mm;">
       <span style="display:inline-block;border:0.25mm solid #000;padding:0.3mm 0.8mm;font-size:5pt;line-height:1.3;white-space:nowrap;">${escHtmlModule(def.label)}</span>
     </div>`;
   }
-  return `<div style="display:inline-flex;flex-direction:column;align-items:center;height:${heightMm}mm;justify-content:flex-end;">
+  // キャプション（段ボールのみ）がある場合はその分の高さを確保し、それ以外は上下に均等な余白だけ残す
+  // （印刷時に端がわずかに切れてもマーク本体を巻き込まないよう、上下中央寄せ＋小さな安全マージンにしている）
+  const captionReserveMm = def.caption ? 3 : 0.6;
+  const iconHeight = Math.max(heightMm - captionReserveMm, 4);
+  return `<div style="display:inline-flex;flex-direction:column;align-items:center;height:${heightMm}mm;justify-content:center;">
     <svg viewBox="${def.viewBox}" style="height:${iconHeight}mm;width:auto;" xmlns="http://www.w3.org/2000/svg">
       <g transform="${def.transform}" fill="#000000" stroke="none">
         ${def.paths.map(d => `<path d="${d}"/>`).join('')}
@@ -391,11 +394,11 @@ export function generateLabelHtml(
     </div>` : ''}
   </div>
   <!-- バーコード＋リサイクルマーク（一番下） -->
-${(content.barcode && content.showBarcode !== false) || (recycleMarks.length > 0) ? `<div style="display:flex; align-items:flex-end; justify-content:center; gap:2mm; margin-top:0.5mm; width:100%;">
+${(content.barcode && content.showBarcode !== false) || (recycleMarks.length > 0) ? `<div style="display:flex; align-items:center; justify-content:center; gap:2mm; margin-top:0.5mm; width:100%;">
     ${content.barcode && content.showBarcode !== false ? `<div style="display:inline-block;width:${barcodeWidthMm}mm;max-width:60%;height:${content.barcodeHeightMm ?? 10}mm;overflow:hidden;">
       <img src="https://barcodeapi.org/api/${getBarcodeApiPath(content.barcode)}/${encodeURIComponent(content.barcode)}?height=${content.barcodeHeightPx ?? 300}${content.showBarcodeText === false ? '&text=none' : ''}" style="width:100%;height:100%;object-fit:cover;object-position:bottom;" onerror="this.parentElement.style.display='none'" />
     </div>` : ''}
-    ${recycleMarks.length > 0 ? `<div style="display:flex; gap:1mm; align-items:flex-end;">
+    ${recycleMarks.length > 0 ? `<div style="display:flex; gap:1mm; align-items:center;">
       ${recycleMarks.map((m: string) => buildRecycleMarkSvg(m, content.barcodeHeightMm ?? 10)).join('')}
     </div>` : ''}
   </div>` : ''}

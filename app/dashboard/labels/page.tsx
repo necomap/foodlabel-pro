@@ -743,6 +743,7 @@ export default function LabelsPage() {
                 )}
               </div>
             )}
+            {showBarcode && (
               <label className="flex items-center gap-3 cursor-pointer">
                 <input type="checkbox" checked={showBarcodeText} onChange={e => { setShowBarcodeText(e.target.checked); localStorage.setItem('label_showBarcodeText', String(e.target.checked)); }} className="accent-brand-500" />
                 <span className="text-sm font-medium text-stone-700">バーコード数値を表示</span>

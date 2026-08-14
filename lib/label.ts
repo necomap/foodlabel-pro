@@ -140,7 +140,7 @@ export function generateLabelContent(
     showBarcodeText: (recipe as any).showBarcodeText !== false,
     barcodeHeightMm: (recipe as any).barcodeHeightMm ?? 7,
     barcodeHeightPx: 300,  // 高解像度で取得してCSSでリサイズ
-    recycleMarks:    (recipe as any).recycleMarks ?? [],
+    ...( { recycleMarks: (recipe as any).recycleMarks ?? [] } as any ),
   };
 }
 
@@ -206,6 +206,7 @@ export function generateLabelHtml(
   const { fontSizePt, labelWidthMm, labelHeightMm } = config;
   const width = labelWidthMm ?? 60;
   const height = labelHeightMm ?? 60;
+  const recycleMarks: string[] = (content as any).recycleMarks ?? [];
   // 表示可能面積から法令上の文字サイズ下限を判定（食品表示基準）
   // 150cm²超: 8pt以上 / 150cm²以下: 5.5pt以上
   // 容器全体サイズ（packageWidthMm/packageHeightMm）が未入力の場合はシールサイズから推定
@@ -326,12 +327,12 @@ export function generateLabelHtml(
     </div>` : ''}
   </div>
   <!-- バーコード＋リサイクルマーク（一番下） -->
-${(content.barcode && content.showBarcode !== false) || (content.recycleMarks && content.recycleMarks.length > 0) ? `<div style="display:flex; align-items:flex-end; justify-content:center; gap:2mm; margin-top:0.5mm; width:100%;">
+${(content.barcode && content.showBarcode !== false) || (recycleMarks.length > 0) ? `<div style="display:flex; align-items:flex-end; justify-content:center; gap:2mm; margin-top:0.5mm; width:100%;">
     ${content.barcode && content.showBarcode !== false ? `<div style="display:inline-block;width:${barcodeWidthMm}mm;max-width:60%;height:${content.barcodeHeightMm ?? 10}mm;overflow:hidden;">
       <img src="https://barcodeapi.org/api/${getBarcodeApiPath(content.barcode)}/${encodeURIComponent(content.barcode)}?height=${content.barcodeHeightPx ?? 300}${content.showBarcodeText === false ? '&text=none' : ''}" style="width:100%;height:100%;object-fit:cover;object-position:bottom;" onerror="this.parentElement.style.display='none'" />
     </div>` : ''}
-    ${content.recycleMarks && content.recycleMarks.length > 0 ? `<div style="display:flex; gap:1mm; align-items:flex-end;">
-      ${content.recycleMarks.map((m: string) => buildRecycleMarkSvg(m, content.barcodeHeightMm ?? 10)).join('')}
+    ${recycleMarks.length > 0 ? `<div style="display:flex; gap:1mm; align-items:flex-end;">
+      ${recycleMarks.map((m: string) => buildRecycleMarkSvg(m, content.barcodeHeightMm ?? 10)).join('')}
     </div>` : ''}
   </div>` : ''}
 </div>

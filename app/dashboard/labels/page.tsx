@@ -114,6 +114,7 @@ export default function LabelsPage() {
   const [showBarcode,     setShowBarcode]     = useState(true);
   const [barcodeHeightMm, setBarcodeHeightMm] = useState(7);
   const [showBarcodeText, setShowBarcodeText] = useState(true);
+  const [recycleMarks,    setRecycleMarks]    = useState<string[]>([]);
 
   // 表示可能面積（法令上の文字サイズ下限判定用・任意入力）
   const [packageWidthMm,  setPackageWidthMm]  = useState('');
@@ -206,6 +207,7 @@ export default function LabelsPage() {
     if (getL('qrSizeMm'))        setQrSizeMm(Number(getL('qrSizeMm')));
     if (getL('showBarcode') !== null)     setShowBarcode(getL('showBarcode') !== 'false');
     if (getL('barcodeHeightMm'))          setBarcodeHeightMm(Number(getL('barcodeHeightMm')));
+    if (getL('recycleMarks'))             { try { setRecycleMarks(JSON.parse(getL('recycleMarks')!)); } catch {} }
     if (getL('showBarcodeText') !== null) setShowBarcodeText(getL('showBarcodeText') !== 'false');
     if (getL('packageWidthMm') !== null)  setPackageWidthMm(getL('packageWidthMm')!);
     if (getL('packageHeightMm') !== null) setPackageHeightMm(getL('packageHeightMm')!);
@@ -319,6 +321,7 @@ export default function LabelsPage() {
         qrSizeMm,
         showBarcode,
         barcodeHeightMm,
+        recycleMarks,
         showBarcodeText,
         packageWidthMm:  packageWidthMm  ? parseFloat(packageWidthMm)  : undefined,
         packageHeightMm: packageHeightMm ? parseFloat(packageHeightMm) : undefined,
@@ -383,6 +386,7 @@ export default function LabelsPage() {
         qrSizeMm,
         showBarcode,
         barcodeHeightMm,
+        recycleMarks,
         showBarcodeText,
         packageWidthMm:  packageWidthMm  ? parseFloat(packageWidthMm)  : undefined,
         packageHeightMm: packageHeightMm ? parseFloat(packageHeightMm) : undefined,
@@ -714,6 +718,30 @@ export default function LabelsPage() {
                 )}
               </div>
             )}
+            <div>
+              <label className="field-label">識別マーク（リサイクルマーク）</label>
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-1">
+                {[
+                  { key: 'plastic',  label: 'プラ' },
+                  { key: 'paper',    label: '紙' },
+                  { key: 'pet',      label: 'PET' },
+                  { key: 'steel',    label: 'スチール缶' },
+                  { key: 'aluminum', label: 'アルミ缶' },
+                ].map(m => (
+                  <label key={m.key} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                    <input type="checkbox" checked={recycleMarks.includes(m.key)}
+                      onChange={e => {
+                        const next = e.target.checked ? [...recycleMarks, m.key] : recycleMarks.filter(k => k !== m.key);
+                        setRecycleMarks(next);
+                        localStorage.setItem('label_recycleMarks', JSON.stringify(next));
+                      }}
+                      className="accent-brand-500" />
+                    {m.label}
+                  </label>
+                ))}
+              </div>
+              <p className="field-hint">バーコードの隣に小さく印字されます（簡易的な再現版です）</p>
+            </div>
             {showBarcode && (
               <label className="flex items-center gap-3 cursor-pointer">
                 <input type="checkbox" checked={showBarcodeText} onChange={e => { setShowBarcodeText(e.target.checked); localStorage.setItem('label_showBarcodeText', String(e.target.checked)); }} className="accent-brand-500" />

@@ -140,6 +140,7 @@ export function generateLabelContent(
     showBarcodeText: (recipe as any).showBarcodeText !== false,
     barcodeHeightMm: (recipe as any).barcodeHeightMm ?? 7,
     barcodeHeightPx: 300,  // 高解像度で取得してCSSでリサイズ
+    recycleMarks:    (recipe as any).recycleMarks ?? [],
   };
 }
 
@@ -164,6 +165,37 @@ function getBarcodeApiPath(code: string): string {
   if (isValidJan13(code)) return 'ean13';
   if (/^\d{8}$/.test(code) || /^\d{12}$/.test(code)) return 'code128';
   return 'code128';
+}
+
+// 識別マーク（簡易版）：プラ・紙・PET・スチール・アルミの5種類
+// ※実際のデザインは各業界団体が配布する公式データを推奨。これは簡易的な再現版です。
+const RECYCLE_MARK_LABELS: Record<string, string> = {
+  plastic: 'プラ',
+  paper:   '紙',
+  pet:     'PET',
+  steel:   'スチール',
+  aluminum: 'アルミ',
+};
+
+function buildRecycleMarkSvg(markKey: string, heightMm: number): string {
+  const label = RECYCLE_MARK_LABELS[markKey];
+  if (!label) return '';
+  return `<div style="display:inline-flex;flex-direction:column;align-items:center;height:${heightMm}mm;justify-content:flex-end;">
+    <svg viewBox="0 0 40 34" style="height:${Math.max(heightMm - 3, 4)}mm;width:auto;" xmlns="http://www.w3.org/2000/svg">
+      <g fill="none" stroke="#000" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 3 A15 15 0 0 1 33 11" />
+        <path d="M33 11 L37 8 L37 15 Z" fill="#000" stroke="none"/>
+        <path d="M35 20 A15 15 0 0 1 22 30" />
+        <path d="M22 30 L26 33 L19 34 Z" fill="#000" stroke="none"/>
+        <path d="M11 27 A15 15 0 0 1 6 13" />
+        <path d="M6 13 L2 15 L4 9 Z" fill="#000" stroke="none"/>
+      </g>
+    </svg>
+    <span style="font-size:5pt;line-height:1;">${escHtmlModule(label)}</span>
+  </div>`;
+}
+function escHtmlModule(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 export function generateLabelHtml(
@@ -293,11 +325,14 @@ export function generateLabelHtml(
       ${content.qrUrl ? `<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(content.qrUrl)}" style="width:${content.qrSizeMm ?? 6}mm;height:${content.qrSizeMm ?? 6}mm;" />` : ''}
     </div>` : ''}
   </div>
-  <!-- バーコード（一番下） -->
-${content.barcode && content.showBarcode !== false ? `<div style="text-align:center;margin-top:0.5mm;width:100%;">
-    <div style="display:inline-block;width:${barcodeWidthMm}mm;max-width:95%;height:${content.barcodeHeightMm ?? 10}mm;overflow:hidden;">
+  <!-- バーコード＋リサイクルマーク（一番下） -->
+${(content.barcode && content.showBarcode !== false) || (content.recycleMarks && content.recycleMarks.length > 0) ? `<div style="display:flex; align-items:flex-end; justify-content:center; gap:2mm; margin-top:0.5mm; width:100%;">
+    ${content.barcode && content.showBarcode !== false ? `<div style="display:inline-block;width:${barcodeWidthMm}mm;max-width:60%;height:${content.barcodeHeightMm ?? 10}mm;overflow:hidden;">
       <img src="https://barcodeapi.org/api/${getBarcodeApiPath(content.barcode)}/${encodeURIComponent(content.barcode)}?height=${content.barcodeHeightPx ?? 300}${content.showBarcodeText === false ? '&text=none' : ''}" style="width:100%;height:100%;object-fit:cover;object-position:bottom;" onerror="this.parentElement.style.display='none'" />
-    </div>
+    </div>` : ''}
+    ${content.recycleMarks && content.recycleMarks.length > 0 ? `<div style="display:flex; gap:1mm; align-items:flex-end;">
+      ${content.recycleMarks.map((m: string) => buildRecycleMarkSvg(m, content.barcodeHeightMm ?? 10)).join('')}
+    </div>` : ''}
   </div>` : ''}
 </div>
 `;

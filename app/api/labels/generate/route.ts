@@ -51,6 +51,7 @@ const labelConfigSchema = z.object({
   barcodeHeightMm:  z.number().int().min(5).max(15).optional(),
   packageWidthMm:   z.number().positive().optional(),
   packageHeightMm:  z.number().positive().optional(),
+  recycleMarks:     z.array(z.enum(['plastic','paper','pet','steel','aluminum'])).optional(),
 });
 
 export async function POST(request: Request) {
@@ -313,6 +314,7 @@ export async function POST(request: Request) {
   (recipeDetail as any).showBarcode     = labelConfig.showBarcode !== false;
   (recipeDetail as any).showBarcodeText  = labelConfig.showBarcodeText !== false;
   (recipeDetail as any).barcodeHeightMm = labelConfig.barcodeHeightMm ?? 7;
+  (recipeDetail as any).recycleMarks    = Array.isArray((labelConfig as any).recycleMarks) ? (labelConfig as any).recycleMarks : [];
 
   const content = generateLabelContent(recipeDetail, labelConfig, shopInfo);
   const html    = generateLabelHtml(content, labelConfig, body.isPreview === true);

@@ -133,8 +133,11 @@ export default function RecipeForm() {
   // 基本情報
   const [name,          setName]          = useState('');
   const [nameKana,      setNameKana]      = useState('');
+  const [variationName, setVariationName] = useState('');
   const [categoryId,    setCategoryId]    = useState('');
   const [unitCount,     setUnitCount]     = useState('1');
+  const [moldType,      setMoldType]      = useState('');
+  const [wasteAmountG,  setWasteAmountG]  = useState('');
   const [salePrice,     setSalePrice]     = useState('');
   const [shelfLifeDays, setShelfLifeDays] = useState('');
   const [shelfLifeType, setShelfLifeType] = useState<'BEST_BEFORE'|'USE_BY'>('BEST_BEFORE');
@@ -186,8 +189,11 @@ export default function RecipeForm() {
         const r: RecipeDetail = data.data;
         setName(r.name);
         setNameKana(r.nameKana ?? '');
+        setVariationName((r as any).variationName ?? '');
         setCategoryId(r.categoryId ?? '');
         setUnitCount(String(r.unitCount));
+        setMoldType((r as any).moldType ?? '');
+        setWasteAmountG((r as any).wasteAmountG != null ? String((r as any).wasteAmountG) : '');
         setSalePrice(r.salePrice != null ? String(r.salePrice) : '');
         setShelfLifeDays(r.shelfLifeDays != null ? String(r.shelfLifeDays) : '');
         setShelfLifeType(r.shelfLifeType);
@@ -280,6 +286,15 @@ export default function RecipeForm() {
     }));
   };
 
+  // 材料合計重量（単位がgのものだけを合算）・廃棄率のリアルタイム計算
+  const ingredientTotalWeightG = ingredients.reduce((sum, i) => {
+    const amt = parseFloat(i.amount);
+    return (i.unit === 'g' && amt > 0) ? sum + amt : sum;
+  }, 0);
+  const wastePercent = (ingredientTotalWeightG > 0 && parseFloat(wasteAmountG) > 0)
+    ? (parseFloat(wasteAmountG) / ingredientTotalWeightG) * 100
+    : 0;
+
   // ---- 手順操作 ----
   const addStep    = () => setSteps(prev => [...prev, '']);
   const removeStep = (idx: number) => setSteps(prev => prev.filter((_, i) => i !== idx));
@@ -295,9 +310,13 @@ export default function RecipeForm() {
       const payload = {
         name: name.trim(),
         nameKana: nameKana.trim() || undefined,
+        variationName: variationName.trim() || undefined,
         categoryId: categoryId || undefined,
         unitCount: parseInt(unitCount) || 1,
-        wasteRatio: 0,
+        moldType: moldType.trim() || undefined,
+        wasteAmountG: wasteAmountG ? parseFloat(wasteAmountG) : undefined,
+        wasteRatio: Math.round(wastePercent * 100) / 100,
+        totalWeightG: ingredientTotalWeightG > 0 ? ingredientTotalWeightG : undefined,
         salePrice: salePrice ? parseFloat(salePrice) : undefined,
         shelfLifeDays: shelfLifeDays ? parseInt(shelfLifeDays) : undefined,
         shelfLifeType,
@@ -399,6 +418,11 @@ export default function RecipeForm() {
               className="field-input" lang="ja" placeholder="例: ガレットブルトンヌ" inputMode="text" />
           </div>
           <div>
+            <label className="field-label">バリエーション名<span className="text-stone-400 text-xs ml-1">（任意・一覧での識別用）</span></label>
+            <input type="text" value={variationName} onChange={e => setVariationName(e.target.value)}
+              className="field-input" placeholder="例: チョココーティング、冬季用" />
+          </div>
+          <div>
             <label className="field-label">カテゴリ</label>
             <select value={categoryId} onChange={e => setCategoryId(e.target.value)} className="field-select">
               <option value="">カテゴリなし</option>
@@ -412,6 +436,22 @@ export default function RecipeForm() {
                 className="field-input w-24" min="1" />
               <span className="text-stone-500 text-sm">個（枚・本）</span>
             </div>
+          </div>
+          <div>
+            <label className="field-label">型<span className="text-stone-400 text-xs ml-1">（任意・記録用）</span></label>
+            <input type="text" value={moldType} onChange={e => setMoldType(e.target.value)}
+              className="field-input" placeholder="例: 15cm丸型" />
+          </div>
+          <div>
+            <label className="field-label">廃棄数量（g）<span className="text-stone-400 text-xs ml-1">（任意・栄養成分の計算に反映）</span></label>
+            <input type="number" value={wasteAmountG} onChange={e => setWasteAmountG(e.target.value)}
+              className="field-input" min="0" step="0.1" placeholder="例: 50" />
+            {ingredientTotalWeightG > 0 && (
+              <p className="field-hint">
+                材料合計{ingredientTotalWeightG}g中 {wasteAmountG || 0}g廃棄
+                {wastePercent > 0 && ` → 廃棄率 ${wastePercent.toFixed(1)}%（栄養成分から自動控除されます）`}
+              </p>
+            )}
           </div>
           <div>
             <label className="field-label">内容量（ラベル表示）</label>

@@ -79,18 +79,21 @@ export function sumNutrition(
  * 全体栄養成分を1個あたりに換算する
  * @param total - 全体栄養成分
  * @param unitCount - 仕上げ数量
+ * @param wasteRatioPercent - 廃棄率（%、0〜100。廃棄分を差し引いてから換算する）
  * @returns 1個あたり栄養成分
  */
 export function calcPerUnit(
   total: NutritionValues,
-  unitCount: number
+  unitCount: number,
+  wasteRatioPercent: number = 0
 ): NutritionValues {
   if (unitCount <= 0) return total;
+  const yieldRatio = 1 - (wasteRatioPercent > 0 ? wasteRatioPercent / 100 : 0);
   const result: NutritionValues = {} as NutritionValues;
   for (const key of Object.keys(total) as (keyof NutritionValues)[]) {
     const v = total[key];
     (result[key] as number | null) = v != null
-      ? Math.round((v / unitCount) * 100) / 100
+      ? Math.round((v * yieldRatio / unitCount) * 100) / 100
       : null;
   }
   return result;

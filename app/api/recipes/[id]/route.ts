@@ -83,9 +83,12 @@ export async function GET(_req: Request, { params }: Params) {
       id:             recipe.id,
       name:           recipe.name,
       nameKana:       recipe.nameKana,
+      variationName:  (recipe as any).variationName ?? null,
       categoryId:     recipe.category?.id ?? null,
       categoryName:   recipe.category?.name ?? null,
       unitCount:      recipe.unitCount,
+      moldType:       (recipe as any).moldType ?? null,
+      wasteAmountG:   (recipe as any).wasteAmountG ? Number((recipe as any).wasteAmountG) : null,
       wasteRatio:     Number(recipe.wasteRatio),
       salePrice:      recipe.salePrice ? Number(recipe.salePrice) : null,
       shelfLifeDays:  recipe.shelfLifeDays,
@@ -102,7 +105,7 @@ export async function GET(_req: Request, { params }: Params) {
       costRate:       recipe.costRate   ? Number(recipe.costRate)   : null,
       totalWeightG:   recipe.totalWeightG ? Number(recipe.totalWeightG) : null,
       nutrition:      totalNutrition,
-      nutritionPerUnit: roundForDisplay(calcPerUnit(totalNutrition, recipe.unitCount)),
+      nutritionPerUnit: roundForDisplay(calcPerUnit(totalNutrition, recipe.unitCount, Number(recipe.wasteRatio ?? 0))),
       ingredientsLabel,
       allergensLabel: allergenInfo.all.join('・'),
       allergens:      allergenInfo,
@@ -212,6 +215,8 @@ export async function PUT(request: Request, { params }: Params) {
     const totalCost = ingredientDetails.reduce((s, d) => s + (d.costTotal ?? 0), 0);
     const totalWeightG = ingredients.reduce((s: number, ing: any) => s + (ing.unit === 'g' || ing.unit === 'ml' ? Number(ing.amount) : 0), 0);
     const unitCount = body.unitCount ?? 1;
+    const wasteAmountG = body.wasteAmountG ? Number(body.wasteAmountG) : 0;
+    const wasteRatio = (totalWeightG > 0 && wasteAmountG > 0) ? Math.round((wasteAmountG / totalWeightG) * 100 * 100) / 100 : 0;
     const ingredientsLabel = bil(
       ingredientDetails.map(d => ({ ingredientName: d.ing.ingredientNameOverride ?? d.ing.name ?? '', amount: Number(d.ing.amount), unit: d.ing.unit, originCountry: d.ing.originCountry ?? undefined, isAdditive: d.ing.isAdditive ?? false, additiveReason: d.ing.additiveReason ?? undefined })).sort((a,b) => b.amount - a.amount),
       allergenInfo.all
@@ -224,7 +229,11 @@ export async function PUT(request: Request, { params }: Params) {
         categoryId:      body.categoryId || null,
         name:            body.name,
         nameKana:        body.nameKana,
+        variationName:   body.variationName || null,
         unitCount:       unitCount,
+        moldType:        body.moldType || null,
+        wasteAmountG:    wasteAmountG || null,
+        wasteRatio:      wasteRatio,
         salePrice:       body.salePrice ? Number(body.salePrice) : null,
         shelfLifeDays:   body.shelfLifeDays ? Number(body.shelfLifeDays) : null,
         shelfLifeType:   body.shelfLifeType ?? 'USE_BY',

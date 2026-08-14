@@ -147,6 +147,8 @@ model Ingredient {
   dietaryFiberManual   Decimal?            @db.Decimal(6, 2)
   sugarManual          Decimal?            @db.Decimal(6, 2)
   cholesterolManual    Decimal?            @db.Decimal(6, 2)
+  genericName          String?             @db.VarChar(200)
+  genericNameConfirmed Boolean             @default(false)
   isActive             Boolean             @default(true)
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
@@ -164,8 +166,11 @@ model Recipe {
   categoryId       String?
   name             String             @db.VarChar(200)
   nameKana         String?            @db.VarChar(200)
+  variationName    String?            @db.VarChar(100)
   unitCount        Int                @default(1)
   wasteRatio       Decimal            @default(0) @db.Decimal(5, 2)
+  moldType         String?            @db.VarChar(50)
+  wasteAmountG     Decimal?           @db.Decimal(10, 2)
   salePrice        Decimal?           @db.Decimal(10, 2)
   shelfLifeDays    Int?
   shelfLifeType    ShelfLifeType      @default(BEST_BEFORE)

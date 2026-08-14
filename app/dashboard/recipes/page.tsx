@@ -220,10 +220,20 @@ export default function RecipesPage() {
             ))}
           </div>
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2">
+            <div className="flex items-center justify-center gap-2 flex-wrap">
               <button onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page===1} className="btn-secondary px-3 py-1.5 text-sm disabled:opacity-40">前へ</button>
               <span className="text-sm text-stone-500">{page} / {totalPages} ページ</span>
               <button onClick={()=>setPage(p=>Math.min(totalPages,p+1))} disabled={page===totalPages} className="btn-secondary px-3 py-1.5 text-sm disabled:opacity-40">次へ</button>
+              <form onSubmit={e => {
+                e.preventDefault();
+                const input = e.currentTarget.elements.namedItem('jumpPage') as HTMLInputElement;
+                const n = parseInt(input.value, 10);
+                if (n >= 1 && n <= totalPages) { setPage(n); input.value = ''; }
+              }} className="flex items-center gap-1.5 ml-2">
+                <input name="jumpPage" type="number" min={1} max={totalPages} placeholder="ページ番号"
+                  className="field-input w-24 py-1.5 text-sm" />
+                <button type="submit" className="btn-secondary px-3 py-1.5 text-sm">移動</button>
+              </form>
             </div>
           )}
         </>

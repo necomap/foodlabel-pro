@@ -123,6 +123,35 @@ export default function LabelsPage() {
   const [recipeDetail,        setRecipeDetail]        = useState<any>(null);
   const [showRecipeDetail,    setShowRecipeDetail]    = useState(false);
   const [loadingRecipeDetail, setLoadingRecipeDetail] = useState(false);
+  const [editingGenericFor,   setEditingGenericFor]   = useState<string | null>(null);
+  const [genericNameInput,    setGenericNameInput]    = useState('');
+  const [savingGeneric,       setSavingGeneric]       = useState(false);
+
+  const saveGenericName = async (ingredientId: string) => {
+    setSavingGeneric(true);
+    try {
+      const res = await fetch(`/api/ingredients/${ingredientId}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ genericName: genericNameInput.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('一般名を更新しました（同じ食材を使う他のレシピにも反映されます）');
+        setRecipeDetail((prev: any) => prev && ({
+          ...prev,
+          ingredients: prev.ingredients.map((i: any) =>
+            i.ingredientId === ingredientId
+              ? { ...i, genericName: genericNameInput.trim() || null, genericNameConfirmed: true }
+              : i
+          ),
+        }));
+        setEditingGenericFor(null);
+      } else {
+        toast.error(data.error ?? '更新に失敗しました');
+      }
+    } catch { toast.error('通信エラー'); }
+    finally { setSavingGeneric(false); }
+  };
 
   // ▼ 初期マウント時にlocalStorageから設定を復元 (Hydration Mismatch防止)
   useEffect(() => {
@@ -481,14 +510,37 @@ export default function LabelsPage() {
                     {recipeDetail.qualityControl && <div><span className="font-medium text-stone-600">品質管理：</span>{recipeDetail.qualityControl}</div>}
                     {recipeDetail.notes && <div><span className="font-medium text-stone-600">メモ：</span>{recipeDetail.notes}</div>}
                     {recipeDetail.ingredients?.length > 0 && (
-                      <details>
+                      <details open>
                         <summary className="font-medium text-stone-600 cursor-pointer">原材料明細（{recipeDetail.ingredients.length}件）</summary>
-                        <ul className="mt-1 pl-4 list-disc space-y-0.5">
+                        <ul className="mt-1 pl-4 space-y-1.5">
                           {recipeDetail.ingredients.map((ing: any) => (
-                            <li key={ing.id}>
+                            <li key={ing.id} className="list-disc">
                               {ing.ingredientName} {ing.amount}{ing.unit}
                               {ing.originCountry ? `（${ing.originCountry}）` : ''}
                               {ing.isAdditive ? `［添加物：${ing.additiveReason ?? ''}］` : ''}
+                              {ing.ingredientId ? (
+                                editingGenericFor === ing.ingredientId ? (
+                                  <span className="flex items-center gap-1 mt-1">
+                                    <input type="text" value={genericNameInput} onChange={e => setGenericNameInput(e.target.value)}
+                                      placeholder="ラベル表示用の一般名（例:バター）" autoFocus
+                                      className="field-input py-1 text-xs w-48" />
+                                    <button type="button" disabled={savingGeneric} onClick={() => saveGenericName(ing.ingredientId)}
+                                      className="text-xs text-brand-600 font-medium disabled:opacity-50">保存</button>
+                                    <button type="button" onClick={() => setEditingGenericFor(null)}
+                                      className="text-xs text-stone-400">キャンセル</button>
+                                  </span>
+                                ) : (
+                                  <button type="button"
+                                    onClick={() => { setEditingGenericFor(ing.ingredientId); setGenericNameInput(ing.genericName ?? ''); }}
+                                    className="ml-2 text-xs text-brand-600 hover:underline">
+                                    {ing.genericName
+                                      ? `表示名: ${ing.genericName}${ing.genericNameConfirmed === false ? '（要確認）' : ''} を編集`
+                                      : '一般名を設定'}
+                                  </button>
+                                )
+                              ) : (
+                                <span className="ml-2 text-xs text-stone-400">（食材マスタ未リンクのため一般名は設定できません）</span>
+                              )}
                             </li>
                           ))}
                         </ul>

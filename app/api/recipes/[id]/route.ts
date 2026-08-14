@@ -25,7 +25,7 @@ export async function GET(_req: Request, { params }: Params) {
       ingredients: {
         orderBy: { displayOrder: 'asc' },
         include: {
-          ingredient: { select: { id: true, name: true, allergens: true, unitPrice: true } },
+          ingredient: { select: { id: true, name: true, allergens: true, unitPrice: true, genericName: true, genericNameConfirmed: true } },
         },
       },
       steps: { orderBy: { stepNumber: 'asc' } },
@@ -117,6 +117,8 @@ export async function GET(_req: Request, { params }: Params) {
         ingredientId:           ing.ingredientId,
         ingredientName:         ing.ingredient?.name ?? ing.ingredientNameOverride ?? '',
         ingredientNameOverride: ing.ingredientNameOverride,
+        genericName:            (ing.ingredient as any)?.genericName ?? null,
+        genericNameConfirmed:   (ing.ingredient as any)?.genericNameConfirmed ?? null,
         amount:                 Number(ing.amount),
         unit:                   ing.unit,
         displayOrder:           ing.displayOrder,

@@ -81,36 +81,47 @@ export async function GET(request: Request) {
     }
   }
 
-  const items = ingredients.map(ing => ({
-    id:              ing.id,
-    name:            ing.name,
-    nameKana:        ing.nameKana,
-    genericName:          (ing as any).genericName ?? null,
-    genericNameConfirmed: (ing as any).genericNameConfirmed ?? true,
-    allergens:       ing.allergens,
-    nutritionId:     ing.nutritionId,
-    nutritionVariant: ing.nutritionVariant,
-    purchaseUnitG:   ing.purchaseUnitG,
-    purchasePrice:   ing.purchasePrice  ? Number(ing.purchasePrice)  : null,
-    unitPrice:       ing.unitPrice      ? Number(ing.unitPrice)      : null,
-    storage:         ing.storage,
-    supplier:        ing.supplier,
-    ingredientCategoryId:   (ing as any).ingredientCategoryId ?? null,
-    ingredientCategoryName: categoryMap[ing.id]?.name || null,
-    isPublic:        ing.isPublic,
-    isOwnRecord:     ing.userId === session.user.id,
-    nutrition: ing.nutritionData ? {
-      energyKcal:     ing.energyKcalManual    != null ? Number(ing.energyKcalManual)    : (ing.nutritionData.energyKcal     != null ? Number(ing.nutritionData.energyKcal)     : null),
-      protein:        ing.proteinManual       != null ? Number(ing.proteinManual)       : (ing.nutritionData.protein        != null ? Number(ing.nutritionData.protein)        : null),
-      fat:            ing.fatManual           != null ? Number(ing.fatManual)           : (ing.nutritionData.fat            != null ? Number(ing.nutritionData.fat)            : null),
-      carbohydrate:   ing.carbohydrateManual  != null ? Number(ing.carbohydrateManual)  : (ing.nutritionData.carbohydrate   != null ? Number(ing.nutritionData.carbohydrate)   : null),
-      sodium:         ing.sodiumManual        != null ? Number(ing.sodiumManual)        : (ing.nutritionData.sodium         != null ? Number(ing.nutritionData.sodium)         : null),
-      saltEquivalent: ing.saltEquivalentManual != null ? Number(ing.saltEquivalentManual) : (ing.nutritionData.saltEquivalent != null ? Number(ing.nutritionData.saltEquivalent) : null),
-      dietaryFiber:   ing.dietaryFiberManual  != null ? Number(ing.dietaryFiberManual)  : (ing.nutritionData.dietaryFiber   != null ? Number(ing.nutritionData.dietaryFiber)   : null),
-      sugar:          ing.sugarManual         != null ? Number(ing.sugarManual)         : (ing.nutritionData.sugar          != null ? Number(ing.nutritionData.sugar)          : null),
-      cholesterol:    ing.cholesterolManual   != null ? Number(ing.cholesterolManual)   : (ing.nutritionData.cholesterol    != null ? Number(ing.nutritionData.cholesterol)    : null),
-    } : null,
-  }));
+  const items = ingredients.map(ing => {
+    // 成分表データ（nutritionData）にリンクしていなくても、手入力(Manual)値だけが
+    // 入っているケース（成分表に該当食品がない食材）があるため、どちらかがあれば nutrition を組み立てる。
+    // 以前は nutritionData が無いと問答無用で null にしていたため、手入力した栄養成分が
+    // 一覧にも編集画面にも反映されない（保存はされているのに表示されない）不具合があった。
+    const hasManual = [
+      ing.energyKcalManual, ing.proteinManual, ing.fatManual, ing.carbohydrateManual,
+      ing.sodiumManual, ing.saltEquivalentManual, ing.dietaryFiberManual, ing.sugarManual, ing.cholesterolManual,
+    ].some(v => v != null);
+
+    return {
+      id:              ing.id,
+      name:            ing.name,
+      nameKana:        ing.nameKana,
+      genericName:          (ing as any).genericName ?? null,
+      genericNameConfirmed: (ing as any).genericNameConfirmed ?? true,
+      allergens:       ing.allergens,
+      nutritionId:     ing.nutritionId,
+      nutritionVariant: ing.nutritionVariant,
+      purchaseUnitG:   ing.purchaseUnitG,
+      purchasePrice:   ing.purchasePrice  ? Number(ing.purchasePrice)  : null,
+      unitPrice:       ing.unitPrice      ? Number(ing.unitPrice)      : null,
+      storage:         ing.storage,
+      supplier:        ing.supplier,
+      ingredientCategoryId:   (ing as any).ingredientCategoryId ?? null,
+      ingredientCategoryName: categoryMap[ing.id]?.name || null,
+      isPublic:        ing.isPublic,
+      isOwnRecord:     ing.userId === session.user.id,
+      nutrition: (ing.nutritionData || hasManual) ? {
+        energyKcal:     ing.energyKcalManual    != null ? Number(ing.energyKcalManual)    : (ing.nutritionData?.energyKcal     != null ? Number(ing.nutritionData.energyKcal)     : null),
+        protein:        ing.proteinManual       != null ? Number(ing.proteinManual)       : (ing.nutritionData?.protein        != null ? Number(ing.nutritionData.protein)        : null),
+        fat:            ing.fatManual           != null ? Number(ing.fatManual)           : (ing.nutritionData?.fat            != null ? Number(ing.nutritionData.fat)            : null),
+        carbohydrate:   ing.carbohydrateManual  != null ? Number(ing.carbohydrateManual)  : (ing.nutritionData?.carbohydrate   != null ? Number(ing.nutritionData.carbohydrate)   : null),
+        sodium:         ing.sodiumManual        != null ? Number(ing.sodiumManual)        : (ing.nutritionData?.sodium         != null ? Number(ing.nutritionData.sodium)         : null),
+        saltEquivalent: ing.saltEquivalentManual != null ? Number(ing.saltEquivalentManual) : (ing.nutritionData?.saltEquivalent != null ? Number(ing.nutritionData.saltEquivalent) : null),
+        dietaryFiber:   ing.dietaryFiberManual  != null ? Number(ing.dietaryFiberManual)  : (ing.nutritionData?.dietaryFiber   != null ? Number(ing.nutritionData.dietaryFiber)   : null),
+        sugar:          ing.sugarManual         != null ? Number(ing.sugarManual)         : (ing.nutritionData?.sugar          != null ? Number(ing.nutritionData.sugar)          : null),
+        cholesterol:    ing.cholesterolManual   != null ? Number(ing.cholesterolManual)   : (ing.nutritionData?.cholesterol    != null ? Number(ing.nutritionData.cholesterol)    : null),
+      } : null,
+    };
+  });
 
   return NextResponse.json({ success: true, data: { items, total, page, perPage } });
 }

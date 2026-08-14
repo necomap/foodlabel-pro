@@ -72,7 +72,7 @@ export function generateLabelContent(
   // 栄養成分（1個あたり）
   const totalNutrition = recipe.nutrition;
   const perUnit = roundForDisplay(
-    calcPerUnit(totalNutrition, recipe.unitCount, Number(recipe.wasteRatio ?? 0))
+    calcPerUnit(totalNutrition, recipe.unitCount, Number((recipe as any).wasteRatio ?? 0))
   );
 
   // 未確認成分の警告

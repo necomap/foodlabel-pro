@@ -100,7 +100,15 @@ function IngredientSearch({ value, onChange, onSelect, onFocus, onBlur }: {
           {results.map(r => (
             <button key={r.id} type="button"
               className="w-full flex items-center justify-between px-3 py-2 hover:bg-cream-50 text-sm text-left"
-              onMouseDown={() => { onSelect({ ...r, nutritionUnconfirmed: !r.nutrition }); setOpen(false); onChange(r.name); }}>
+              onMouseDown={() => {
+                // 選択直後にvalueの変化で検索し直してドロップダウンが再度開いてしまい、
+                // すぐ下の「＋手入力食材として追加」を誤クリックしてしまう事故があったため、
+                // 選択時はuserTypedを落として再オープンを防ぐ
+                userTyped.current = false;
+                onSelect({ ...r, nutritionUnconfirmed: !r.nutrition });
+                setOpen(false);
+                onChange(r.name);
+              }}>
               <span className="font-medium text-stone-800">{r.name}</span>
               <span className="text-xs text-stone-400 flex items-center gap-2">
                 {r.nutrition?.energyKcal != null && <span><Flame className="inline w-3 h-3 text-orange-300" /> {r.nutrition.energyKcal}kcal/100g</span>}
@@ -108,11 +116,19 @@ function IngredientSearch({ value, onChange, onSelect, onFocus, onBlur }: {
               </span>
             </button>
           ))}
-          <button type="button"
-            className="w-full px-3 py-2 text-xs text-brand-600 hover:bg-brand-50 border-t border-cream-200 text-left"
-            onMouseDown={() => { onSelect({ id: '', name: value, allergens: [], unitPrice: null, nutrition: null, nutritionUnconfirmed: true }); setOpen(false); }}>
-            ＋ 「{value}」を手入力食材として追加（成分未確認）
-          </button>
+          {/* 入力中の名前が食材マスタの候補と完全一致する場合、手入力（未リンク・成分未確認）での重複登録は
+              紛らわしく事故のもとになるため「＋手入力食材として追加」を出さない */}
+          {!results.some(r => r.name.trim() === value.trim()) && (
+            <button type="button"
+              className="w-full px-3 py-2 text-xs text-brand-600 hover:bg-brand-50 border-t border-cream-200 text-left"
+              onMouseDown={() => {
+                userTyped.current = false;
+                onSelect({ id: '', name: value, allergens: [], unitPrice: null, nutrition: null, nutritionUnconfirmed: true });
+                setOpen(false);
+              }}>
+              ＋ 「{value}」を手入力食材として追加（成分未確認）
+            </button>
+          )}
         </div>
       )}
     </div>

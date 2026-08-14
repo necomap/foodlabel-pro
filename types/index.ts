@@ -82,7 +82,9 @@ export interface RecipeIngredientInput {
 
 export interface RecipeIngredientDetail extends RecipeIngredientInput {
   id:                     string;
-  ingredientName:         string;  // 解決済みの食材名
+  ingredientName:         string;  // 解決済みの食材名（食材マスタの登録名）
+  genericName?:           string | null;  // ラベル表示用の一般名（設定されていれば印字・一覧表示で優先）
+  genericNameConfirmed?:  boolean | null;
   costTotal:              number | null;
   nutrition:              NutritionValues;
   nutritionUnconfirmed:   boolean;

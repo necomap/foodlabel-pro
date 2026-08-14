@@ -252,7 +252,10 @@ export default function RecipeDetailPage() {
               <tr key={ing.id}>
                 <td>
                   <div className="flex items-center gap-2">
-                    <span className="font-medium">{ing.ingredientName}</span>
+                    <span className="font-medium">{ing.genericName || ing.ingredientName}</span>
+                    {ing.genericName && ing.genericName !== ing.ingredientName && (
+                      <span className="text-xs text-stone-400">（{ing.ingredientName}）</span>
+                    )}
                     {ing.nutritionUnconfirmed && (
                       <AlertTriangle className="w-3.5 h-3.5 text-yellow-500" aria-label="成分未確認" />
                     )}

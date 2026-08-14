@@ -42,19 +42,19 @@ export async function GET(_req: Request, { params }: Params) {
     return a.displayOrder - b.displayOrder;
   });
 
-  // アレルゲン集約
+  // アレルゲン集約（ラベル印刷時の判定〔app/api/labels/generate/route.ts〕と同じく、一般名優先で判定する）
   const allergenInfo = collectRecipeAllergens(
     sortedIngredients.map(ing => ({
       allergens:        ing.ingredient?.allergens ?? [],
       allergenOverride: ing.allergenOverride,
-      ingredientName:   ing.ingredient?.name ?? ing.ingredientNameOverride ?? '',
+      ingredientName:   (ing.ingredient as any)?.genericName || ing.ingredient?.name || ing.ingredientNameOverride || '',
     }))
   );
 
-  // 原材料表示テキスト
+  // 原材料表示テキスト（実際に印字される内容と一致するよう、一般名（ラベル表示用の名称）を優先）
   const ingredientsLabel = buildIngredientsLabel(
     sortedIngredients.map(ing => ({
-      ingredientName: ing.ingredient?.name ?? ing.ingredientNameOverride ?? '',
+      ingredientName: (ing.ingredient as any)?.genericName || ing.ingredient?.name || ing.ingredientNameOverride || '',
       amount:         Number(ing.amount),
       unit:           ing.unit,
       originCountry:  ing.originCountry ?? undefined,

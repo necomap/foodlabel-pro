@@ -51,7 +51,7 @@ const labelConfigSchema = z.object({
   barcodeHeightMm:  z.number().int().min(5).max(15).optional(),
   packageWidthMm:   z.number().positive().optional(),
   packageHeightMm:  z.number().positive().optional(),
-  recycleMarks:     z.array(z.enum(['plastic','paper','pet','steel','aluminum'])).optional(),
+  recycleMarks:     z.array(z.enum(['plastic','paper','pet','steel','aluminum','board'])).optional(),
 });
 
 export async function POST(request: Request) {

@@ -615,6 +615,7 @@ export default function LabelsPage() {
                   { key: 'pet',      label: 'PET' },
                   { key: 'steel',    label: 'スチール缶' },
                   { key: 'aluminum', label: 'アルミ缶' },
+                  { key: 'board',    label: '段ボール（任意）' },
                 ].map(m => (
                   <label key={m.key} className="flex items-center gap-1.5 text-sm cursor-pointer">
                     <input type="checkbox" checked={recycleMarks.includes(m.key)}
@@ -628,7 +629,7 @@ export default function LabelsPage() {
                   </label>
                 ))}
               </div>
-              <p className="field-hint">バーコードの隣に小さく印字されます（ラベルプリンタ・A4どちらでも表示されます。簡易的な再現版です）</p>
+              <p className="field-hint">バーコードの隣に小さく印字されます（ラベルプリンタ・A4どちらでも表示されます）。プラ・紙・PET・段ボールは公式マークの実データを反映済みです。スチール缶・アルミ缶は公式データ未入手のため、確認できるまで枠囲みの仮表示になります。</p>
             </div>
 
             {deviceType === 'LABEL_PRINTER' ? (

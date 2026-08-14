@@ -61,6 +61,7 @@ export async function GET(request: Request) {
       id:             r.id,
       name:           r.name,
       nameKana:       r.nameKana,
+      variationName:  (r as any).variationName ?? null,
       categoryName:   r.category?.name ?? null,
       unitCount:      r.unitCount,
       shelfLifeDays:  r.shelfLifeDays,
@@ -114,8 +115,11 @@ const ingredientSchema = z.object({
 const recipeSchema = z.object({
   name:             z.string().min(1, '品名を入力してください').max(200),
   nameKana:         z.string().max(200).optional(),
+  variationName:    z.string().max(100).optional(),
   categoryId:       z.string().optional(),
   unitCount:        z.number().int().positive().default(1),
+  moldType:         z.string().max(50).optional(),
+  wasteAmountG:     z.number().min(0).optional(),
   wasteRatio:       z.number().min(0).max(100).default(0),
   salePrice:        z.number().optional(),
   shelfLifeDays:    z.number().int().min(0).optional(),
@@ -253,7 +257,6 @@ export async function POST(request: Request) {
 
     // レシピ全体の栄養成分合計
     const totalNutrition = sumNutrition(ingredientDetails.map(i => ({ nutrition: i.nutrition })));
-    const perUnitNutrition = calcPerUnit(totalNutrition, data.unitCount);
 
     // 合計原価
     const totalCost   = ingredientDetails.reduce((s, i) => s + (i.costTotal ?? 0), 0);
@@ -262,6 +265,11 @@ export async function POST(request: Request) {
     const totalWeightG = ingredientDetails
       .filter(i => i.unit === 'g' || i.unit === 'ml')
       .reduce((s, i) => s + i.amount, 0);
+    const wasteAmountG = data.wasteAmountG ?? 0;
+    const wasteRatio = (totalWeightG > 0 && wasteAmountG > 0)
+      ? Math.round((wasteAmountG / totalWeightG) * 100 * 100) / 100
+      : 0;
+    const perUnitNutrition = calcPerUnit(totalNutrition, data.unitCount, wasteRatio);
 
     // DB保存
     const recipe = await prisma.recipe.create({
@@ -270,8 +278,11 @@ export async function POST(request: Request) {
         categoryId:     data.categoryId,
         name:           data.name,
         nameKana:       data.nameKana,
+        variationName:  data.variationName ?? null,
         unitCount:      data.unitCount,
-        wasteRatio:     data.wasteRatio,
+        moldType:       data.moldType ?? null,
+        wasteAmountG:   wasteAmountG || null,
+        wasteRatio:     wasteRatio,
         salePrice:      data.salePrice,
         shelfLifeDays:  data.shelfLifeDays,
         shelfLifeType:  data.shelfLifeType,

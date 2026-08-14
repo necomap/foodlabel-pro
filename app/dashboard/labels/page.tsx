@@ -8,13 +8,13 @@ import { useSearchParams } from 'next/navigation';
 import { Printer, RefreshCw, Settings, AlertTriangle, ChevronLeft, ChevronDown, Eye, Loader2, CheckCircle2, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-interface RecipeOption { id: string; name: string; shelfLifeDays: number | null; shelfLifeType: string; contentAmount: string | null; }
+interface RecipeOption { id: string; name: string; variationName?: string | null; shelfLifeDays: number | null; shelfLifeType: string; contentAmount: string | null; }
 interface ShopOption   { id: string; shopName: string; isDefault: boolean; }
 
 
 // レシピ検索付きセレクト
 function RecipeSearchSelect({ recipes, value, onChange }: {
-  recipes: Array<{id:string;name:string}>;
+  recipes: Array<{id:string;name:string;variationName?:string|null}>;
   value:    string;
   onChange: (v:string) => void;
 }) {
@@ -25,7 +25,9 @@ function RecipeSearchSelect({ recipes, value, onChange }: {
   return (
     <div className="relative">
       <div className="field-input flex items-center gap-2 cursor-pointer" onClick={() => setOpen(!open)}>
-        <span className={selected ? 'text-stone-800' : 'text-stone-400'}>{selected?.name ?? 'レシピを選択...'}</span>
+        <span className={selected ? 'text-stone-800' : 'text-stone-400'}>
+          {selected ? `${selected.name}${selected.variationName ? '　' + selected.variationName : ''}` : 'レシピを選択...'}
+        </span>
       </div>
       {open && (
         <div className="absolute z-50 mt-1 w-full bg-white border border-cream-300 rounded-xl shadow-warm-lg overflow-hidden">
@@ -43,6 +45,7 @@ function RecipeSearchSelect({ recipes, value, onChange }: {
                 className={`w-full text-left px-3 py-2 text-sm hover:bg-cream-50 ${value===r.id?'bg-brand-50 text-brand-700 font-medium':''}`}
                 onClick={() => { onChange(r.id); setOpen(false); setSearch(''); }}>
                 {r.name}
+                {r.variationName && <span className="text-stone-400 ml-1.5 font-normal">{r.variationName}</span>}
               </button>
             ))}
             {filtered.length === 0 && <p className="px-3 py-3 text-sm text-stone-400">見つかりません</p>}

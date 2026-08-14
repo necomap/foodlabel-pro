@@ -6,7 +6,7 @@ import { Plus, Search, Filter, AlertTriangle, ChevronRight, Flame, Tag, Trending
 import toast from 'react-hot-toast';
 
 interface RecipeSummary {
-  id: string; name: string; nameKana: string|null; categoryName: string|null;
+  id: string; name: string; nameKana: string|null; variationName: string|null; categoryName: string|null;
   unitCount: number; shelfLifeDays: number|null; shelfLifeType: string;
   salePrice: number|null; unitCost: number|null; costRate: number|null;
   energyKcal: number|null; saltEquivalent: number|null; totalWeightG: number|null;
@@ -190,6 +190,7 @@ export default function RecipesPage() {
                     <div className="flex-1 min-w-0 pr-3">
                       {recipe.readOnly && <span className="text-xs bg-stone-200 text-stone-500 px-1.5 py-0.5 rounded font-medium mb-0.5 inline-block">読取専用</span>}
                       <h3 className="font-semibold text-stone-800 truncate group-hover:text-brand-700 transition-colors">{recipe.name}</h3>
+                      {recipe.variationName && <p className="text-xs text-brand-600 truncate">{recipe.variationName}</p>}
                       {recipe.categoryName && <span className="text-xs text-stone-400">{recipe.categoryName}</span>}
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">

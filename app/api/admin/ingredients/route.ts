@@ -16,20 +16,62 @@ export async function GET(request: Request) {
 
   const ingredients = await prisma.ingredient.findMany({
     where,
-    include: { user: { select: { email: true } } },
+    include: {
+      user: { select: { email: true } },
+      nutritionData: {
+        select: {
+          foodName: true,
+          energyKcal: true, protein: true, fat: true,
+          carbohydrate: true, saltEquivalent: true,
+        },
+      },
+    },
     orderBy: { createdAt: 'desc' },
     take: 50,
   });
 
+  // 承認前に食材カテゴリ名も確認できるようにraw queryで取得
+  const ingIds = ingredients.map((i: any) => i.id);
+  let categoryMap: Record<string, string> = {};
+  if (ingIds.length > 0) {
+    try {
+      const catRows = await prisma.$queryRaw`
+        SELECT i.id::text as ingredient_id, ic.name as cat_name
+        FROM ingredients i
+        LEFT JOIN ingredient_categories ic ON ic.id = i."ingredientCategoryId"::uuid
+        WHERE i.id::text = ANY(${ingIds})
+      ` as Array<{ ingredient_id: string; cat_name: string | null }>;
+      for (const row of catRows) if (row.cat_name) categoryMap[row.ingredient_id] = row.cat_name;
+    } catch {
+      // ingredient_categories テーブルがまだない場合は無視
+    }
+  }
+
   return NextResponse.json({
     success: true,
-    data: ingredients.map((i: any) => ({
-      id:        i.id,
-      name:      i.name,
-      userId:    i.userId,
-      userEmail: i.user?.email,
-      allergens: i.allergens,
-      createdAt: i.createdAt,
-    })),
+    data: ingredients.map((i: any) => {
+      const hasManual = [
+        i.energyKcalManual, i.proteinManual, i.fatManual, i.carbohydrateManual, i.saltEquivalentManual,
+      ].some((v: any) => v != null);
+      return {
+        id:              i.id,
+        name:            i.name,
+        genericName:     i.genericName ?? null,
+        userId:          i.userId,
+        userEmail:       i.user?.email,
+        allergens:       i.allergens,
+        categoryName:    categoryMap[i.id] ?? null,
+        createdAt:       i.createdAt,
+        nutritionSource: i.nutritionData ? '成分表リンク' : (hasManual ? '手入力' : '未設定'),
+        nutritionLinkedFoodName: i.nutritionData?.foodName ?? null,
+        nutrition: (i.nutritionData || hasManual) ? {
+          energyKcal:     i.energyKcalManual    != null ? Number(i.energyKcalManual)    : (i.nutritionData?.energyKcal     != null ? Number(i.nutritionData.energyKcal)     : null),
+          protein:        i.proteinManual       != null ? Number(i.proteinManual)       : (i.nutritionData?.protein        != null ? Number(i.nutritionData.protein)        : null),
+          fat:            i.fatManual           != null ? Number(i.fatManual)           : (i.nutritionData?.fat            != null ? Number(i.nutritionData.fat)            : null),
+          carbohydrate:   i.carbohydrateManual  != null ? Number(i.carbohydrateManual)  : (i.nutritionData?.carbohydrate   != null ? Number(i.nutritionData.carbohydrate)   : null),
+          saltEquivalent: i.saltEquivalentManual != null ? Number(i.saltEquivalentManual) : (i.nutritionData?.saltEquivalent != null ? Number(i.nutritionData.saltEquivalent) : null),
+        } : null,
+      };
+    }),
   });
 }

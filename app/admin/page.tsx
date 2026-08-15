@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   Users, ShoppingBasket, FileText, Shield, Loader2,
   CheckCircle2, XCircle, RefreshCw, Upload, Database, Tag,
+  ChevronDown, ChevronUp, FlaskConical, AlertTriangle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -14,8 +15,10 @@ interface Stats {
   totalRecipes: number; totalIngredients: number; pendingIngredients: number;
 }
 interface PendingIngredient {
-  id: string; name: string; userId: string; userEmail?: string;
-  allergens: string[]; createdAt: string;
+  id: string; name: string; genericName: string|null; userId: string; userEmail?: string;
+  allergens: string[]; categoryName: string|null; createdAt: string;
+  nutritionSource: string; nutritionLinkedFoodName: string|null;
+  nutrition: { energyKcal:number|null; protein:number|null; fat:number|null; carbohydrate:number|null; saltEquivalent:number|null; } | null;
 }
 
 export default function AdminPage() {
@@ -143,22 +146,7 @@ export default function AdminPage() {
         ) : (
           <div className="space-y-3">
             {pending.map(ing => (
-              <div key={ing.id} className="flex items-center justify-between p-3 bg-cream-50 rounded-xl">
-                <div>
-                  <span className="font-medium text-stone-800">{ing.name}</span>
-                  {ing.userEmail && <span className="text-xs text-stone-400 ml-2">by {ing.userEmail}</span>}
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => approveIngredient(ing.id, true)}
-                    className="flex items-center gap-1 text-sm text-green-700 bg-green-100 hover:bg-green-200 px-3 py-1.5 rounded-lg">
-                    <CheckCircle2 className="w-4 h-4" />承認
-                  </button>
-                  <button onClick={() => approveIngredient(ing.id, false)}
-                    className="flex items-center gap-1 text-sm text-red-700 bg-red-100 hover:bg-red-200 px-3 py-1.5 rounded-lg">
-                    <XCircle className="w-4 h-4" />却下
-                  </button>
-                </div>
-              </div>
+              <PendingIngredientCard key={ing.id} ing={ing} onApprove={approveIngredient} />
             ))}
           </div>
         )}
@@ -180,6 +168,69 @@ export default function AdminPage() {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+const REQUIRED_ALLERGENS = ['えび','かに','小麦','そば','卵','乳','落花生','くるみ'];
+
+function PendingIngredientCard({ ing, onApprove }: { ing: PendingIngredient; onApprove: (id:string, approve:boolean)=>void }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="bg-cream-50 rounded-xl overflow-hidden">
+      <div className="flex items-center justify-between p-3">
+        <button onClick={()=>setOpen(o=>!o)} className="flex-1 text-left flex items-center gap-2 min-w-0">
+          {open ? <ChevronUp className="w-4 h-4 text-stone-400 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-stone-400 flex-shrink-0" />}
+          <div className="min-w-0">
+            <span className="font-medium text-stone-800">{ing.name}</span>
+            {ing.genericName && ing.genericName !== ing.name && (
+              <span className="text-xs text-brand-600 ml-2">表示名: {ing.genericName}</span>
+            )}
+            {ing.userEmail && <span className="text-xs text-stone-400 ml-2">by {ing.userEmail}</span>}
+          </div>
+        </button>
+        <div className="flex gap-2 flex-shrink-0">
+          <button onClick={() => onApprove(ing.id, true)}
+            className="flex items-center gap-1 text-sm text-green-700 bg-green-100 hover:bg-green-200 px-3 py-1.5 rounded-lg">
+            <CheckCircle2 className="w-4 h-4" />承認
+          </button>
+          <button onClick={() => onApprove(ing.id, false)}
+            className="flex items-center gap-1 text-sm text-red-700 bg-red-100 hover:bg-red-200 px-3 py-1.5 rounded-lg">
+            <XCircle className="w-4 h-4" />却下
+          </button>
+        </div>
+      </div>
+      {open && (
+        <div className="px-3 pb-3 pt-0 space-y-2 text-sm border-t border-cream-200 mt-0.5">
+          <div className="grid sm:grid-cols-2 gap-2 pt-2.5">
+            <div>
+              <span className="text-xs text-stone-400 block">カテゴリ</span>
+              {ing.categoryName ? <span className="badge badge-brand text-xs">{ing.categoryName}</span> : <span className="text-stone-300 text-xs">未設定</span>}
+            </div>
+            <div>
+              <span className="text-xs text-stone-400 block">アレルゲン</span>
+              {ing.allergens.length > 0 ? (
+                <div className="flex flex-wrap gap-1 mt-0.5">
+                  {ing.allergens.map(a => <span key={a} className={`badge text-[10px] ${REQUIRED_ALLERGENS.includes(a)?'badge-red':'badge-yellow'}`}>{a}</span>)}
+                </div>
+              ) : <span className="text-stone-300 text-xs">なし</span>}
+            </div>
+          </div>
+          <div>
+            <span className="text-xs text-stone-400 block mb-0.5">栄養成分（100gあたり・{ing.nutritionSource}{ing.nutritionLinkedFoodName ? `: ${ing.nutritionLinkedFoodName}` : ''}）</span>
+            {ing.nutrition ? (
+              <div className="flex items-center gap-1 text-stone-600 text-xs">
+                <FlaskConical className="w-3.5 h-3.5 text-orange-400" />
+                熱量{ing.nutrition.energyKcal ?? '—'}kcal ／ たんぱく質{ing.nutrition.protein ?? '—'}g ／ 脂質{ing.nutrition.fat ?? '—'}g ／ 炭水化物{ing.nutrition.carbohydrate ?? '—'}g ／ 食塩相当量{ing.nutrition.saltEquivalent ?? '—'}g
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 text-yellow-600 text-xs"><AlertTriangle className="w-3.5 h-3.5" />未設定（栄養成分表示ができません）</div>
+            )}
+          </div>
+          <p className="text-xs text-stone-400">申請日時: {new Date(ing.createdAt).toLocaleString('ja-JP')}</p>
+        </div>
+      )}
     </div>
   );
 }

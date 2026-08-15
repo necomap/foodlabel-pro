@@ -25,16 +25,20 @@ export async function PUT(request: Request, { params }: Params) {
   // 「キーはあるが値がnull／空＝明示的にクリアされた」だけを更新するようにする（?? ではなく !== undefined で判定）。
   const nameKana = body.nameKana !== undefined ? body.nameKana : ing.nameKana;
 
+  // purchasePrice/unitPrice はPrismaのDecimal型なので、既存値をフォールバックに使う際は
+  // Number()で通常の数値に変換する（Decimalのまま演算・代入しようとすると型エラーになるため）。
   const purchaseTouched = body.purchaseUnitG !== undefined || body.purchasePrice !== undefined;
   const purchaseUnitG = body.purchaseUnitG !== undefined ? body.purchaseUnitG : ing.purchaseUnitG;
-  const purchasePrice = body.purchasePrice !== undefined ? body.purchasePrice : ing.purchasePrice;
+  const purchasePrice = body.purchasePrice !== undefined
+    ? body.purchasePrice
+    : (ing.purchasePrice != null ? Number(ing.purchasePrice) : null);
   let unitPrice: number | null | undefined;
   if (purchaseUnitG && purchasePrice) {
     unitPrice = purchasePrice / purchaseUnitG;
   } else if (purchaseTouched) {
     unitPrice = null; // 単価を計算できなくなった（どちらかがクリアされた）ので単価もクリア
   } else {
-    unitPrice = ing.unitPrice;
+    unitPrice = ing.unitPrice != null ? Number(ing.unitPrice) : null;
   }
 
   const allergens = body.allergens?.length

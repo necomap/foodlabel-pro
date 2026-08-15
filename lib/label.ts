@@ -409,15 +409,15 @@ export function generateLabelHtml(
   <div style="margin-bottom:0.3mm;">
     <span style="font-weight:bold;">保存方法：</span>${escHtml(content.storageMethod)}
   </div>
-  <!-- 栄養成分 -->
-  <div style="border:0.3mm solid #ccc; padding:0.5mm 1mm; margin-bottom:0.3mm;">
+  <!-- 栄養成分（表示可能面積が小さいなど、食品表示基準上の省略要件を満たす場合はOFFにできる） -->
+  ${config.displaySettings?.showNutrition !== false ? `<div style="border:0.3mm solid #ccc; padding:0.5mm 1mm; margin-bottom:0.3mm;">
     <div style="font-weight:bold; margin-bottom:0.2mm;">
       栄養成分表示（${escHtml(content.nutritionPerUnit.label)}）${content.isEstimated ? '※推定値' : ''}
     </div>
     <table style="width:100%; border-collapse:collapse;">
       ${nutritionRowsHtml}
     </table>
-  </div>
+  </div>` : ''}
   <!-- 注意事項（コメント＋お客様へのお願い） -->
   ${(content.comment || content.qualityControl) ? `<div style="border:0.3mm solid #ccc; padding:0.5mm 1mm; margin-bottom:0.3mm;">
     ${content.comment ? `<div>${escHtml(content.comment)}</div>` : ''}

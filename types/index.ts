@@ -186,6 +186,10 @@ export interface LabelDisplaySettings {
 export interface LabelConfig {
   logoHeightMm?: number;
   qrSizeMm?:     number;
+  // シールサイズが小さいときなど、店舗設定（ロゴURL・QR URL）自体は残したまま
+  // この印刷ジョブだけで一時的に非表示にするためのスイッチ（バーコードのshowBarcodeと同様）
+  showLogo?:     boolean;
+  showQr?:       boolean;
   recipeId?:        string;
   shopId?:         string;
   manufactureDate?: string;  // YYYY-MM-DD

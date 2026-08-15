@@ -112,8 +112,13 @@ export default function LabelsPage() {
   const [showCholest,  setShowCholest]  = useState(false);
   const [showComment,  setShowComment]  = useState(true);
   const [showQC,       setShowQC]       = useState(true);
+  // 表示可能面積が小さい場合など、栄養成分表示自体を省略できるようにする（食品表示基準上、一定面積以下は省略可）
+  const [showNutrition, setShowNutrition] = useState(true);
   const [logoHeightMm,   setLogoHeightMm]   = useState(8);
   const [qrSizeMm,       setQrSizeMm]       = useState(6);
+  // シールサイズが小さい場合など、店舗設定（ロゴ/QR URL）を消さずにこの印刷ジョブだけ一時的に非表示にする
+  const [showLogo, setShowLogo] = useState(true);
+  const [showQr,   setShowQr]   = useState(true);
   const [showBarcode,     setShowBarcode]     = useState(true);
   const [barcodeHeightMm, setBarcodeHeightMm] = useState(7);
   const [showBarcodeText, setShowBarcodeText] = useState(true);
@@ -211,8 +216,11 @@ export default function LabelsPage() {
     setShowCholest(getB('showCholest', false));
     setShowComment(getB('showComment', true));
     setShowQC(getB('showQC', true));
+    setShowNutrition(getB('showNutrition', true));
     if (getL('logoHeightMm'))    setLogoHeightMm(Number(getL('logoHeightMm')));
     if (getL('qrSizeMm'))        setQrSizeMm(Number(getL('qrSizeMm')));
+    if (getL('showLogo') !== null) setShowLogo(getL('showLogo') !== 'false');
+    if (getL('showQr')   !== null) setShowQr(getL('showQr') !== 'false');
     if (getL('showBarcode') !== null)     setShowBarcode(getL('showBarcode') !== 'false');
     if (getL('barcodeHeightMm'))          setBarcodeHeightMm(Number(getL('barcodeHeightMm')));
     if (getL('recycleMarks'))             { try { setRecycleMarks(JSON.parse(getL('recycleMarks')!)); } catch {} }
@@ -324,13 +332,15 @@ export default function LabelsPage() {
         }),
         displaySettings: {
           showPostalCode, showPhone, showRepresentative: showRep, showEmail: false,
-          showNutrition: true, showDietaryFiber: showFiber,
+          showNutrition, showDietaryFiber: showFiber,
           showSugar, showCholesterol: showCholest,
           showQualityControl: showQC, showComment,
           nutritionNote: '※推定値',
         },
         logoHeightMm,
         qrSizeMm,
+        showLogo,
+        showQr,
         showBarcode,
         barcodeHeightMm,
         recycleMarks: recycleMarks.map(key => ({ key, role: recycleMarkRoles[key]?.trim() || undefined })),
@@ -392,13 +402,15 @@ export default function LabelsPage() {
         }),
         displaySettings: {
           showPostalCode, showPhone, showRepresentative: showRep, showEmail: false,
-          showNutrition: true, showDietaryFiber: showFiber,
+          showNutrition, showDietaryFiber: showFiber,
           showSugar, showCholesterol: showCholest,
           showQualityControl: showQC, showComment,
           nutritionNote: '※推定値',
         },
         logoHeightMm,
         qrSizeMm,
+        showLogo,
+        showQr,
         showBarcode,
         barcodeHeightMm,
         recycleMarks: recycleMarks.map(key => ({ key, role: recycleMarkRoles[key]?.trim() || undefined })),
@@ -740,6 +752,8 @@ export default function LabelsPage() {
           <div className="card space-y-3">
             <h2 className="section-title">表示項目設定</h2>
             {[
+              { label: '栄養成分表示を表示', value: showNutrition, onChange: (v:boolean)=>{setShowNutrition(v);localStorage.setItem('label_showNutrition',String(v));},
+                note: `現在の表示可能面積は約${computeDisplayAreaCm2().toFixed(1)}cm²です。食品表示基準上、表示可能面積が30cm²以下の場合は栄養成分表示を省略できます（詳細は最新の基準をご確認ください）。シールが小さいときはOFFにできます。` },
               { label: '郵便番号を表示', value: showPostalCode, onChange: (v:boolean)=>{setShowPostalCode(v);localStorage.setItem('label_showPostalCode',String(v));} },
               { label: '電話番号を表示', value: showPhone,   onChange: (v:boolean)=>{setShowPhone(v);localStorage.setItem('label_showPhone',String(v));} },
               { label: '代表者名を表示', value: showRep,     onChange: (v:boolean)=>{setShowRep(v);localStorage.setItem('label_showRep',String(v));}, note: '個人事業主は法的義務を確認してください' },
@@ -763,21 +777,34 @@ export default function LabelsPage() {
           {/* ロゴ・QRサイズ調整 */}
           <div className="card space-y-3">
             <h2 className="section-title">ロゴ・QRコード・バーコード</h2>
-            <div>
-              <label className="field-label">ロゴの高さ: {logoHeightMm}mm</label>
-              <input type="range" min="4" max="20" value={logoHeightMm}
-                onChange={e => { setLogoHeightMm(Number(e.target.value)); localStorage.setItem('label_logoHeightMm', e.target.value); }}
-                className="w-full accent-brand-500" />
-              <div className="flex justify-between text-xs text-stone-400"><span>4mm</span><span>20mm</span></div>
-            </div>
-            <div>
-              <label className="field-label">QRコードサイズ: {qrSizeMm}mm</label>
-              <input type="range" min="4" max="20" value={qrSizeMm}
-                onChange={e => { setQrSizeMm(Number(e.target.value)); localStorage.setItem('label_qrSizeMm', e.target.value); }}
-                className="w-full accent-brand-500" />
-              <div className="flex justify-between text-xs text-stone-400"><span>4mm（小）</span><span>20mm（大）</span></div>
-              <p className="text-xs text-amber-600 mt-1">※6mm未満はスマホで読み込めない場合があります</p>
-            </div>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={showLogo} onChange={e => { setShowLogo(e.target.checked); localStorage.setItem('label_showLogo', String(e.target.checked)); }} className="accent-brand-500" />
+              <span className="text-sm font-medium text-stone-700">ロゴを表示</span>
+            </label>
+            {showLogo && (
+              <div>
+                <label className="field-label">ロゴの高さ: {logoHeightMm}mm</label>
+                <input type="range" min="4" max="20" value={logoHeightMm}
+                  onChange={e => { setLogoHeightMm(Number(e.target.value)); localStorage.setItem('label_logoHeightMm', e.target.value); }}
+                  className="w-full accent-brand-500" />
+                <div className="flex justify-between text-xs text-stone-400"><span>4mm</span><span>20mm</span></div>
+              </div>
+            )}
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={showQr} onChange={e => { setShowQr(e.target.checked); localStorage.setItem('label_showQr', String(e.target.checked)); }} className="accent-brand-500" />
+              <span className="text-sm font-medium text-stone-700">QRコードを表示</span>
+            </label>
+            {showQr && (
+              <div>
+                <label className="field-label">QRコードサイズ: {qrSizeMm}mm</label>
+                <input type="range" min="4" max="20" value={qrSizeMm}
+                  onChange={e => { setQrSizeMm(Number(e.target.value)); localStorage.setItem('label_qrSizeMm', e.target.value); }}
+                  className="w-full accent-brand-500" />
+                <div className="flex justify-between text-xs text-stone-400"><span>4mm（小）</span><span>20mm（大）</span></div>
+                <p className="text-xs text-amber-600 mt-1">※6mm未満はスマホで読み込めない場合があります</p>
+              </div>
+            )}
+            <p className="text-xs text-stone-400">ロゴ・QRコードのURL自体は設定画面のまま保持されます。シールサイズが小さいときなど、この印刷ジョブだけ一時的に非表示にしたい場合はチェックを外してください。</p>
             <label className="flex items-center gap-3 cursor-pointer">
               <input type="checkbox" checked={showBarcode} onChange={e => { setShowBarcode(e.target.checked); localStorage.setItem('label_showBarcode', String(e.target.checked)); }} className="accent-brand-500" />
               <span className="text-sm font-medium text-stone-700">バーコードを表示</span>

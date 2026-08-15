@@ -50,6 +50,8 @@ const labelConfigSchema = z.object({
   }).optional(),
   logoHeightMm:     z.number().int().min(4).max(20).optional(),
   qrSizeMm:         z.number().int().min(4).max(20).optional(),
+  showLogo:         z.boolean().optional(),
+  showQr:           z.boolean().optional(),
   showBarcode:      z.boolean().optional(),
   showBarcodeText:  z.boolean().optional(),
   barcodeHeightMm:  z.number().int().min(5).max(15).optional(),
@@ -314,6 +316,10 @@ export async function POST(request: Request) {
   const labelConfig: LabelConfig = {
     ...config,
     displaySettings: config.displaySettings ?? getDefaultDisplaySettings(),
+    // zodスキーマ上 key は必須（z.enum、.optional()なし）だが、型推論の都合で
+    // key?: ... という型になりビルドエラーになるため、ここで明示的に組み直す
+    // （実行時はzodのバリデーションでkey未設定のデータは弾かれるので安全）
+    recycleMarks: (config.recycleMarks ?? []).map(m => ({ key: m.key!, role: m.role })),
   };
 
   // フロントエンドからサイズ指定がある場合は上書き
@@ -328,6 +334,10 @@ export async function POST(request: Request) {
   (recipeDetail as any).recycleMarkHeightMm = (labelConfig as any).recycleMarkHeightMm ?? 8;
 
   const content = generateLabelContent(recipeDetail, labelConfig, shopInfo);
+  // シールサイズが小さい場合など、店舗設定のロゴ/QR URL自体は残したまま
+  // この印刷ジョブだけで一時的に非表示にできるようにする（設定側の削除は不要）
+  if (labelConfig.showLogo === false) content.logoUrl = null;
+  if (labelConfig.showQr   === false) content.qrUrl   = null;
   const html    = generateLabelHtml(content, labelConfig, body.isPreview === true);
 
   // 印刷履歴を保存

@@ -117,7 +117,10 @@ export default function LabelsPage() {
   const [showBarcode,     setShowBarcode]     = useState(true);
   const [barcodeHeightMm, setBarcodeHeightMm] = useState(7);
   const [showBarcodeText, setShowBarcodeText] = useState(true);
-  const [recycleMarks,    setRecycleMarks]    = useState<string[]>([]);
+  // 識別マーク（リサイクルマーク）：選択中のマーク一覧・マークごとの役割名・マーク自体のサイズ（バーコードとは別設定）
+  const [recycleMarks,        setRecycleMarks]        = useState<string[]>([]);
+  const [recycleMarkRoles,    setRecycleMarkRoles]    = useState<Record<string,string>>({});
+  const [recycleMarkHeightMm, setRecycleMarkHeightMm] = useState(8);
 
   // 表示可能面積（法令上の文字サイズ下限判定用・任意入力）
   const [packageWidthMm,  setPackageWidthMm]  = useState('');
@@ -213,6 +216,8 @@ export default function LabelsPage() {
     if (getL('showBarcode') !== null)     setShowBarcode(getL('showBarcode') !== 'false');
     if (getL('barcodeHeightMm'))          setBarcodeHeightMm(Number(getL('barcodeHeightMm')));
     if (getL('recycleMarks'))             { try { setRecycleMarks(JSON.parse(getL('recycleMarks')!)); } catch {} }
+    if (getL('recycleMarkRoles'))         { try { setRecycleMarkRoles(JSON.parse(getL('recycleMarkRoles')!)); } catch {} }
+    if (getL('recycleMarkHeightMm'))      setRecycleMarkHeightMm(Number(getL('recycleMarkHeightMm')));
     if (getL('showBarcodeText') !== null) setShowBarcodeText(getL('showBarcodeText') !== 'false');
     if (getL('packageWidthMm') !== null)  setPackageWidthMm(getL('packageWidthMm')!);
     if (getL('packageHeightMm') !== null) setPackageHeightMm(getL('packageHeightMm')!);
@@ -328,7 +333,8 @@ export default function LabelsPage() {
         qrSizeMm,
         showBarcode,
         barcodeHeightMm,
-        recycleMarks,
+        recycleMarks: recycleMarks.map(key => ({ key, role: recycleMarkRoles[key]?.trim() || undefined })),
+        recycleMarkHeightMm,
         showBarcodeText,
         packageWidthMm:  packageWidthMm  ? parseFloat(packageWidthMm)  : undefined,
         packageHeightMm: packageHeightMm ? parseFloat(packageHeightMm) : undefined,
@@ -395,7 +401,8 @@ export default function LabelsPage() {
         qrSizeMm,
         showBarcode,
         barcodeHeightMm,
-        recycleMarks,
+        recycleMarks: recycleMarks.map(key => ({ key, role: recycleMarkRoles[key]?.trim() || undefined })),
+        recycleMarkHeightMm,
         showBarcodeText,
         packageWidthMm:  packageWidthMm  ? parseFloat(packageWidthMm)  : undefined,
         packageHeightMm: packageHeightMm ? parseFloat(packageHeightMm) : undefined,
@@ -617,26 +624,50 @@ export default function LabelsPage() {
 
             <div>
               <label className="field-label">識別マーク（リサイクルマーク）</label>
-              <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-1">
+              <div className="flex flex-col gap-2 mt-1">
                 {[
-                  { key: 'plastic',  label: 'プラ' },
-                  { key: 'paper',    label: '紙' },
-                  { key: 'pet',      label: 'PET' },
-                  { key: 'steel',    label: 'スチール缶' },
-                  { key: 'aluminum', label: 'アルミ缶' },
-                  { key: 'board',    label: '段ボール（任意）' },
-                ].map(m => (
-                  <label key={m.key} className="flex items-center gap-1.5 text-sm cursor-pointer">
-                    <input type="checkbox" checked={recycleMarks.includes(m.key)}
-                      onChange={e => {
-                        const next = e.target.checked ? [...recycleMarks, m.key] : recycleMarks.filter(k => k !== m.key);
-                        setRecycleMarks(next);
-                        localStorage.setItem('label_recycleMarks', JSON.stringify(next));
-                      }}
-                      className="accent-brand-500" />
-                    {m.label}
-                  </label>
-                ))}
+                  { key: 'plastic',  label: 'プラ',       rolePlaceholder: '例：袋' },
+                  { key: 'paper',    label: '紙',         rolePlaceholder: '例：外箱' },
+                  { key: 'pet',      label: 'PET',        rolePlaceholder: '例：容器' },
+                  { key: 'steel',    label: 'スチール缶',  rolePlaceholder: '例：缶' },
+                  { key: 'aluminum', label: 'アルミ缶',    rolePlaceholder: '例：缶' },
+                  { key: 'board',    label: '段ボール（任意）', rolePlaceholder: '例：外箱' },
+                ].map(m => {
+                  const checked = recycleMarks.includes(m.key);
+                  return (
+                    <div key={m.key} className="flex items-center gap-2">
+                      <label className="flex items-center gap-1.5 text-sm cursor-pointer w-32 flex-shrink-0">
+                        <input type="checkbox" checked={checked}
+                          onChange={e => {
+                            const next = e.target.checked ? [...recycleMarks, m.key] : recycleMarks.filter(k => k !== m.key);
+                            setRecycleMarks(next);
+                            localStorage.setItem('label_recycleMarks', JSON.stringify(next));
+                          }}
+                          className="accent-brand-500" />
+                        {m.label}
+                      </label>
+                      {checked && (
+                        <input type="text" value={recycleMarkRoles[m.key] ?? ''} placeholder={m.rolePlaceholder}
+                          maxLength={20}
+                          onChange={e => {
+                            const next = { ...recycleMarkRoles, [m.key]: e.target.value };
+                            setRecycleMarkRoles(next);
+                            localStorage.setItem('label_recycleMarkRoles', JSON.stringify(next));
+                          }}
+                          className="field-input py-1 text-sm flex-1" />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="field-hint">マークの下に、何を分別すればよいか（外箱・袋など）を役割名として任意で印字できます。</p>
+              <div className="mt-3">
+                <label className="field-label">識別マークのサイズ: {recycleMarkHeightMm}mm</label>
+                <input type="range" min="6" max="20" value={recycleMarkHeightMm}
+                  onChange={e => { setRecycleMarkHeightMm(Number(e.target.value)); localStorage.setItem('label_recycleMarkHeightMm', e.target.value); }}
+                  className="w-full accent-brand-500" />
+                <div className="flex justify-between text-xs text-stone-400"><span>6mm（法令上の最小）</span><span>20mm</span></div>
+                <p className="field-hint">バーコードとは別に、マーク自体の大きさを指定できます。識別マークは法令上、マーク単体で6mm以上必要です。</p>
               </div>
               <p className="field-hint">バーコードの隣に小さく印字されます（ラベルプリンタ・A4どちらでも表示されます）。</p>
             </div>

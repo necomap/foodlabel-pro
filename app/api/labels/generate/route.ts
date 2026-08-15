@@ -55,7 +55,13 @@ const labelConfigSchema = z.object({
   barcodeHeightMm:  z.number().int().min(5).max(15).optional(),
   packageWidthMm:   z.number().positive().optional(),
   packageHeightMm:  z.number().positive().optional(),
-  recycleMarks:     z.array(z.enum(['plastic','paper','pet','steel','aluminum','board'])).optional(),
+  // 識別マーク（リサイクルマーク）。バーコードとは別にサイズ指定できる。
+  // マークは法令上単体で6mm以上必要なため下限をスキーマ側でも強制する（実際の描画側でも再度クランプする）。
+  recycleMarks: z.array(z.object({
+    key:  z.enum(['plastic','paper','pet','steel','aluminum','board']),
+    role: z.string().max(20).optional(),
+  })).optional(),
+  recycleMarkHeightMm: z.number().min(6).max(30).optional(),
 });
 
 export async function POST(request: Request) {
@@ -318,7 +324,8 @@ export async function POST(request: Request) {
   (recipeDetail as any).showBarcode     = labelConfig.showBarcode !== false;
   (recipeDetail as any).showBarcodeText  = labelConfig.showBarcodeText !== false;
   (recipeDetail as any).barcodeHeightMm = labelConfig.barcodeHeightMm ?? 7;
-  (recipeDetail as any).recycleMarks    = Array.isArray((labelConfig as any).recycleMarks) ? (labelConfig as any).recycleMarks : [];
+  (recipeDetail as any).recycleMarks        = Array.isArray((labelConfig as any).recycleMarks) ? (labelConfig as any).recycleMarks : [];
+  (recipeDetail as any).recycleMarkHeightMm = (labelConfig as any).recycleMarkHeightMm ?? 8;
 
   const content = generateLabelContent(recipeDetail, labelConfig, shopInfo);
   const html    = generateLabelHtml(content, labelConfig, body.isPreview === true);

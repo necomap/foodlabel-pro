@@ -139,8 +139,10 @@ export function generateLabelContent(
     showBarcode:     (recipe as any).showBarcode !== false,
     showBarcodeText: (recipe as any).showBarcodeText !== false,
     barcodeHeightMm: (recipe as any).barcodeHeightMm ?? 7,
-    barcodeHeightPx: 300,  // 高解像度で取得してCSSでリサイズ
-    ...( { recycleMarks: (recipe as any).recycleMarks ?? [] } as any ),
+    // 識別マーク（リサイクルマーク）はバーコードとは別にサイズ設定できる。
+    // マーク単体で6mm以上必要という法令上の要件があるため、下限を強制的にクランプする。
+    recycleMarks:        (recipe as any).recycleMarks ?? [],
+    recycleMarkHeightMm: Math.max((recipe as any).recycleMarkHeightMm ?? 8, 6),
   };
 }
 
@@ -272,20 +274,30 @@ const RECYCLE_MARK_DEFS: Record<string, RecycleMarkDef> = {
   },
 };
 
-function buildRecycleMarkSvg(markKey: string, heightMm: number): string {
+/**
+ * 識別マーク（リサイクルマーク）1個分のSVGを生成する
+ * @param markKey    マーク種別（plastic/paper/pet/board/steel/aluminum）
+ * @param iconHeightMm マーク本体（アイコン部分）の高さ。役割名キャプションの分は含まない。
+ *                     識別マークは法令上マーク単体で6mm以上必要なため、この値自体を
+ *                     キャプション用に削ってはいけない（呼び出し側で6mm以上を保証すること）。
+ * @param roleText   マークの下に表示する任意の役割名（例:「外箱」「袋」）
+ */
+function buildRecycleMarkSvg(markKey: string, iconHeightMm: number, roleText?: string): string {
   const def = RECYCLE_MARK_DEFS[markKey];
   if (!def) return '';
-  // キャプション（段ボールのみ）がある場合はその分の高さを確保し、それ以外は上下に均等な余白だけ残す
-  // （印刷時に端がわずかに切れてもマーク本体を巻き込まないよう、上下中央寄せ＋小さな安全マージンにしている）
-  const captionReserveMm = def.caption ? 3 : 0.6;
-  const iconHeight = Math.max(heightMm - captionReserveMm, 4);
-  return `<div style="display:inline-flex;flex-direction:column;align-items:center;height:${heightMm}mm;justify-content:center;">
-    <svg viewBox="${def.viewBox}" style="height:${iconHeight}mm;width:auto;" xmlns="http://www.w3.org/2000/svg">
+  // キャプション行：段ボールの固定表記「ダンボール」＋ユーザーが入力した任意の役割名を積み上げる。
+  // どちらもマーク本体の高さ(iconHeightMm)には影響させず、下に追加する形にする。
+  const captionLines = [def.caption, roleText?.trim() || undefined].filter((s): s is string => !!s);
+  const captionHtml = captionLines
+    .map(c => `<span style="font-size:5pt;line-height:1.3;white-space:nowrap;">${escHtmlModule(c)}</span>`)
+    .join('');
+  return `<div style="display:inline-flex;flex-direction:column;align-items:center;">
+    <svg viewBox="${def.viewBox}" style="height:${iconHeightMm}mm;width:auto;flex-shrink:0;" xmlns="http://www.w3.org/2000/svg">
       <g transform="${def.transform}" fill="#000000" stroke="none">
         ${def.paths.map(d => `<path d="${d}"/>`).join('')}
       </g>
     </svg>
-    ${def.caption ? `<span style="font-size:5pt;line-height:1;">${escHtmlModule(def.caption)}</span>` : ''}
+    ${captionHtml}
   </div>`;
 }
 function escHtmlModule(s: string): string {
@@ -300,7 +312,10 @@ export function generateLabelHtml(
   const { fontSizePt, labelWidthMm, labelHeightMm } = config;
   const width = labelWidthMm ?? 60;
   const height = labelHeightMm ?? 60;
-  const recycleMarks: string[] = (content as any).recycleMarks ?? [];
+  const recycleMarks: Array<{ key: string; role?: string }> = (content as any).recycleMarks ?? [];
+  // 識別マーク単体の高さ。バーコード高さ(barcodeHeightMm)とは独立した設定値。
+  // 法令上マーク単体で6mm以上必要なため、万一0や未設定の値が来ても下限をクランプする。
+  const recycleMarkHeightMm = Math.max((content as any).recycleMarkHeightMm ?? 8, 6);
   // 表示可能面積から法令上の文字サイズ下限を判定（食品表示基準）
   // 150cm²超: 8pt以上 / 150cm²以下: 5.5pt以上
   // 容器全体サイズ（packageWidthMm/packageHeightMm）が未入力の場合はシールサイズから推定
@@ -428,13 +443,19 @@ ${(content.barcode && content.showBarcode !== false) || (recycleMarks.length > 0
       <div style="width:100%;height:${content.barcodeHeightMm ?? 10}mm;overflow:hidden;">
         <!-- 数値はバーコード画像側の文字ではなく、下の行にラベル本文と同じフォントサイズで表示する
              （barcodeapi.org側の数値はバーコード縦幅に連動して大きくなり、フォントサイズと無関係に
-             不自然に大きく見えることがあったため、常に text=none で画像側の数値は非表示にしている） -->
-        <img src="https://barcodeapi.org/api/${getBarcodeApiPath(content.barcode)}/${encodeURIComponent(content.barcode)}?height=${content.barcodeHeightPx ?? 300}&text=none" style="width:100%;height:100%;object-fit:contain;" onerror="this.parentElement.parentElement.style.display='none'" />
+             不自然に大きく見えることがあったため、常に text=none で画像側の数値は非表示にしている）
+             解像度は "height" ではなく "dpi" で上げる。barcodeapi.orgの"height"はバー自体の高さのみを
+             指定するパラメータで、バーの太さ（モジュール幅）とは独立している。以前 height=300 のような
+             大きな値を直接指定していたところ、コードの桁数に対してバーの太さが変わらないまま高さだけが
+             大きくなり、バーコードが縦長に引き伸ばされたような見た目になっていた（本文と数値を分離した際に
+             この値が意図せず支配的になり顕在化）。"dpi"（既定200）は物理的なバーコードの縦横比を保ったまま
+             解像度だけを上げるパラメータなので、この歪みが起きない。 -->
+        <img src="https://barcodeapi.org/api/${getBarcodeApiPath(content.barcode)}/${encodeURIComponent(content.barcode)}?dpi=600&text=none" style="width:100%;height:100%;object-fit:contain;" onerror="this.parentElement.parentElement.style.display='none'" />
       </div>
       ${content.showBarcodeText !== false ? `<div style="font-size:${fontSize}pt;line-height:1.1;margin-top:0.3mm;white-space:nowrap;">${escHtml(content.barcode)}</div>` : ''}
     </div>` : ''}
-    ${recycleMarks.length > 0 ? `<div style="display:flex; gap:1mm; align-items:center;">
-      ${recycleMarks.map((m: string) => buildRecycleMarkSvg(m, content.barcodeHeightMm ?? 10)).join('')}
+    ${recycleMarks.length > 0 ? `<div style="display:flex; gap:1mm; align-items:flex-start;">
+      ${recycleMarks.map(m => buildRecycleMarkSvg(m.key, recycleMarkHeightMm, m.role)).join('')}
     </div>` : ''}
   </div>` : ''}
 </div>

@@ -158,6 +158,14 @@ export interface RecipeDetail extends RecipeSummary {
 // ============================================================
 // シール印刷
 // ============================================================
+
+// 識別マーク（リサイクルマーク）1個分の設定
+// role: マークの下に印字する任意の役割名（例: 紙マーク→「外箱」、プラマーク→「袋」）
+export interface RecycleMarkConfig {
+  key:  string;
+  role?: string;
+}
+
 export interface LabelDisplaySettings {
   showPostalCode?:     boolean;
   showPhone?:          boolean;
@@ -207,6 +215,10 @@ export interface LabelConfig {
   showBarcode?:     boolean;
   showBarcodeText?: boolean;
   barcodeHeightMm?: number;
+  // 識別マーク（リサイクルマーク）。バーコードとは独立してサイズ指定できる
+  // （識別表示マークは法令上マーク単体で6mm角以上が必要なため、バーコードサイズとは分離）
+  recycleMarks?:        RecycleMarkConfig[];
+  recycleMarkHeightMm?: number;
 }
 
 // ============================================================
@@ -236,7 +248,9 @@ export interface LabelContent {
   showBarcode?:     boolean;
   showBarcodeText?: boolean;
   barcodeHeightMm?: number;
-  barcodeHeightPx?: number;
+  // 識別マーク（リサイクルマーク）
+  recycleMarks?:        RecycleMarkConfig[];
+  recycleMarkHeightMm?: number;
   // 栄養成分（1個/100gあたり）
   nutritionPerUnit: {
     label:         string;  // 例: "1個あたり"

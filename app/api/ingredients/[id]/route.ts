@@ -19,9 +19,22 @@ export async function PUT(request: Request, { params }: Params) {
   const body = await request.json();
   const name = body.name ? toFullWidth(body.name).trim() : ing.name;
 
-  let unitPrice: number | undefined;
-  if (body.purchaseUnitG && body.purchasePrice) {
-    unitPrice = body.purchasePrice / body.purchaseUnitG;
+  // このAPIは (1) 食材マスタ編集モーダル（全項目を送る。空にした項目はnullで明示的に送られてくる）と
+  // (2) ラベル印刷画面の一般名クイック編集（{ genericName } だけを送る部分更新）の2箇所から呼ばれる。
+  // そのため「キーが無い＝undefined」は必ず「今回は触らない」と解釈し、
+  // 「キーはあるが値がnull／空＝明示的にクリアされた」だけを更新するようにする（?? ではなく !== undefined で判定）。
+  const nameKana = body.nameKana !== undefined ? body.nameKana : ing.nameKana;
+
+  const purchaseTouched = body.purchaseUnitG !== undefined || body.purchasePrice !== undefined;
+  const purchaseUnitG = body.purchaseUnitG !== undefined ? body.purchaseUnitG : ing.purchaseUnitG;
+  const purchasePrice = body.purchasePrice !== undefined ? body.purchasePrice : ing.purchasePrice;
+  let unitPrice: number | null | undefined;
+  if (purchaseUnitG && purchasePrice) {
+    unitPrice = purchasePrice / purchaseUnitG;
+  } else if (purchaseTouched) {
+    unitPrice = null; // 単価を計算できなくなった（どちらかがクリアされた）ので単価もクリア
+  } else {
+    unitPrice = ing.unitPrice;
   }
 
   const allergens = body.allergens?.length
@@ -32,28 +45,28 @@ export async function PUT(request: Request, { params }: Params) {
     where: { id: params.id },
     data: {
       name,
-      nameKana:        body.nameKana        ?? ing.nameKana,
-      nameSearch:      `${name}${body.nameKana ?? ''}`,
+      nameKana,
+      nameSearch:      `${name}${nameKana ?? ''}`,
       genericName:          body.genericName !== undefined ? (body.genericName || null) : (ing as any).genericName,
       // ユーザーが画面から明示的に一般名を触ったら「確定済み」扱いにする（自動仮入力の要確認フラグを解除）
       genericNameConfirmed: body.genericName !== undefined ? true : (ing as any).genericNameConfirmed,
-      nutritionId:     body.nutritionId     ?? ing.nutritionId,
+      nutritionId:     body.nutritionId     !== undefined ? body.nutritionId : ing.nutritionId,
       nutritionVariant: body.nutritionVariant ?? ing.nutritionVariant,
-      purchaseUnitG:   body.purchaseUnitG   ?? ing.purchaseUnitG,
-      purchasePrice:   body.purchasePrice   ?? ing.purchasePrice,
-      unitPrice:       unitPrice ?? ing.unitPrice,
+      purchaseUnitG,
+      purchasePrice,
+      unitPrice,
       storage:         body.storage         ?? ing.storage,
-      supplier:        body.supplier        ?? ing.supplier,
+      supplier:        body.supplier        !== undefined ? body.supplier : ing.supplier,
       productCode:     body.productCode     ?? ing.productCode,
       allergens:       allergens,
       isPublic:        body.isPublic        ?? ing.isPublic,
       isApproved:      body.isPublic === false ? true : (body.isPublic ? false : ing.isApproved),
-      energyKcalManual:    body.energyKcalManual    ?? ing.energyKcalManual,
-      proteinManual:       body.proteinManual       ?? ing.proteinManual,
-      fatManual:           body.fatManual           ?? ing.fatManual,
-      carbohydrateManual:  body.carbohydrateManual  ?? ing.carbohydrateManual,
+      energyKcalManual:    body.energyKcalManual    !== undefined ? body.energyKcalManual : ing.energyKcalManual,
+      proteinManual:       body.proteinManual       !== undefined ? body.proteinManual : ing.proteinManual,
+      fatManual:           body.fatManual           !== undefined ? body.fatManual : ing.fatManual,
+      carbohydrateManual:  body.carbohydrateManual  !== undefined ? body.carbohydrateManual : ing.carbohydrateManual,
       sodiumManual:        body.sodiumManual        ?? ing.sodiumManual,
-      saltEquivalentManual: body.saltEquivalentManual ?? ing.saltEquivalentManual,
+      saltEquivalentManual: body.saltEquivalentManual !== undefined ? body.saltEquivalentManual : ing.saltEquivalentManual,
       dietaryFiberManual:  body.dietaryFiberManual  ?? ing.dietaryFiberManual,
       sugarManual:         body.sugarManual         ?? ing.sugarManual,
       cholesterolManual:   body.cholesterolManual   ?? ing.cholesterolManual,

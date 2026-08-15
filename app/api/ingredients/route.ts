@@ -81,6 +81,19 @@ export async function GET(request: Request) {
     }
   }
 
+  // 各食材が自分のレシピで何件使われているか（重複食材の整理・削除可否の判断用）
+  let usageMap: Record<string, number> = {};
+  if (ingIds.length > 0) {
+    const usageCounts = await prisma.recipeIngredient.groupBy({
+      by:    ['ingredientId'],
+      where: { ingredientId: { in: ingIds }, recipe: { userId: session.user.id } },
+      _count: { _all: true },
+    });
+    for (const row of usageCounts) {
+      if (row.ingredientId) usageMap[row.ingredientId] = row._count._all;
+    }
+  }
+
   const items = ingredients.map(ing => {
     // 成分表データ（nutritionData）にリンクしていなくても、手入力(Manual)値だけが
     // 入っているケース（成分表に該当食品がない食材）があるため、どちらかがあれば nutrition を組み立てる。
@@ -97,6 +110,7 @@ export async function GET(request: Request) {
       nameKana:        ing.nameKana,
       genericName:          (ing as any).genericName ?? null,
       genericNameConfirmed: (ing as any).genericNameConfirmed ?? true,
+      recipeUsageCount: usageMap[ing.id] ?? 0,
       allergens:       ing.allergens,
       nutritionId:     ing.nutritionId,
       nutritionVariant: ing.nutritionVariant,

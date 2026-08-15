@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Plus, Edit2, Trash2, AlertTriangle, CheckCircle2, Loader2, FlaskConical, Package, Tag } from 'lucide-react';
+import Link from 'next/link';
+import { Search, Plus, Edit2, Trash2, AlertTriangle, CheckCircle2, Loader2, FlaskConical, Package, Tag, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface Ingredient {
@@ -9,9 +10,11 @@ interface Ingredient {
   unitPrice: number|null; storage: string; supplier: string|null;
   isPublic: boolean; isOwnRecord: boolean;
   ingredientCategoryId: string|null; ingredientCategoryName: string|null;
+  recipeUsageCount: number;
   nutrition: { energyKcal:number|null; protein:number|null; fat:number|null; carbohydrate:number|null; saltEquivalent:number|null; } | null;
 }
 interface IngredientCategory { id: string; name: string; }
+interface RecipeUsage { id: string; name: string; variationName: string|null; isActive: boolean; amount: number; unit: string; }
 
 const STORAGE_LABELS: Record<string,string> = { ROOM_TEMP:'常温', FRIDGE:'冷蔵', FROZEN:'冷凍', OTHER:'その他' };
 const REQUIRED = ['えび','かに','小麦','そば','卵','乳','落花生','くるみ'];
@@ -131,23 +134,28 @@ function IngredientModal({ ingredient, categories, onClose, onSaved }: {
     if (!form.name.trim()) { toast.error('食材名を入力してください'); return; }
     setSaving(true);
     try {
+      // 新規作成時はzodスキーマがnullを受け付けないフィールドがあるためundefined（未指定）で送る。
+      // 編集時は「一度入力してから空にした」を区別する必要があるため、明示的にnullを送って
+      // 「クリアした」ことをサーバー側に伝える（undefinedのままだとPUT側で「その項目は触らない」と
+      // 解釈されてしまい、解除・削除操作が保存されないバグになっていたため）。
+      const emptyValue = isNew ? undefined : null;
       const payload = {
         name:          form.name.trim(),
-        nameKana:      form.nameKana.trim()||undefined,
-        genericName:   form.genericName.trim()||undefined,
-        nutritionId:   selectedNutritionId??undefined,
-        ingredientCategoryId: form.ingredientCategoryId || undefined,
-        purchaseUnitG: form.purchaseUnitG ? parseInt(form.purchaseUnitG) : undefined,
-        purchasePrice: form.purchasePrice ? parseFloat(form.purchasePrice) : undefined,
+        nameKana:      form.nameKana.trim() || emptyValue,
+        genericName:   form.genericName.trim() || emptyValue,
+        nutritionId:   selectedNutritionId ?? emptyValue,
+        ingredientCategoryId: form.ingredientCategoryId || emptyValue,
+        purchaseUnitG: form.purchaseUnitG ? parseInt(form.purchaseUnitG) : emptyValue,
+        purchasePrice: form.purchasePrice ? parseFloat(form.purchasePrice) : emptyValue,
         storage:       form.storage,
-        supplier:      form.supplier.trim()||undefined,
+        supplier:      form.supplier.trim() || emptyValue,
         isPublic:      form.isPublic,
         allergens:     form.allergens ? form.allergens.split(/[,、,]/).map(a=>a.trim()).filter(Boolean) : [],
-        energyKcalManual:   form.energyKcal    ? parseFloat(form.energyKcal)    : undefined,
-        proteinManual:      form.protein       ? parseFloat(form.protein)       : undefined,
-        fatManual:          form.fat           ? parseFloat(form.fat)           : undefined,
-        carbohydrateManual: form.carbohydrate  ? parseFloat(form.carbohydrate)  : undefined,
-        saltEquivalentManual: form.saltEquivalent ? parseFloat(form.saltEquivalent) : undefined,
+        energyKcalManual:   form.energyKcal    ? parseFloat(form.energyKcal)    : emptyValue,
+        proteinManual:      form.protein       ? parseFloat(form.protein)       : emptyValue,
+        fatManual:          form.fat           ? parseFloat(form.fat)           : emptyValue,
+        carbohydrateManual: form.carbohydrate  ? parseFloat(form.carbohydrate)  : emptyValue,
+        saltEquivalentManual: form.saltEquivalent ? parseFloat(form.saltEquivalent) : emptyValue,
       };
       const url = ingredient ? `/api/ingredients/${ingredient.id}` : '/api/ingredients';
       const method = ingredient ? 'PUT' : 'POST';
@@ -285,6 +293,62 @@ function IngredientModal({ ingredient, categories, onClose, onSaved }: {
   );
 }
 
+// ---- 使用レシピ表示（重複食材整理用） ----
+function UsageCell({ ingredient }: { ingredient: Ingredient }) {
+  const [open,    setOpen]    = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [items,   setItems]   = useState<RecipeUsage[]|null>(null);
+
+  const toggle = async () => {
+    if (ingredient.recipeUsageCount === 0) return;
+    if (open) { setOpen(false); return; }
+    setOpen(true);
+    if (items === null) {
+      setLoading(true);
+      try {
+        const r = await fetch(`/api/ingredients/${ingredient.id}/usage`);
+        const d = await r.json();
+        if (d.success) setItems(d.data);
+        else { setItems([]); toast.error(d.error ?? '取得に失敗しました'); }
+      } catch { setItems([]); toast.error('通信エラー'); }
+      finally { setLoading(false); }
+    }
+  };
+
+  if (ingredient.recipeUsageCount === 0) {
+    return <span className="text-stone-300 text-xs">未使用</span>;
+  }
+
+  return (
+    <div>
+      <button type="button" onClick={toggle} className="inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-700">
+        {ingredient.recipeUsageCount}件のレシピで使用
+        {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+      </button>
+      {open && (
+        <div className="mt-1.5 space-y-1 bg-cream-50 rounded-lg p-2 max-w-[220px]">
+          {loading ? (
+            <div className="flex items-center gap-1.5 text-stone-400 text-xs py-1"><Loader2 className="w-3 h-3 animate-spin" />読み込み中...</div>
+          ) : items && items.length > 0 ? (
+            items.map(r => (
+              <Link key={r.id} href={`/dashboard/recipes/${r.id}/edit`}
+                className="flex items-center justify-between gap-1 text-xs text-stone-600 hover:text-brand-600 hover:underline py-0.5">
+                <span className="truncate">
+                  {r.name}{r.variationName ? `（${r.variationName}）` : ''}
+                  {!r.isActive && <span className="text-stone-400 ml-1">（無効）</span>}
+                </span>
+                <ExternalLink className="w-3 h-3 flex-shrink-0" />
+              </Link>
+            ))
+          ) : (
+            <p className="text-xs text-stone-400 py-1">レシピが見つかりません</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---- メインページ ----
 export default function IngredientsPage() {
   const [ingredients,  setIngredients]  = useState<Ingredient[]>([]);
@@ -315,8 +379,11 @@ export default function IngredientsPage() {
   useEffect(()=>{ fetchCategories(); },[fetchCategories]);
   useEffect(()=>{ fetchIngredients(); },[fetchIngredients]);
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`「${name}」を削除しますか？\n\nこの食材を使用しているレシピがある場合、その材料の成分情報が未確認になります。`)) return;
+  const handleDelete = async (id: string, name: string, usageCount: number) => {
+    const message = usageCount > 0
+      ? `「${name}」を削除しますか？\n\nこの食材は${usageCount}件のレシピで使用されています。削除すると、それらのレシピの材料情報が未確認（栄養成分・原価が計算されない状態）になります。\n先に「使用レシピ」から各レシピを開いて食材の紐付けを修正することをおすすめします。`
+      : `「${name}」を削除しますか？\n\nこの食材は現在どのレシピにも使用されていません。`;
+    if (!confirm(message)) return;
     try {
       const res = await fetch(`/api/ingredients/${id}`,{method:'DELETE'});
       const data = await res.json();
@@ -377,6 +444,7 @@ export default function IngredientsPage() {
                 <th className="hidden md:table-cell">原価</th>
                 <th>アレルゲン</th>
                 <th className="hidden sm:table-cell">保管</th>
+                <th className="hidden lg:table-cell">使用レシピ</th>
                 <th></th>
               </tr>
             </thead>
@@ -414,11 +482,14 @@ export default function IngredientsPage() {
                     </div>
                   </td>
                   <td className="hidden sm:table-cell text-sm text-stone-500">{STORAGE_LABELS[ing.storage]??ing.storage}</td>
+                  <td className="hidden lg:table-cell align-top pt-2.5">
+                    <UsageCell ingredient={ing} />
+                  </td>
                   <td>
                     {ing.isOwnRecord && (
                       <div className="flex gap-1">
                         <button onClick={()=>setModal({open:true,ingredient:ing})} className="p-1.5 text-stone-400 hover:text-brand-500"><Edit2 className="w-4 h-4" /></button>
-                        <button onClick={()=>handleDelete(ing.id,ing.name)} className="p-1.5 text-stone-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                        <button onClick={()=>handleDelete(ing.id,ing.name,ing.recipeUsageCount)} className="p-1.5 text-stone-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     )}
                   </td>

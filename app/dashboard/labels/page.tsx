@@ -638,7 +638,7 @@ export default function LabelsPage() {
                   </label>
                 ))}
               </div>
-              <p className="field-hint">バーコードの隣に小さく印字されます（ラベルプリンタ・A4どちらでも表示されます）。プラ・紙・PET・段ボールは公式マークの実データを反映済みです。スチール缶・アルミ缶は公式データ未入手のため、確認できるまで枠囲みの仮表示になります。</p>
+              <p className="field-hint">バーコードの隣に小さく印字されます（ラベルプリンタ・A4どちらでも表示されます）。</p>
             </div>
 
             {deviceType === 'LABEL_PRINTER' ? (

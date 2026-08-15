@@ -99,6 +99,9 @@ export default function LabelsPage() {
   // A4 ラベルサイズ
   const [a4SealW,  setA4SealW]  = useState('');
   const [a4SealH,  setA4SealH]  = useState('');
+  // A4 シール同士のスキマ（市販のスキマありラベル用紙向け）
+  const [a4ColGap, setA4ColGap] = useState('0');
+  const [a4RowGap, setA4RowGap] = useState('0');
 
   // 表示設定
   const [showPostalCode, setShowPostalCode] = useState(true);
@@ -194,6 +197,8 @@ export default function LabelsPage() {
 
     if (getL('a4SealW') !== null) setA4SealW(getL('a4SealW')!);
     if (getL('a4SealH') !== null) setA4SealH(getL('a4SealH')!);
+    if (getL('a4ColGap') !== null) setA4ColGap(getL('a4ColGap')!);
+    if (getL('a4RowGap') !== null) setA4RowGap(getL('a4RowGap')!);
 
     if (getL('showPostalCode') !== null) setShowPostalCode(getB('showPostalCode', true));
     setShowPhone(getB('showPhone', true));
@@ -309,6 +314,8 @@ export default function LabelsPage() {
           startPosition: 1,
           a4SealWidthMm:  a4SealW ? parseFloat(a4SealW) : undefined,
           a4SealHeightMm: a4SealH ? parseFloat(a4SealH) : undefined,
+          a4ColGapMm:     a4ColGap ? parseFloat(a4ColGap) : undefined,
+          a4RowGapMm:     a4RowGap ? parseFloat(a4RowGap) : undefined,
         }),
         displaySettings: {
           showPostalCode, showPhone, showRepresentative: showRep, showEmail: false,
@@ -374,6 +381,8 @@ export default function LabelsPage() {
           startPosition: parseInt(startPos) || 1,
           a4SealWidthMm:  a4SealW ? parseFloat(a4SealW) : undefined,
           a4SealHeightMm: a4SealH ? parseFloat(a4SealH) : undefined,
+          a4ColGapMm:     a4ColGap ? parseFloat(a4ColGap) : undefined,
+          a4RowGapMm:     a4RowGap ? parseFloat(a4RowGap) : undefined,
         }),
         displaySettings: {
           showPostalCode, showPhone, showRepresentative: showRep, showEmail: false,
@@ -664,6 +673,16 @@ export default function LabelsPage() {
                     <span className="text-xs text-stone-400">mm</span>
                   </div>
                   <p className="text-xs text-stone-400 mt-1">入力するとラベル枠に合わせて配置します</p>
+                </div>
+                <div>
+                  <label className="field-label">シール同士のスキマ（任意・mm）</label>
+                  <div className="flex items-center gap-2">
+                    <input type="text" inputMode="decimal" value={a4ColGap} onChange={e => { setA4ColGap(e.target.value); updateLabelStorage('a4ColGap', e.target.value); }} className="field-input" placeholder="横のスキマ" />
+                    <span className="text-stone-400 text-sm">×</span>
+                    <input type="text" inputMode="decimal" value={a4RowGap} onChange={e => { setA4RowGap(e.target.value); updateLabelStorage('a4RowGap', e.target.value); }} className="field-input" placeholder="縦のスキマ" />
+                    <span className="text-xs text-stone-400">mm</span>
+                  </div>
+                  <p className="text-xs text-stone-400 mt-1">市販のスキマありラベル用紙（シールとシールの間に紙の地が見える用紙）を使う場合、その間隔を入力してください。隙間なく並んでいる用紙なら0のままで大丈夫です。</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>

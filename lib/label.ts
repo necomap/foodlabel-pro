@@ -285,9 +285,11 @@ export function generateLabelHtml(
     : (width / 10) * (height / 10);
   const legalMinFontPt = displayAreaCm2 > 150 ? 8 : 5.5;
   // ラベルサイズに合わせてフォントサイズを自動調整
-  // 基準: 60mm×60mmで8pt。面積比で縮小（下限は法令上の最小値）
+  // 基準: 60mm×60mmで8pt。シールが基準より小さい場合のみ面積比で縮小する（下限は法令上の最小値）。
+  // シールが基準より大きくても、入力したptより拡大はしない（拡大すると設定値と実際の表示が
+  // 食い違ってわかりにくいため、入力値を上限として扱う）。
   const baseFontSize = fontSizePt ?? 8;
-  const areaRatio = Math.sqrt((width * height) / (60 * 60));
+  const areaRatio = Math.min(Math.sqrt((width * height) / (60 * 60)), 1);
   const autoFontSize = Math.max(Math.round(baseFontSize * areaRatio * 10) / 10, legalMinFontPt);
   const fontSize = autoFontSize;
   // バーコード幅：シールの横幅に応じて自動計算（25mm〜45mmの範囲、リーダーで読み取れる実用サイズ）
@@ -395,8 +397,14 @@ export function generateLabelHtml(
   </div>
   <!-- バーコード＋リサイクルマーク（一番下） -->
 ${(content.barcode && content.showBarcode !== false) || (recycleMarks.length > 0) ? `<div style="display:flex; align-items:center; justify-content:center; gap:2mm; margin-top:0.5mm; width:100%;">
-    ${content.barcode && content.showBarcode !== false ? `<div style="display:inline-block;width:${barcodeWidthMm}mm;max-width:60%;height:${content.barcodeHeightMm ?? 10}mm;overflow:hidden;">
-      <img src="https://barcodeapi.org/api/${getBarcodeApiPath(content.barcode)}/${encodeURIComponent(content.barcode)}?height=${content.barcodeHeightPx ?? 300}${content.showBarcodeText === false ? '&text=none' : ''}" style="width:100%;height:100%;object-fit:cover;object-position:bottom;" onerror="this.parentElement.style.display='none'" />
+    ${content.barcode && content.showBarcode !== false ? `<div style="display:flex;flex-direction:column;align-items:center;width:${barcodeWidthMm}mm;max-width:60%;">
+      <div style="width:100%;height:${content.barcodeHeightMm ?? 10}mm;overflow:hidden;">
+        <!-- 数値はバーコード画像側の文字ではなく、下の行にラベル本文と同じフォントサイズで表示する
+             （barcodeapi.org側の数値はバーコード縦幅に連動して大きくなり、フォントサイズと無関係に
+             不自然に大きく見えることがあったため、常に text=none で画像側の数値は非表示にしている） -->
+        <img src="https://barcodeapi.org/api/${getBarcodeApiPath(content.barcode)}/${encodeURIComponent(content.barcode)}?height=${content.barcodeHeightPx ?? 300}&text=none" style="width:100%;height:100%;object-fit:contain;" onerror="this.parentElement.parentElement.style.display='none'" />
+      </div>
+      ${content.showBarcodeText !== false ? `<div style="font-size:${fontSize}pt;line-height:1.1;margin-top:0.3mm;white-space:nowrap;">${escHtml(content.barcode)}</div>` : ''}
     </div>` : ''}
     ${recycleMarks.length > 0 ? `<div style="display:flex; gap:1mm; align-items:center;">
       ${recycleMarks.map((m: string) => buildRecycleMarkSvg(m, content.barcodeHeightMm ?? 10)).join('')}
@@ -476,20 +484,23 @@ ${isPreview ? `
   const startPos  = (config.startPosition ?? 1) - 1;
   const marginTop  = config.marginTopMm  ?? 0;
   const marginLeft = config.marginLeftMm ?? 0;
-  // シールサイズが指定されている場合はそのサイズを使用、なければ印刷領域から自動計算
+  // シール同士のスキマ（市販のスキマありラベル用紙向け）。未指定なら0（隙間なし・従来通り）。
+  const colGap = Math.max((config as any).a4ColGapMm ?? 0, 0);
+  const rowGap = Math.max((config as any).a4RowGapMm ?? 0, 0);
+  // シールサイズが指定されている場合はそのサイズを使用、なければ印刷領域（スキマ分を除く）から自動計算
   const sealW = (config as any).a4SealWidthMm;
   const sealH = (config as any).a4SealHeightMm;
-  const cellW = sealW ?? Math.floor(((210 - marginLeft) / cols) * 10) / 10;
-  const cellH = sealH ?? Math.floor(((297 - marginTop)  / rows) * 10) / 10;
-  // 右余白・下余白は自動計算
-  const marginRight  = Math.max(210 - marginLeft - cellW * cols, 0);
-  const marginBottom = Math.max(297 - marginTop  - cellH * rows, 0);
+  const cellW = sealW ?? Math.floor((((210 - marginLeft) - colGap * (cols - 1)) / cols) * 10) / 10;
+  const cellH = sealH ?? Math.floor((((297 - marginTop)  - rowGap * (rows - 1)) / rows) * 10) / 10;
+  // 右余白・下余白は自動計算（シール同士のスキマの合計分も差し引く）
+  const marginRight  = Math.max(210 - marginLeft - cellW * cols - colGap * (cols - 1), 0);
+  const marginBottom = Math.max(297 - marginTop  - cellH * rows - rowGap * (rows - 1), 0);
 
   const totalSlots = startPos + config.printCount;
   const pages      = Math.ceil(totalSlots / labelsPerPage);
 
-  // A4セルサイズに合わせてフォントサイズを再計算
-  const a4AreaRatio = Math.sqrt((cellW * cellH) / (60 * 60));
+  // A4セルサイズに合わせてフォントサイズを再計算（こちらもシールが基準より大きくても拡大はしない）
+  const a4AreaRatio = Math.min(Math.sqrt((cellW * cellH) / (60 * 60)), 1);
   const a4FontSize = Math.max(Math.round((fontSizePt ?? 8) * a4AreaRatio * 10) / 10, legalMinFontPt);
 
   // ラベルHTMLをセルサイズとフォントサイズに合わせて調整
@@ -503,7 +514,7 @@ ${isPreview ? `
   let gridHtml = '';
   for (let p = 0; p < pages; p++) {
     const isLastPage = p === pages - 1;
-    gridHtml += `<div style="display:grid;grid-template-columns:repeat(${cols},${cellW}mm);grid-template-rows:repeat(${rows},${cellH}mm);width:${210 - marginLeft - marginRight}mm;height:${297 - marginTop - marginBottom}mm;margin:${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm;${isLastPage ? '' : 'page-break-after:always;'}">`;
+    gridHtml += `<div style="display:grid;grid-template-columns:repeat(${cols},${cellW}mm);grid-template-rows:repeat(${rows},${cellH}mm);gap:${rowGap}mm ${colGap}mm;width:${210 - marginLeft - marginRight}mm;height:${297 - marginTop - marginBottom}mm;margin:${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm;${isLastPage ? '' : 'page-break-after:always;'}">`;
     for (let i = 0; i < labelsPerPage; i++) {
       const slot = p * labelsPerPage + i;
       const isEmpty = slot < startPos || slot >= startPos + config.printCount;

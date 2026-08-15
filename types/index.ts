@@ -200,6 +200,8 @@ export interface LabelConfig {
   startPosition?:  number;
   a4SealWidthMm?:  number;
   a4SealHeightMm?: number;
+  a4ColGapMm?:     number;  // シール同士の横方向のスキマ（mm）
+  a4RowGapMm?:     number;  // シール同士の縦方向のスキマ（mm）
   // 表示設定
   displaySettings?: LabelDisplaySettings;
   showBarcode?:     boolean;

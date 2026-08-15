@@ -31,6 +31,10 @@ const labelConfigSchema = z.object({
   marginLeftMm:    z.number().optional(),
   marginRightMm:   z.number().optional(),
   startPosition:   z.number().int().positive().optional(),
+  a4SealWidthMm:   z.number().positive().optional(),
+  a4SealHeightMm:  z.number().positive().optional(),
+  a4ColGapMm:      z.number().min(0).optional(),
+  a4RowGapMm:      z.number().min(0).optional(),
   displaySettings: z.object({
     showPostalCode:     z.boolean().default(true),
     showPhone:          z.boolean().default(true),

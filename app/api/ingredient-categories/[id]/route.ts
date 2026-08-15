@@ -13,7 +13,7 @@ export async function PUT(request: Request, { params }: Params) {
   try {
     await prisma.$executeRaw`
       UPDATE ingredient_categories SET name = ${name.trim()}
-      WHERE id::text = ${params.id} AND user_id = ${session.user.id}
+      WHERE id::text = ${params.id} AND "userId" = ${session.user.id}
     `;
     return NextResponse.json({ success: true });
   } catch (err) {
@@ -26,8 +26,8 @@ export async function DELETE(_req: Request, { params }: Params) {
   if (!session) return NextResponse.json({ success: false, error: '認証が必要です' }, { status: 401 });
   try {
     await prisma.$executeRaw`
-      UPDATE ingredient_categories SET is_active = false
-      WHERE id::text = ${params.id} AND user_id = ${session.user.id}
+      UPDATE ingredient_categories SET "isActive" = false
+      WHERE id::text = ${params.id} AND "userId" = ${session.user.id}
     `;
     return NextResponse.json({ success: true });
   } catch (err) {

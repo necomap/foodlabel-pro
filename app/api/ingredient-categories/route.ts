@@ -7,12 +7,12 @@ export async function GET() {
   const session = await auth();
   if (!session) return NextResponse.json({ success: false, error: '認証が必要です' }, { status: 401 });
   try {
-    // ingredient_categories はスネークケース (手動作成)
+    // ingredient_categories テーブルの列名はPrismaスキーマ通りキャメルケース（要ダブルクォート）。
     const cats = await prisma.$queryRaw`
-      SELECT id::text, name, sort_order as "sortOrder"
+      SELECT id::text, name, "sortOrder"
       FROM ingredient_categories
-      WHERE user_id = ${session.user.id} AND is_active = true
-      ORDER BY sort_order ASC, name ASC
+      WHERE "userId" = ${session.user.id} AND "isActive" = true
+      ORDER BY "sortOrder" ASC, name ASC
     `;
     return NextResponse.json({ success: true, data: cats });
   } catch (err) {
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   if (!name?.trim()) return NextResponse.json({ success: false, error: 'カテゴリ名を入力してください' }, { status: 400 });
   try {
     const result = await prisma.$queryRaw`
-      INSERT INTO ingredient_categories (id, user_id, name, sort_order, is_active, created_at)
+      INSERT INTO ingredient_categories (id, "userId", name, "sortOrder", "isActive", "createdAt")
       VALUES (gen_random_uuid(), ${session.user.id}, ${name.trim()}, 0, true, NOW())
       RETURNING id::text, name
     ` as Array<{id:string; name:string}>;

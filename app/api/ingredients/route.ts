@@ -66,6 +66,9 @@ export async function GET(request: Request) {
   ]);
 
   // ingredientCategoryNameをraw queryで取得
+  // ingredientCategoryId が空文字（NULLではない）のレコードが混ざっていると ::uuid キャストが
+  // 失敗してクエリ全体がエラーになり、結果として全件「カテゴリなし」表示になってしまう。
+  // NULLIF で空文字をNULLに正規化してから比較することで、そのレコードだけ「カテゴリなし」扱いにする。
   const ingIds = ingredients.map(i => i.id);
   let categoryMap: Record<string, {id:string;name:string}> = {};
   if (ingIds.length > 0) {
@@ -73,14 +76,14 @@ export async function GET(request: Request) {
       const catRows = await prisma.$queryRaw`
         SELECT i.id::text as ingredient_id, ic.id::text as cat_id, ic.name as cat_name
         FROM ingredients i
-        LEFT JOIN ingredient_categories ic ON ic.id = i."ingredientCategoryId"::uuid
+        LEFT JOIN ingredient_categories ic ON ic.id = NULLIF(i."ingredientCategoryId", '')::uuid
         WHERE i.id::text = ANY(${ingIds})
       ` as Array<{ingredient_id:string; cat_id:string|null; cat_name:string|null}>;
       for (const row of catRows) {
         categoryMap[row.ingredient_id] = { id: row.cat_id ?? '', name: row.cat_name ?? '' };
       }
-    } catch {
-      // ingredient_categories テーブルがまだない場合は無視
+    } catch (e) {
+      console.warn('ingredients categoryMap lookup skipped:', e);
     }
   }
 

@@ -71,9 +71,11 @@ export async function PUT(request: Request, { params }: Params) {
       carbohydrateManual:  body.carbohydrateManual  !== undefined ? body.carbohydrateManual : ing.carbohydrateManual,
       sodiumManual:        body.sodiumManual        ?? ing.sodiumManual,
       saltEquivalentManual: body.saltEquivalentManual !== undefined ? body.saltEquivalentManual : ing.saltEquivalentManual,
-      dietaryFiberManual:  body.dietaryFiberManual  ?? ing.dietaryFiberManual,
-      sugarManual:         body.sugarManual         ?? ing.sugarManual,
-      cholesterolManual:   body.cholesterolManual   ?? ing.cholesterolManual,
+      // 食物繊維・糖質・コレステロールは食材編集モーダルの任意項目として追加したため、
+      // 他の手入力項目と同様に「キーが送られてきた（null含む）ら明示的に更新」する必要がある。
+      dietaryFiberManual:  body.dietaryFiberManual  !== undefined ? body.dietaryFiberManual : ing.dietaryFiberManual,
+      sugarManual:         body.sugarManual         !== undefined ? body.sugarManual        : ing.sugarManual,
+      cholesterolManual:   body.cholesterolManual   !== undefined ? body.cholesterolManual   : ing.cholesterolManual,
     },
   });
 

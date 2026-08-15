@@ -12,7 +12,7 @@ interface Ingredient {
   isPublic: boolean; isOwnRecord: boolean; hasPurchaseSetting: boolean;
   ingredientCategoryId: string|null; ingredientCategoryName: string|null;
   recipeUsageCount: number;
-  nutrition: { energyKcal:number|null; protein:number|null; fat:number|null; carbohydrate:number|null; saltEquivalent:number|null; } | null;
+  nutrition: { energyKcal:number|null; protein:number|null; fat:number|null; carbohydrate:number|null; saltEquivalent:number|null; dietaryFiber:number|null; sugar:number|null; cholesterol:number|null; } | null;
 }
 interface IngredientCategory { id: string; name: string; isShared?: boolean; }
 interface RecipeUsage { id: string; name: string; variationName: string|null; isActive: boolean; amount: number; unit: string; }
@@ -140,6 +140,9 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
     fat:             ingredient?.nutrition?.fat        ? String(ingredient.nutrition.fat)        : '',
     carbohydrate:    ingredient?.nutrition?.carbohydrate ? String(ingredient.nutrition.carbohydrate) : '',
     saltEquivalent:  ingredient?.nutrition?.saltEquivalent ? String(ingredient.nutrition.saltEquivalent) : '',
+    dietaryFiber:    ingredient?.nutrition?.dietaryFiber ? String(ingredient.nutrition.dietaryFiber) : '',
+    sugar:           ingredient?.nutrition?.sugar        ? String(ingredient.nutrition.sugar)        : '',
+    cholesterol:     ingredient?.nutrition?.cholesterol  ? String(ingredient.nutrition.cholesterol)  : '',
   });
   const [nutritionSearch,  setNutritionSearch]  = useState('');
   const [nutritionResults, setNutritionResults] = useState<{id:number;foodName:string;energyKcal:number|null}[]>([]);
@@ -178,6 +181,9 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
         fatManual:          form.fat           ? parseFloat(form.fat)           : emptyValue,
         carbohydrateManual: form.carbohydrate  ? parseFloat(form.carbohydrate)  : emptyValue,
         saltEquivalentManual: form.saltEquivalent ? parseFloat(form.saltEquivalent) : emptyValue,
+        dietaryFiberManual: form.dietaryFiber ? parseFloat(form.dietaryFiber) : emptyValue,
+        sugarManual:        form.sugar        ? parseFloat(form.sugar)        : emptyValue,
+        cholesterolManual:  form.cholesterol   ? parseFloat(form.cholesterol)  : emptyValue,
       };
       const url = ingredient ? `/api/ingredients/${ingredient.id}` : '/api/ingredients';
       const method = ingredient ? 'PUT' : 'POST';
@@ -278,7 +284,7 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
             )}
           </div>
           <div>
-            <label className="field-label">栄養成分（100gあたり）{!selectedNutritionId && <span className="text-yellow-600 text-xs ml-1">※手動入力</span>}</label>
+            <label className="field-label">栄養成分（100gあたり・表示義務5項目）{!selectedNutritionId && <span className="text-yellow-600 text-xs ml-1">※手動入力</span>}</label>
             <div className="grid grid-cols-3 gap-2">
               {[{key:'energyKcal',label:'熱量(kcal)',step:'1'},{key:'protein',label:'たんぱく質(g)',step:'0.1'},{key:'fat',label:'脂質(g)',step:'0.1'},{key:'carbohydrate',label:'炭水化物(g)',step:'0.1'},{key:'saltEquivalent',label:'食塩相当量(g)',step:'0.01'}].map(field=>(
                 <div key={field.key}>
@@ -287,6 +293,24 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
                 </div>
               ))}
             </div>
+          </div>
+          <div>
+            <label className="field-label">任意項目（食物繊維・糖質・コレステロール）
+              <span className="text-stone-400 text-xs ml-1">（ラベルの表示設定でONにしている場合のみ入力してください）</span>
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {[{key:'dietaryFiber',label:'食物繊維(g)',step:'0.1'},{key:'sugar',label:'糖質(g)',step:'0.1'},{key:'cholesterol',label:'コレステロール(mg)',step:'1'}].map(field=>(
+                <div key={field.key}>
+                  <label className="text-xs text-stone-500 mb-0.5 block">{field.label}</label>
+                  <input type="number" value={(form as any)[field.key]} onChange={e=>setForm(p=>({...p,[field.key]:e.target.value}))} className="field-input text-sm py-1.5" step={field.step} min="0" placeholder={selectedNutritionId?'成分表値':'入力'} />
+                </div>
+              ))}
+            </div>
+            {!selectedNutritionId && (
+              <p className="field-hint text-amber-600">
+                ⚠ 食品成分表と紐付いていない食材でこの3項目を空欄のままラベルに表示すると、実際は含まれていても0として計算されてしまいます。表示する場合は入力してください。
+              </p>
+            )}
           </div>
           <div>
             <label className="field-label">アレルゲン（カンマ区切り）</label>

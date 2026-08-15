@@ -31,6 +31,7 @@ model User {
   loginLockedUntil     DateTime?
   adminLogs            AdminLog[]
   ingredients          Ingredient[]
+  ingredientPurchaseSettings IngredientPurchaseSetting[]
   label_print_logs     label_print_logs[]
   labels               Label[]
   recipes              Recipe[]
@@ -110,7 +111,9 @@ model NutritionData {
 
 model IngredientCategory {
   id          String       @id @default(uuid())
-  userId      String
+  // userId が null のカテゴリは全ユーザー共通の基本カテゴリ（管理者が作成）。
+  // 値が入っているものは各ユーザーが個別に追加した自分専用のカテゴリ。
+  userId      String?
   name        String       @db.VarChar(100)
   sortOrder   Int          @default(0)
   isActive    Boolean      @default(true)
@@ -118,6 +121,28 @@ model IngredientCategory {
   ingredients Ingredient[]
 
   @@map("ingredient_categories")
+}
+
+// 共有食材（コミュニティ共有・承認済み）をレシピで使うユーザーごとに、
+// 仕入れ単位・価格・保管方法・仕入れ先だけを個別に持たせるためのテーブル。
+// 食材マスタ本体（名前・栄養成分・アレルゲン等）は共有元の1レコードのみで、
+// 仕入れに関する情報だけがユーザーごとに異なる、という構造にするためのもの。
+model IngredientPurchaseSetting {
+  id            String     @id @default(uuid())
+  userId        String
+  ingredientId  String
+  purchaseUnitG Int?
+  purchasePrice Decimal?   @db.Decimal(10, 2)
+  unitPrice     Decimal?   @db.Decimal(10, 4)
+  storage       String?    @db.VarChar(20)
+  supplier      String?    @db.VarChar(100)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ingredient    Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, ingredientId])
+  @@map("ingredient_purchase_settings")
 }
 
 model Ingredient {
@@ -156,6 +181,7 @@ model Ingredient {
   nutritionData        NutritionData?      @relation(fields: [nutritionId], references: [id])
   user                 User?               @relation(fields: [userId], references: [id])
   recipeIngredients    RecipeIngredient[]
+  purchaseSettings     IngredientPurchaseSetting[]
 
   @@map("ingredients")
 }

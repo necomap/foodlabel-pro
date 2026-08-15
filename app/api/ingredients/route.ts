@@ -25,10 +25,13 @@ export async function GET(request: Request) {
         : {}),
     AND: [
       {
+        // 自分の食材、または「共有申請され管理者に承認済み」の食材を対象にする。
+        // 以前は userId が null であることも条件にしていたが、共有食材の userId は
+        // 承認されても作成者のIDのまま変わらないため、他ユーザーの検索に一切出てこない
+        // バグになっていた（承認しても共有が反映されない）。userId 条件を外して修正。
         OR: [
           { userId: session.user.id },
-          { userId: null, isApproved: true },
-          { userId: null, isPublic:   true  },
+          { isPublic: true, isApproved: true },
         ],
       },
       ...(q ? [{
@@ -94,6 +97,28 @@ export async function GET(request: Request) {
     }
   }
 
+  // 共有食材（自分が作成者ではないもの）については、仕入れ単位・価格・保管方法・仕入れ先を
+  // 食材マスタ本体からではなく、閲覧者自身の個別設定（ingredient_purchase_settings）から取得する。
+  // これをしないと、共有食材を承認しただけで作成者の仕入れ値・仕入れ先が他ユーザー全員に
+  // 見えてしまう（価格や取引先は事業者にとって機密性の高い情報のため）。
+  type PurchaseSetting = { ingredientId: string; purchaseUnitG: number|null; purchasePrice: number|null; unitPrice: number|null; storage: string|null; supplier: string|null };
+  let purchaseSettingMap: Record<string, PurchaseSetting> = {};
+  if (ingIds.length > 0) {
+    try {
+      const rows = await prisma.$queryRaw`
+        SELECT "ingredientId", "purchaseUnitG",
+               "purchasePrice"::float as "purchasePrice",
+               "unitPrice"::float as "unitPrice",
+               storage, supplier
+        FROM ingredient_purchase_settings
+        WHERE "userId" = ${session.user.id} AND "ingredientId" = ANY(${ingIds})
+      ` as PurchaseSetting[];
+      for (const row of rows) purchaseSettingMap[row.ingredientId] = row;
+    } catch (e) {
+      console.warn('ingredient_purchase_settings lookup skipped:', e);
+    }
+  }
+
   const items = ingredients.map(ing => {
     // 成分表データ（nutritionData）にリンクしていなくても、手入力(Manual)値だけが
     // 入っているケース（成分表に該当食品がない食材）があるため、どちらかがあれば nutrition を組み立てる。
@@ -103,6 +128,15 @@ export async function GET(request: Request) {
       ing.energyKcalManual, ing.proteinManual, ing.fatManual, ing.carbohydrateManual,
       ing.sodiumManual, ing.saltEquivalentManual, ing.dietaryFiberManual, ing.sugarManual, ing.cholesterolManual,
     ].some(v => v != null);
+
+    const isOwnRecord   = ing.userId === session.user.id;
+    const mySetting     = purchaseSettingMap[ing.id];
+    // 自分の食材ならマスタ本体の値をそのまま、共有食材なら自分の個別設定（未設定ならnull）を使う。
+    const purchaseUnitG = isOwnRecord ? ing.purchaseUnitG : (mySetting?.purchaseUnitG ?? null);
+    const purchasePrice = isOwnRecord ? (ing.purchasePrice != null ? Number(ing.purchasePrice) : null) : (mySetting?.purchasePrice ?? null);
+    const unitPrice      = isOwnRecord ? (ing.unitPrice != null ? Number(ing.unitPrice) : null) : (mySetting?.unitPrice ?? null);
+    const storage         = isOwnRecord ? ing.storage : (mySetting?.storage ?? null);
+    const supplier        = isOwnRecord ? ing.supplier : (mySetting?.supplier ?? null);
 
     return {
       id:              ing.id,
@@ -114,15 +148,17 @@ export async function GET(request: Request) {
       allergens:       ing.allergens,
       nutritionId:     ing.nutritionId,
       nutritionVariant: ing.nutritionVariant,
-      purchaseUnitG:   ing.purchaseUnitG,
-      purchasePrice:   ing.purchasePrice  ? Number(ing.purchasePrice)  : null,
-      unitPrice:       ing.unitPrice      ? Number(ing.unitPrice)      : null,
-      storage:         ing.storage,
-      supplier:        ing.supplier,
+      purchaseUnitG,
+      purchasePrice,
+      unitPrice,
+      storage,
+      supplier,
+      // 共有食材について、自分がまだ仕入れ設定を入力していないかどうか（一覧のボタン表示切り替え用）
+      hasPurchaseSetting: isOwnRecord ? true : !!mySetting,
       ingredientCategoryId:   (ing as any).ingredientCategoryId ?? null,
       ingredientCategoryName: categoryMap[ing.id]?.name || null,
       isPublic:        ing.isPublic,
-      isOwnRecord:     ing.userId === session.user.id,
+      isOwnRecord,
       nutrition: (ing.nutritionData || hasManual) ? {
         energyKcal:     ing.energyKcalManual    != null ? Number(ing.energyKcalManual)    : (ing.nutritionData?.energyKcal     != null ? Number(ing.nutritionData.energyKcal)     : null),
         protein:        ing.proteinManual       != null ? Number(ing.proteinManual)       : (ing.nutritionData?.protein        != null ? Number(ing.nutritionData.protein)        : null),

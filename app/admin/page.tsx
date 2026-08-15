@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Users, ShoppingBasket, FileText, Shield, Loader2,
-  CheckCircle2, XCircle, RefreshCw, Upload, Database,
+  CheckCircle2, XCircle, RefreshCw, Upload, Database, Tag,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -117,6 +117,17 @@ export default function AdminPage() {
         </div>
       </div>
 
+      {/* 基本食材カテゴリ */}
+      <div className="card">
+        <h2 className="section-title flex items-center gap-2">
+          <Tag className="w-5 h-5 text-brand-500" />全ユーザー共通の基本カテゴリ
+        </h2>
+        <p className="text-sm text-stone-500 mb-3">
+          共有食材にも使える「粉類」「乳製品」などの基本カテゴリを一括作成します。すでにある場合はスキップされるので、何度押しても問題ありません。
+        </p>
+        <SeedCategoriesButton />
+      </div>
+
       {/* 共有食材承認 */}
       <div className="card">
         <h2 className="section-title flex items-center gap-2">
@@ -170,6 +181,27 @@ export default function AdminPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function SeedCategoriesButton() {
+  const [loading, setLoading] = useState(false);
+
+  const handleSeed = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/ingredient-categories/seed', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) toast.success(data.message ?? '完了しました');
+      else toast.error(data.error ?? '失敗しました');
+    } catch { toast.error('通信エラー'); } finally { setLoading(false); }
+  };
+
+  return (
+    <button onClick={handleSeed} disabled={loading} className="btn-secondary flex items-center gap-2 disabled:opacity-50">
+      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Tag className="w-4 h-4" />}
+      基本カテゴリを作成
+    </button>
   );
 }
 

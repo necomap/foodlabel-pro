@@ -41,7 +41,11 @@ export async function PUT(request: Request, { params }: Params) {
     unitPrice = ing.unitPrice != null ? Number(ing.unitPrice) : null;
   }
 
-  const allergens = body.allergens?.length
+  // 編集モーダルは常に allergens: [] を含む形で送ってくる（空配列＝ユーザーがすべて手動で消した、を意味する）。
+  // そのため他の項目と同様「配列の長さ」ではなく「キーが送られてきたかどうか」で判定する必要がある。
+  // ?.length で判定していると、誤検出（例:「すいか」に含まれる「いか」）をユーザーが手動で削除して
+  // 空にしても、保存のたびに自動判定が走って復活してしまうバグになる。
+  const allergens = body.allergens !== undefined
     ? body.allergens
     : detectAllergens(name);
 

@@ -310,8 +310,28 @@ export function generateLabelHtml(
   isPreview: boolean = false
 ): string {
   const { fontSizePt, labelWidthMm, labelHeightMm } = config;
-  const width = labelWidthMm ?? 60;
-  const height = labelHeightMm ?? 60;
+  // ラベル1枚の実寸。A4プリンタの場合は labelWidthMm/labelHeightMm（ラベルプリンタ用の項目）ではなく、
+  // シールサイズ指定（a4SealWidthMm/a4SealHeightMm）があればそれ、なければページ幅・列数・行数・
+  // スキマから自動計算したセルサイズを使う。ここで実寸を先に確定させておかないと、後続のフォント
+  // サイズ自動調整や横長判定（2カラム化）が常にラベルプリンタ用のデフォルト値（60×60mm）を基準に
+  // 計算されてしまい、A4モードでの実際のシールサイズに反映されない不具合になる。
+  let width: number;
+  let height: number;
+  if (config.deviceType === 'A4_PRINTER') {
+    const a4ColsForSize = config.a4Cols ?? 3;
+    const a4RowsForSize = config.a4Rows ?? 5;
+    const a4MarginLeftForSize = config.marginLeftMm ?? 0;
+    const a4MarginTopForSize  = config.marginTopMm  ?? 0;
+    const a4ColGapForSize = Math.max((config as any).a4ColGapMm ?? 0, 0);
+    const a4RowGapForSize = Math.max((config as any).a4RowGapMm ?? 0, 0);
+    const sealWCfg = (config as any).a4SealWidthMm;
+    const sealHCfg = (config as any).a4SealHeightMm;
+    width  = sealWCfg ?? Math.floor((((210 - a4MarginLeftForSize) - a4ColGapForSize * (a4ColsForSize - 1)) / a4ColsForSize) * 10) / 10;
+    height = sealHCfg ?? Math.floor((((297 - a4MarginTopForSize)  - a4RowGapForSize * (a4RowsForSize - 1)) / a4RowsForSize) * 10) / 10;
+  } else {
+    width  = labelWidthMm ?? 60;
+    height = labelHeightMm ?? 60;
+  }
   // 無定長（連続）ロール用：ラベルプリンタのみ有効。高さを固定せず、内容量に応じて印刷側で
   // 自動的に長さを決める（@page の size に "auto" を指定する）。A4は物理的にグリッドが固定なので対象外。
   const labelHeightAuto = config.deviceType === 'LABEL_PRINTER' && (config as any).labelHeightAuto === true;
@@ -565,11 +585,12 @@ ${isPreview ? `
   // シール同士のスキマ（市販のスキマありラベル用紙向け）。未指定なら0（隙間なし・従来通り）。
   const colGap = Math.max((config as any).a4ColGapMm ?? 0, 0);
   const rowGap = Math.max((config as any).a4RowGapMm ?? 0, 0);
-  // シールサイズが指定されている場合はそのサイズを使用、なければ印刷領域（スキマ分を除く）から自動計算
-  const sealW = (config as any).a4SealWidthMm;
-  const sealH = (config as any).a4SealHeightMm;
-  const cellW = sealW ?? Math.floor((((210 - marginLeft) - colGap * (cols - 1)) / cols) * 10) / 10;
-  const cellH = sealH ?? Math.floor((((297 - marginTop)  - rowGap * (rows - 1)) / rows) * 10) / 10;
+  // シール1枚の実寸は width/height（関数冒頭でA4モード用に計算済み）と同じ値。
+  // フォントサイズ・横長判定（2カラム化）も含めて singleLabel の生成時点で
+  // すでにこのサイズを基準に計算されているため、ここで改めて計算し直さない
+  // （二重計算すると、片方だけ修正漏れが起きた際に値がズレるバグの元になる）。
+  const cellW = width;
+  const cellH = height;
   // 右余白・下余白は自動計算（シール同士のスキマの合計分も差し引く）
   const marginRight  = Math.max(210 - marginLeft - cellW * cols - colGap * (cols - 1), 0);
   const marginBottom = Math.max(297 - marginTop  - cellH * rows - rowGap * (rows - 1), 0);

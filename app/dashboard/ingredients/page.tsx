@@ -134,6 +134,7 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
     purchasePrice:   ingredient?.purchasePrice ? String(ingredient.purchasePrice) : '',
     storage:         ingredient?.storage ?? 'ROOM_TEMP',
     supplier:        ingredient?.supplier ?? '',
+    originCountry:   (ingredient as any)?.originCountry ?? '',
     isPublic:        ingredient?.isPublic ?? false,
     allergens:       ingredient?.allergens.join('、') ?? '',
     energyKcal:      ingredient?.nutrition?.energyKcal ? String(ingredient.nutrition.energyKcal) : '',
@@ -176,6 +177,7 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
         purchasePrice: form.purchasePrice ? parseFloat(form.purchasePrice) : emptyValue,
         storage:       form.storage,
         supplier:      form.supplier.trim() || emptyValue,
+        originCountry: form.originCountry.trim() || emptyValue,
         isPublic:      form.isPublic,
         allergens:     form.allergens ? form.allergens.split(/[,、,]/).map(a=>a.trim()).filter(Boolean) : [],
         energyKcalManual:   form.energyKcal    ? parseFloat(form.energyKcal)    : emptyValue,
@@ -332,6 +334,13 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
           </div>
           <div className="grid sm:grid-cols-2 gap-3">
             <div><label className="field-label">仕入先</label><input type="text" value={form.supplier} onChange={e=>setForm(f=>({...f,supplier:e.target.value}))} className="field-input" /></div>
+            <div>
+              <label className="field-label">原産地（デフォルト）</label>
+              <input type="text" value={form.originCountry} onChange={e=>setForm(f=>({...f,originCountry:e.target.value}))} className="field-input" placeholder="例: 国産、アメリカ産" />
+              <p className="field-hint">この食材が使用レシピの中で最も重量の多い原材料になったとき、レシピ側の原産国表示欄に自動で入力されます（レシピごとに個別に変更も可能）</p>
+            </div>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-3">
             <div className="flex items-end pb-0.5">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={form.isPublic} onChange={e=>setForm(f=>({...f,isPublic:e.target.checked}))} className="accent-brand-500" />

@@ -14,21 +14,6 @@ import {
 } from 'lucide-react';
 import type { BakingStep, RecipeDetail } from '@/types';
 
-// 品名からカタカナ仮名を生成するシンプルなユーティリティ
-// (実際の変換はWeb APIを使う。ここでは入力補助として空白を入れないだけ)
-async function fetchKana(text: string): Promise<string> {
-  try {
-    const res = await fetch(`https://jlp.yahooapis.jp/FuriganaService/V2/furigana`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'User-Agent': 'Yahoo AppID: dummy' },
-      body: JSON.stringify({ id: '1', jsonrpc: '2.0', method: 'jlp.furiganaservice.furigana', params: { q: text, grade: 1 } }),
-    });
-    // 外部API失敗時はそのまま返す
-    return text;
-  } catch { return text; }
-}
-
-
 
 // ---- 型 ----
 interface IngredientRow {
@@ -58,11 +43,11 @@ interface IngredientRow {
 function IngredientSearch({ value, onChange, onSelect, onFocus, onBlur }: {
   value:    string;
   onChange: (v: string) => void;
-  onSelect: (ing: { id: string; name: string; allergens: string[]; unitPrice: number | null; nutrition: { energyKcal: number | null } | null; nutritionUnconfirmed: boolean }) => void;
+  onSelect: (ing: { id: string; name: string; allergens: string[]; unitPrice: number | null; nutrition: { energyKcal: number | null } | null; nutritionUnconfirmed: boolean; originCountry?: string | null }) => void;
   onFocus?: () => void;
   onBlur?: () => void;
 }) {
-  const [results, setResults] = useState<{ id: string; name: string; allergens: string[]; unitPrice: number | null; nutrition: { energyKcal: number | null } | null }[]>([]);
+  const [results, setResults] = useState<{ id: string; name: string; allergens: string[]; unitPrice: number | null; nutrition: { energyKcal: number | null } | null; originCountry?: string | null }[]>([]);
   const [open,    setOpen]    = useState(false);
   const [loading, setLoading] = useState(false);
   const userTyped = useRef(false);
@@ -313,7 +298,7 @@ export default function RecipeForm() {
     });
   };
 
-  const onIngredientSelect = (key: string, ing: { id: string; name: string; allergens: string[]; unitPrice: number | null; nutrition: { energyKcal: number | null } | null; nutritionUnconfirmed: boolean }) => {
+  const onIngredientSelect = (key: string, ing: { id: string; name: string; allergens: string[]; unitPrice: number | null; nutrition: { energyKcal: number | null } | null; nutritionUnconfirmed: boolean; originCountry?: string | null }) => {
     setIngredients(prev => prev.map(i => {
       if (i.key !== key) return i;
       const amount = parseFloat(i.amount) || 0;
@@ -325,6 +310,9 @@ export default function RecipeForm() {
         // その場で自動判定された値をallergenOverrideとして保持する。
         ...i, ingredientId: ing.id, name: ing.name, allergenOverride: ing.id ? [] : ing.allergens,
         nutritionUnconfirmed: ing.nutritionUnconfirmed,
+        // 食材マスタに原産地のデフォルト値が設定されていれば、それを引き継ぐ
+        // （この食材が最多重量の原材料になった場合、原産国表示欄に自動で入る）
+        originCountry: ing.originCountry || i.originCountry,
         energyKcal: kcal, costTotal: cost,
         costPrice: ing.unitPrice ? String(Math.round(ing.unitPrice * 1000) / 1000) : i.costPrice,
       };
@@ -443,26 +431,24 @@ export default function RecipeForm() {
           <div className="sm:col-span-2">
             <label className="field-label">品名 <span className="text-red-500">*</span></label>
             <input type="text" value={name} onChange={e => setName(e.target.value)}
-              onBlur={async e => {
-                const val = e.target.value;
-                if (val && !nameKana) {
-                  try {
-                    const res = await fetch('/api/util/kana', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ text: val }),
-                    });
-                    const data = await res.json();
-                    if (data.success && data.kana) setNameKana(data.kana);
-                  } catch { setNameKana(val); }
-                }
-              }}
               className="field-input" lang="ja" placeholder="例: ガレットブルトンヌ" inputMode="text" />
           </div>
           <div>
-            <label className="field-label">品名（カナ）<span className="text-stone-400 text-xs ml-1">（品名入力後に自動入力）</span></label>
-            <input type="text" value={nameKana} onChange={e => setNameKana(e.target.value)}
+            <label className="field-label">品名（カナ）<span className="text-stone-400 text-xs ml-1">（手入力）</span></label>
+            <input type="text" value={nameKana}
+              onChange={e => setNameKana(e.target.value)}
+              onBlur={e => {
+                // ひらがなが入力された場合はカタカナに変換（食材マスタと同じ挙動）
+                const val = e.target.value;
+                if (val) {
+                  const katakana = val.replace(/[ぁ-ゖ]/g, ch =>
+                    String.fromCharCode(ch.charCodeAt(0) + 0x60)
+                  );
+                  if (katakana !== val) setNameKana(katakana);
+                }
+              }}
               className="field-input" lang="ja" placeholder="例: ガレットブルトンヌ" inputMode="text" />
+            <p className="field-hint">ひらがなで入力するとカタカナに自動変換されます</p>
           </div>
           <div>
             <label className="field-label">バリエーション名<span className="text-stone-400 text-xs ml-1">（任意・一覧での識別用）</span></label>

@@ -67,6 +67,7 @@ export async function PUT(request: Request, { params }: Params) {
       storage:         body.storage         ?? ing.storage,
       supplier:        body.supplier        !== undefined ? body.supplier : ing.supplier,
       productCode:     body.productCode     ?? ing.productCode,
+      originCountry:   body.originCountry   !== undefined ? (body.originCountry || null) : (ing as any).originCountry,
       allergens:       allergens,
       isPublic:        body.isPublic        ?? ing.isPublic,
       isApproved:      body.isPublic === false ? true : (body.isPublic ? false : ing.isApproved),

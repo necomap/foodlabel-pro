@@ -36,11 +36,12 @@ export async function GET(_req: Request, { params }: Params) {
     return NextResponse.json({ success: false, error: 'レシピが見つかりません' }, { status: 404 });
   }
 
-  // 材料を重量順にソート（sortByWeight = true の場合）
-  const sortedIngredients = [...recipe.ingredients].sort((a, b) => {
-    if (a.sortByWeight && a.unit === 'g') return Number(b.amount) - Number(a.amount);
-    return a.displayOrder - b.displayOrder;
-  });
+  // 表示順は常にdisplayOrder（レシピ編集画面でドラッグ&ドロップして並び替えた順）を使う。
+  // 実際に印字される原材料表示テキストの重量順ソートは、下のingredientsLabel計算
+  // （prepareIngredientsForLabel内）で別途・自動的に行われるため、ここで重量順に並べ替える
+  // 必要はない。むしろここで重量順に並べ替えてしまうと、編集画面やレシピ印刷を開き直すたびに
+  // ユーザーが並び替えた順番が重量順に戻って見えてしまう（保存されていないように見える）バグになる。
+  const sortedIngredients = [...recipe.ingredients].sort((a, b) => a.displayOrder - b.displayOrder);
 
   // アレルゲン集約（ラベル印刷時の判定〔app/api/labels/generate/route.ts〕と同じく、一般名優先で判定する）
   const allergenInfo = collectRecipeAllergens(

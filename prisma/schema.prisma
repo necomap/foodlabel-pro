@@ -160,6 +160,10 @@ model Ingredient {
   storage              StorageType         @default(ROOM_TEMP)
   supplier             String?             @db.VarChar(100)
   productCode          String?             @db.VarChar(100)
+  // この食材の標準的な原産地（例：国産、アメリカ産）。レシピにこの食材を追加したとき、
+  // その食材が最も重量の多い原材料になった場合の原産国表示欄の初期値として使う（毎回手入力しなくて済むように）。
+  // レシピごとに実際の原産地が違う場合は、レシピ側の欄で個別に上書きできる。
+  originCountry        String?             @db.VarChar(100)
   allergens            String[]
   isPublic             Boolean             @default(false)
   isApproved           Boolean             @default(false)

@@ -267,6 +267,9 @@ model RecipeIngredient {
   // 閾値未満になる添加物など、食材マスタ全体ではなく「今回の使い方」に限った例外）。
   // 食材マスタ側のalwaysHideFromLabelとは別の、レシピ単位の一時的な上書き設定。
   hideFromLabel          Boolean     @default(false)
+  // 工程・用途名（任意、例：湯種／本ごね／仕上げ）。計量を分けて仕込む際の表示グループ分け用。
+  // ラベルの原材料表示（法定表示）には影響しない、レシピ画面・レシピ印刷での表示のみに使う。
+  processLabel           String?     @db.VarChar(50)
   ingredient             Ingredient? @relation(fields: [ingredientId], references: [id])
   recipe                 Recipe      @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 

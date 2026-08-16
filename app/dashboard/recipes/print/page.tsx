@@ -9,6 +9,7 @@ interface RecipeForPrint {
   ingredients: Array<{
     ingredientName: string; amount: number; unit: string;
     genericName: string|null; genericNameConfirmed: boolean|null;
+    processLabel: string|null;
   }>;
   steps: string[];
   bakingConditions: Array<{steam:string|null;topHeat:number|null;bottomHeat:number|null;timeMin:number|null}>|null;
@@ -25,6 +26,26 @@ function scaleAmount(amount: number, factor: number): number {
 }
 function formatAmount(v: number): string {
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
+}
+
+// 材料テーブルの行HTMLを生成。processLabel（工程・用途、例：湯種／本ごね／仕上げ）が
+// 前の材料と変わったタイミングで、見出し行を差し込む。
+function buildIngredientRowsHtml(
+  ingredients: RecipeForPrint['ingredients'],
+  factors: ScaleFactor[],
+  displayName: (ing: RecipeForPrint['ingredients'][number]) => string
+): string {
+  let html = '';
+  let prevLabel = '';
+  for (const i of ingredients) {
+    const label = i.processLabel || '';
+    if (label && label !== prevLabel) {
+      html += `<tr><td colspan="${1 + factors.length}" style="padding-top:2mm;font-weight:bold;font-size:8pt;color:#a56a3a;border-bottom:0.3mm solid #e8ddd0;">${label}</td></tr>`;
+    }
+    prevLabel = label;
+    html += `<tr><td>${displayName(i)}</td>${factors.map(f=>`<td style="text-align:right;white-space:nowrap;">${formatAmount(scaleAmount(i.amount,f.factor))}${i.unit}</td>`).join('')}</tr>`;
+  }
+  return html;
 }
 
 // useSearchParams は Suspense 内で使う必要がある
@@ -138,7 +159,7 @@ ${recipes.map(r => `
     <div class="section-title">材料</div>
     <table>
       ${headerRow}
-      ${r.ingredients.map(i=>`<tr><td>${displayName(i)}</td>${factors.map(f=>`<td style="text-align:right;white-space:nowrap;">${formatAmount(scaleAmount(i.amount,f.factor))}${i.unit}</td>`).join('')}</tr>`).join('')}
+      ${buildIngredientRowsHtml(r.ingredients, factors, displayName)}
       ${r.totalWeightG ? `<tr style="font-weight:bold;border-top:0.3mm solid #ccc;"><td>合計重量</td>${factors.map(f=>`<td style="text-align:right;">${formatAmount(scaleAmount(r.totalWeightG as number,f.factor))}g</td>`).join('')}</tr>` : ''}
     </table>
     ${r.bakingConditions && r.bakingConditions.length > 0 ? `
@@ -289,22 +310,32 @@ ${recipes.map(r => `
                   </span>
                 </div>
               )}
-              {recipe.ingredients.map((ing, i) => (
-                <div key={i} className="flex justify-between text-sm">
-                  <span>{displayName(ing)}</span>
-                  {multiScale ? (
-                    <span className="flex gap-3">
-                      {activeFactors.map(f => (
-                        <span key={f.label} className="w-14 text-right font-medium">
-                          {formatAmount(scaleAmount(ing.amount, f.factor))}{ing.unit}
-                        </span>
-                      ))}
-                    </span>
-                  ) : (
-                    <span className="font-medium">{ing.amount}{ing.unit}</span>
+              {recipe.ingredients.map((ing, i) => {
+                const prevLabel = i > 0 ? (recipe.ingredients[i-1].processLabel || '') : '';
+                const label = ing.processLabel || '';
+                const showGroupHeader = !!label && label !== prevLabel;
+                return (
+                <div key={i}>
+                  {showGroupHeader && (
+                    <div className="text-[10px] font-bold text-amber-700 mt-2 mb-0.5 first:mt-0">{label}</div>
                   )}
+                  <div className="flex justify-between text-sm">
+                    <span>{displayName(ing)}</span>
+                    {multiScale ? (
+                      <span className="flex gap-3">
+                        {activeFactors.map(f => (
+                          <span key={f.label} className="w-14 text-right font-medium">
+                            {formatAmount(scaleAmount(ing.amount, f.factor))}{ing.unit}
+                          </span>
+                        ))}
+                      </span>
+                    ) : (
+                      <span className="font-medium">{ing.amount}{ing.unit}</span>
+                    )}
+                  </div>
                 </div>
-              ))}
+                );
+              })}
               {recipe.totalWeightG && (
                 <div className="flex justify-between text-sm font-bold border-t border-cream-200 pt-1">
                   <span>合計重量</span>

@@ -231,6 +231,8 @@ export async function POST(request: Request) {
       allergens:        ing.ingredient?.allergens ?? [],
       allergenOverride: ing.allergenOverride,
       ingredientName:   ing.ingredient?.genericName || ing.ingredient?.name || ing.ingredientNameOverride || '',
+      // 食材マスタに紐づいている材料は、マスタ側のallergensのみを信頼する（名前からの自動再判定はしない）
+      hasIngredientLink: !!ing.ingredientId,
     }))
   );
 

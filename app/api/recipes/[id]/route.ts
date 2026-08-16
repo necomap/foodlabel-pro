@@ -48,6 +48,8 @@ export async function GET(_req: Request, { params }: Params) {
       allergens:        ing.ingredient?.allergens ?? [],
       allergenOverride: ing.allergenOverride,
       ingredientName:   (ing.ingredient as any)?.genericName || ing.ingredient?.name || ing.ingredientNameOverride || '',
+      // 食材マスタに紐づいている材料は、マスタ側のallergensのみを信頼する（名前からの自動再判定はしない）
+      hasIngredientLink: !!ing.ingredientId,
     }))
   );
 
@@ -135,6 +137,7 @@ export async function GET(_req: Request, { params }: Params) {
         additiveReason:         ing.additiveReason ?? null,
         hideFromLabel:          (ing as any).hideFromLabel ?? false,
         ingredientAlwaysHideFromLabel: (ing.ingredient as any)?.alwaysHideFromLabel ?? false,
+        processLabel:           (ing as any).processLabel ?? null,
         costPrice:              ing.costPrice  ? Number(ing.costPrice)  : null,
         costTotal:              ing.costTotal  ? Number(ing.costTotal)  : null,
         allergenOverride:       ing.allergenOverride,
@@ -180,13 +183,14 @@ export async function PUT(request: Request, { params }: Params) {
 
     // 材料の栄養計算
     const { calcNutritionForAmount, sumNutrition, calcPerUnit, calcCostRate } = await import('@/lib/nutrition');
-    const { buildIngredientsLabel: bil, collectRecipeAllergens: car } = await import('@/lib/allergen');
+    const { buildIngredientsLabel: bil, collectRecipeAllergens: car, detectAllergens: da } = await import('@/lib/allergen');
 
     const ingredients = body.ingredients ?? [];
     const ingredientDetails = await Promise.all(
       ingredients.map(async (ing: any) => {
         let nutritionPer100g: any = {};
-        let allergens: string[] = ing.allergenOverride ?? [];
+        let allergens: string[] = [];
+        let hasIngredientLink = false;
         let nutritionUnconfirmed = false;
         // ラベル表示名：食材マスタに一般名が設定されていればそちらを優先（例:「無塩バター よつ葉」→「バター」）
         let displayName = ing.ingredientNameOverride ?? ing.name ?? '';
@@ -197,7 +201,12 @@ export async function PUT(request: Request, { params }: Params) {
             include: { nutritionData: true },
           });
           if (rec) {
-            allergens = ing.allergenOverride?.length ? ing.allergenOverride : rec.allergens;
+            hasIngredientLink = true;
+            // 食材マスタに紐づいている場合は常にマスタ側のallergensのみを信頼する。
+            // レシピ側に古いスナップショット（ing.allergenOverride）が残っていても使わない。
+            // こうすることで、食材マスタ側でアレルゲンを修正すれば、このレシピを保存し直すだけで
+            // 正しい値に更新される（保存し直さなくても、印刷・表示時は常にマスタの最新値が使われる）。
+            allergens = rec.allergens;
             if ((rec as any).genericName) displayName = (rec as any).genericName;
             if (rec.nutritionData || rec.energyKcalManual != null) {
               nutritionPer100g = {
@@ -214,16 +223,23 @@ export async function PUT(request: Request, { params }: Params) {
             } else { nutritionUnconfirmed = true; }
           }
         }
+        if (!hasIngredientLink) {
+          // 食材マスタに紐づいていない（自由入力の）材料：allergenOverrideがあれば優先、
+          // なければ名前から自動判定する（新規作成時と同じロジック）。
+          allergens = ing.allergenOverride?.length ? ing.allergenOverride : da(ing.ingredientNameOverride ?? ing.name ?? '');
+        }
         const amount = Number(ing.amount);
         const nutrition = calcNutritionForAmount(nutritionPer100g, amount);
         const costTotal = ing.costPrice && amount ? Number(ing.costPrice) * amount : null;
-        return { ing, allergens, nutrition, nutritionUnconfirmed, costTotal, displayName };
+        return { ing, allergens, hasIngredientLink, nutrition, nutritionUnconfirmed, costTotal, displayName };
       })
     );
 
     const allergenInfo = car(ingredientDetails.map(d => ({
       allergens: d.allergens, allergenOverride: d.ing.allergenOverride ?? [],
       ingredientName: d.displayName,
+      // 食材マスタに紐づいている材料は、マスタ側のallergensのみを信頼する（名前からの自動再判定はしない）
+      hasIngredientLink: d.hasIngredientLink,
     })));
     const totalNutrition = sumNutrition(ingredientDetails.map(d => ({ nutrition: d.nutrition })));
     const totalCost = ingredientDetails.reduce((s, d) => s + (d.costTotal ?? 0), 0);
@@ -294,6 +310,7 @@ export async function PUT(request: Request, { params }: Params) {
           isAdditive:            d.ing.isAdditive ?? false,
           additiveReason:        d.ing.additiveReason ?? null,
           hideFromLabel:         d.ing.hideFromLabel ?? false,
+          processLabel:          d.ing.processLabel || null,
           isPrimaryIngredient:   d.ing.isPrimaryIngredient ?? false,
           allergenOverride:      d.allergens,
           nutritionUnconfirmed:  d.nutritionUnconfirmed,

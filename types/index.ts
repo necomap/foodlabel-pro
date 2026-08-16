@@ -59,6 +59,10 @@ export interface IngredientSummary {
   storage:         StorageType;
   supplier:        string | null;
   isPublic:        boolean;
+  // 水・浄水など、どのレシピで使っても原材料表示に出す必要がない食材用のフラグ。
+  // ONの食材は、使っている全レシピで自動的に原材料名表示から除外される
+  // （栄養成分・アレルゲン判定には影響しない。あくまで表示だけの設定）
+  alwaysHideFromLabel?: boolean;
   // 栄養値（100gあたり）
   nutrition?: NutritionValues;
 }
@@ -78,6 +82,12 @@ export interface RecipeIngredientInput {
   additiveReason?:         string;
   costPrice?:              number;
   allergenOverride?:       string[];
+  // このレシピでのこの原材料の使用分だけを原材料表示から除外する（例：焼成後の含有量が表示義務の
+  // 閾値未満になる添加物など、食材マスタ全体ではなく「今回の使い方」に限った一時的な例外）。
+  hideFromLabel?:          boolean;
+  // 工程・用途名（任意、例：湯種／本ごね／仕上げ）。計量を分けて仕込む際に使う、
+  // レシピ内だけの表示グループ分け。ラベルの原材料表示（法定表示）には影響しない。
+  processLabel?:           string;
 }
 
 export interface RecipeIngredientDetail extends RecipeIngredientInput {
@@ -89,6 +99,8 @@ export interface RecipeIngredientDetail extends RecipeIngredientInput {
   nutrition:              NutritionValues;
   nutritionUnconfirmed:   boolean;
   isPrimaryIngredient:    boolean;
+  // 食材マスタ側で「常に非表示」に設定されている食材かどうか（hideFromLabelとはOR条件で合成される）
+  ingredientAlwaysHideFromLabel?: boolean;
 }
 
 // ============================================================

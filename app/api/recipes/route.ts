@@ -109,6 +109,7 @@ const ingredientSchema = z.object({
   isAdditive:             z.boolean().default(false),
   additiveReason:         z.string().optional(),
   hideFromLabel:          z.boolean().default(false),
+  processLabel:           z.string().max(50).optional(),
   costPrice:              z.number().optional(),
   allergenOverride:       z.array(z.string()).optional(),
 });
@@ -321,6 +322,7 @@ export async function POST(request: Request) {
           isAdditive:             ing.isAdditive ?? false,
           additiveReason:         ing.additiveReason,
             hideFromLabel:          ing.hideFromLabel ?? false,
+            processLabel:           ing.processLabel || null,
             costPrice:              ing.costPrice,
             costTotal:              ing.costTotal,
             allergenOverride:       ing.allergenOverride,

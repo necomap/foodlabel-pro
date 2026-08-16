@@ -74,6 +74,13 @@ export function collectRecipeAllergens(
     allergens?:       string[];
     allergenOverride?: string[];
     ingredientName:    string;
+    // 食材マスタに紐づいている（ingredientIdがある）場合はtrueにする。
+    // trueのときは常に食材マスタ側のallergensのみを信頼する（レシピ側に古いスナップショットが
+    // 残っていても無視し、名前からの自動再判定もしない）。
+    // これにより、例えば「牛乳」が名前に「牛」を含むために自動判定で誤って「牛肉」と
+    // 判定されてしまうケースでも、食材マスタ側で一度修正すれば全レシピに反映されるようになる。
+    // 食材マスタに紐づいていない（自由入力の）材料は、このフラグをfalse／未指定のままにする。
+    hasIngredientLink?: boolean;
   }>
 ): {
   required: string[];   // 義務表示8品目
@@ -83,13 +90,13 @@ export function collectRecipeAllergens(
   const allDetected = new Set<string>();
 
   for (const ing of ingredients) {
-    // allergenOverrideがあればそれを優先、なければ自動判定 + ingredientsのallergens
-    const sources = ing.allergenOverride?.length
-      ? ing.allergenOverride
-      : [
-          ...(ing.allergens ?? []),
-          ...detectAllergens(ing.ingredientName),
-        ];
+    // 食材マスタに紐づいている場合は、マスタ側のallergensのみを信頼する（最優先・唯一の情報源）。
+    // 紐づいていない（自由入力の）場合のみ、allergenOverride→無ければ名前からの自動判定、の順で使う。
+    const sources = ing.hasIngredientLink
+      ? (ing.allergens ?? [])
+      : ing.allergenOverride?.length
+        ? ing.allergenOverride
+        : detectAllergens(ing.ingredientName);
 
     for (const a of sources) {
       allDetected.add(a);

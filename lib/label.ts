@@ -46,6 +46,8 @@ export function generateLabelContent(
       allergens:        ing.allergenOverride?.length ? [] : (ing as any).allergens ?? [],
       allergenOverride: ing.allergenOverride ?? [],
       ingredientName:   ing.ingredientName,
+      // 食材マスタに紐づいている材料は、マスタ側のallergensのみを信頼する（名前からの自動再判定はしない）
+      hasIngredientLink: !!ing.ingredientId,
     }))
   );
 

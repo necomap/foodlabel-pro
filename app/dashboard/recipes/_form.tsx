@@ -47,6 +47,8 @@ interface IngredientRow {
   hideFromLabel:    boolean;
   // 食材マスタ側で「常に非表示」に設定されている食材かどうか（参照専用。食材マスタ側で変更する）
   ingredientAlwaysHideFromLabel?: boolean;
+  // 工程・用途名（任意、例：湯種／本ごね／仕上げ）。計量を分けて仕込むときの表示グループ分け用
+  processLabel:     string;
   // computed
   energyKcal: number | null;
   costTotal:  number | null;
@@ -171,7 +173,7 @@ export default function RecipeForm() {
   // 材料
   const [focusedKey, setFocusedKey] = useState<string|null>(null);
   const [ingredients, setIngredients] = useState<IngredientRow[]>([
-    { key: 'r0', ingredientId: '', name: '', amount: '', unit: 'g', costPrice: '', originCountry: '', allergenOverride: [], nutritionUnconfirmed: false, isAdditive: false, additiveReason: '', hideFromLabel: false, energyKcal: null, costTotal: null },
+    { key: 'r0', ingredientId: '', name: '', amount: '', unit: 'g', costPrice: '', originCountry: '', allergenOverride: [], nutritionUnconfirmed: false, isAdditive: false, additiveReason: '', hideFromLabel: false, processLabel: '', energyKcal: null, costTotal: null },
   ]);
 
   // 手順
@@ -251,6 +253,7 @@ export default function RecipeForm() {
             additiveReason: (ing as any).additiveReason ?? '',
             hideFromLabel: (ing as any).hideFromLabel ?? false,
             ingredientAlwaysHideFromLabel: (ing as any).ingredientAlwaysHideFromLabel ?? false,
+            processLabel: (ing as any).processLabel ?? '',
           })));
         }
         if (r.steps.length > 0) setSteps(r.steps);
@@ -281,7 +284,10 @@ export default function RecipeForm() {
     setIngredients(prev => [...prev, {
       key: `r${Date.now()}`, ingredientId: '', name: '', amount: '', unit: 'g',
       costPrice: '', originCountry: '', allergenOverride: [], nutritionUnconfirmed: false,
-      isAdditive: false, additiveReason: '', hideFromLabel: false, energyKcal: null, costTotal: null,
+      isAdditive: false, additiveReason: '', hideFromLabel: false,
+      // 直前の材料と同じ工程・用途（湯種／本ごね／仕上げなど）が続くことが多いため、初期値として引き継ぐ
+      processLabel: prev.length > 0 ? prev[prev.length - 1].processLabel : '',
+      energyKcal: null, costTotal: null,
     }]);
   };
 
@@ -300,7 +306,10 @@ export default function RecipeForm() {
       const kcal   = ing.nutrition?.energyKcal != null ? (ing.nutrition.energyKcal * amount / 100) : null;
       const cost   = ing.unitPrice && amount ? ing.unitPrice * amount : null;
       return {
-        ...i, ingredientId: ing.id, name: ing.name, allergenOverride: ing.allergens,
+        // 食材マスタにリンクする場合、アレルゲンは常にマスタ側の最新値を使うため
+        // ここではスナップショットを持たせない（[]のまま）。手入力食材（ing.idが空）の場合のみ、
+        // その場で自動判定された値をallergenOverrideとして保持する。
+        ...i, ingredientId: ing.id, name: ing.name, allergenOverride: ing.id ? [] : ing.allergens,
         nutritionUnconfirmed: ing.nutritionUnconfirmed,
         energyKcal: kcal, costTotal: cost,
         costPrice: ing.unitPrice ? String(Math.round(ing.unitPrice * 1000) / 1000) : i.costPrice,
@@ -362,6 +371,7 @@ export default function RecipeForm() {
           allergenOverride:       ing.allergenOverride,
           isAdditive:            (ing as IngredientRow).isAdditive ?? false,
           hideFromLabel:         (ing as IngredientRow).hideFromLabel ?? false,
+          processLabel:          (ing as IngredientRow).processLabel || undefined,
         })),
         steps: steps.filter(s => s.trim()),
       };
@@ -562,9 +572,26 @@ export default function RecipeForm() {
           )}
         </div>
 
+        {/* 工程・用途の入力補助（過去に入力した工程名を候補表示） */}
+        <datalist id="process-label-suggestions">
+          {Array.from(new Set(ingredients.map(i => i.processLabel).filter(Boolean))).map(p => (
+            <option key={p} value={p} />
+          ))}
+        </datalist>
+
         <div className="space-y-2">
-          {ingredients.map((ing, idx) => (
-            <div key={ing.key} className="group flex gap-2 items-start">
+          {ingredients.map((ing, idx) => {
+            const prevProcessLabel = idx > 0 ? ingredients[idx - 1].processLabel : '';
+            const showProcessHeader = !!ing.processLabel && ing.processLabel !== prevProcessLabel;
+            return (
+            <div key={ing.key}>
+              {showProcessHeader && (
+                <div className="flex items-center gap-2 mt-4 mb-1.5 first:mt-1">
+                  <span className="text-xs font-bold text-brand-700 bg-brand-50 px-2.5 py-1 rounded-full">{ing.processLabel}</span>
+                  <div className="flex-1 h-px bg-cream-200" />
+                </div>
+              )}
+            <div className="group flex gap-2 items-start">
               <div className="pt-2.5 text-stone-300 cursor-grab">
                 <GripVertical className="w-4 h-4" />
               </div>
@@ -661,6 +688,15 @@ export default function RecipeForm() {
                 </label>
               )}
 
+              {/* 工程・用途（湯種／本ごね／仕上げなど、計量を分けて仕込むときのグループ分け・任意） */}
+              <input type="text"
+                list="process-label-suggestions"
+                value={(ing as IngredientRow).processLabel}
+                onChange={e => updateIngredient(ing.key, 'processLabel', e.target.value)}
+                placeholder="工程（任意）"
+                title="工程・用途（例：湯種／本ごね／仕上げ）。同じ工程名を続けて入力すると見出しでまとめて表示されます"
+                className="field-input text-xs py-1.5 w-24 hidden sm:block" />
+
               {/* 原価単価 */}
               <input type="number" value={ing.costPrice}
                 onChange={e => updateIngredient(ing.key, 'costPrice', e.target.value)}
@@ -672,7 +708,9 @@ export default function RecipeForm() {
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
-          ))}
+            </div>
+            );
+          })}
         </div>
 
         <button type="button" onClick={addIngredient}

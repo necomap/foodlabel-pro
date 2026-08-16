@@ -299,6 +299,20 @@ export default function RecipeForm() {
     setIngredients(prev => prev.map(i => i.key === key ? { ...i, [field]: value } : i));
   };
 
+  // ---- 材料の並び替え（ドラッグ＆ドロップ） ----
+  // 材料の配列の並び順＝保存時のdisplayOrder（原材料表示の並びのベース）になるため、
+  // ここで配列の順番を入れ替えるだけで、保存後のラベル表示順にも反映される。
+  const [dragIdx, setDragIdx] = useState<number|null>(null);
+  const moveIngredient = (from: number, to: number) => {
+    if (from === to) return;
+    setIngredients(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  };
+
   const onIngredientSelect = (key: string, ing: { id: string; name: string; allergens: string[]; unitPrice: number | null; nutrition: { energyKcal: number | null } | null; nutritionUnconfirmed: boolean }) => {
     setIngredients(prev => prev.map(i => {
       if (i.key !== key) return i;
@@ -584,7 +598,11 @@ export default function RecipeForm() {
             const prevProcessLabel = idx > 0 ? ingredients[idx - 1].processLabel : '';
             const showProcessHeader = !!ing.processLabel && ing.processLabel !== prevProcessLabel;
             return (
-            <div key={ing.key}>
+            <div key={ing.key}
+              onDragOver={e => { if (dragIdx !== null && dragIdx !== idx) e.preventDefault(); }}
+              onDrop={e => { e.preventDefault(); if (dragIdx !== null) { moveIngredient(dragIdx, idx); setDragIdx(null); } }}
+              className={dragIdx === idx ? 'opacity-40' : ''}
+            >
               {showProcessHeader && (
                 <div className="flex items-center gap-2 mt-4 mb-1.5 first:mt-1">
                   <span className="text-xs font-bold text-brand-700 bg-brand-50 px-2.5 py-1 rounded-full">{ing.processLabel}</span>
@@ -592,7 +610,11 @@ export default function RecipeForm() {
                 </div>
               )}
             <div className="group flex gap-2 items-start">
-              <div className="pt-2.5 text-stone-300 cursor-grab">
+              <div className="pt-2.5 text-stone-300 cursor-grab active:cursor-grabbing"
+                draggable
+                onDragStart={() => setDragIdx(idx)}
+                onDragEnd={() => setDragIdx(null)}
+                title="ドラッグして材料の順番を入れ替え">
                 <GripVertical className="w-4 h-4" />
               </div>
               <div className="text-xs text-stone-400 pt-3 w-5 text-center">{idx + 1}</div>

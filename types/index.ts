@@ -200,6 +200,9 @@ export interface LabelConfig {
   // ラベルプリンタ
   labelWidthMm?:   number;
   labelHeightMm?:  number;
+  // 無定長（連続）ロール用。trueの場合、高さを固定せず印刷側で内容に応じて自動的に長さを決める
+  // （labelHeightMmは文字サイズ計算等の目安としてのみ使う）
+  labelHeightAuto?: boolean;
   isPrecut?:       boolean;
   cutMarginMm?:    number;
   // A4プリンタ

@@ -86,7 +86,9 @@ export default function LabelsPage() {
   // ラベルプリンタ
   const [labelW,        setLabelW]        = useState('60');
   const [labelH,        setLabelH]        = useState('60');
-  
+  // 無定長（連続）ロール：高さを固定せず、印刷側で内容に応じて自動的に長さを決める
+  const [labelHeightAuto, setLabelHeightAuto] = useState(false);
+
   // A4プリンタ
   const [a4Cols,   setA4Cols]   = useState('3');
   const [a4Rows,   setA4Rows]   = useState('5');
@@ -194,6 +196,7 @@ export default function LabelsPage() {
 
     if (getL('labelW')) setLabelW(getL('labelW')!);
     if (getL('labelH')) setLabelH(getL('labelH')!);
+    if (getL('labelHeightAuto') !== null) setLabelHeightAuto(getL('labelHeightAuto') === 'true');
 
     if (getL('a4Cols')) setA4Cols(getL('a4Cols')!);
     if (getL('a4Rows')) setA4Rows(getL('a4Rows')!);
@@ -317,6 +320,7 @@ export default function LabelsPage() {
         ...(deviceType === 'LABEL_PRINTER' ? {
           labelWidthMm:  parseFloat(labelW),
           labelHeightMm: parseFloat(labelH),
+          labelHeightAuto,
         } : {
           a4Cols:       parseInt(a4Cols),
           a4Rows:       parseInt(a4Rows),
@@ -387,6 +391,7 @@ export default function LabelsPage() {
         ...(deviceType === 'LABEL_PRINTER' ? {
           labelWidthMm:  parseFloat(labelW),
           labelHeightMm: parseFloat(labelH),
+          labelHeightAuto,
         } : {
           a4Cols:       parseInt(a4Cols),
           a4Rows:       parseInt(a4Rows),
@@ -685,15 +690,31 @@ export default function LabelsPage() {
             </div>
 
             {deviceType === 'LABEL_PRINTER' ? (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="field-label">ラベル幅（mm）</label>
-                  <input type="text" inputMode="numeric" pattern="[0-9]*" value={labelW} onChange={e => { setLabelW(e.target.value); updateLabelStorage('labelW', e.target.value); }} className="field-input" />
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="field-label">ラベル幅（mm）</label>
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={labelW} onChange={e => { setLabelW(e.target.value); updateLabelStorage('labelW', e.target.value); }} className="field-input" />
+                  </div>
+                  <div>
+                    <label className="field-label">{labelHeightAuto ? '目安の高さ（mm）' : 'ラベル高さ（mm）'}</label>
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={labelH} onChange={e => { setLabelH(e.target.value); updateLabelStorage('labelH', e.target.value); }} className="field-input" />
+                  </div>
                 </div>
-                <div>
-                  <label className="field-label">ラベル高さ（mm）</label>
-                  <input type="text" inputMode="numeric" pattern="[0-9]*" value={labelH} onChange={e => { setLabelH(e.target.value); updateLabelStorage('labelH', e.target.value); }} className="field-input" />
-                </div>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={labelHeightAuto}
+                    onChange={e => { setLabelHeightAuto(e.target.checked); localStorage.setItem('label_labelHeightAuto', String(e.target.checked)); }}
+                    className="accent-brand-500" />
+                  <span className="text-sm font-medium text-stone-700">無定長（連続）ロールを使う</span>
+                </label>
+                {labelHeightAuto && (
+                  <p className="text-xs text-stone-400">
+                    高さを固定せず、印刷内容に応じてプリンタ側で長さを自動調整します（上の「目安の高さ」は文字サイズ計算の目安としてのみ使われます）。
+                    プリンタ本体のドライバ側（Windowsの「デバイスとプリンター」→ 印刷設定/プロパティ）でも、
+                    用紙・ロールの種類を「無定長（連続長）」に設定し、幅を実際のロール幅と一致させてください。
+                    ブラウザの印刷ダイアログの用紙サイズ選択ではなく、ドライバ側の設定が優先されることがあります。
+                  </p>
+                )}
               </div>
             ) : (
               <div className="space-y-3">

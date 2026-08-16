@@ -22,6 +22,7 @@ const labelConfigSchema = z.object({
   deviceType:      z.enum(['LABEL_PRINTER', 'A4_PRINTER', 'OTHER']).default('LABEL_PRINTER'),
   labelWidthMm:    z.number().positive().optional(),
   labelHeightMm:   z.number().positive().optional(),
+  labelHeightAuto: z.boolean().optional(),
   isPrecut:        z.boolean().optional(),
   cutMarginMm:     z.number().optional(),
   a4Cols:          z.number().int().positive().optional(),

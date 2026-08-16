@@ -312,6 +312,9 @@ export function generateLabelHtml(
   const { fontSizePt, labelWidthMm, labelHeightMm } = config;
   const width = labelWidthMm ?? 60;
   const height = labelHeightMm ?? 60;
+  // 無定長（連続）ロール用：ラベルプリンタのみ有効。高さを固定せず、内容量に応じて印刷側で
+  // 自動的に長さを決める（@page の size に "auto" を指定する）。A4は物理的にグリッドが固定なので対象外。
+  const labelHeightAuto = config.deviceType === 'LABEL_PRINTER' && (config as any).labelHeightAuto === true;
   const recycleMarks: Array<{ key: string; role?: string }> = (content as any).recycleMarks ?? [];
   // 識別マーク単体の高さ。バーコード高さ(barcodeHeightMm)とは独立した設定値。
   // 法令上マーク単体で6mm以上必要なため、万一0や未設定の値が来ても下限をクランプする。
@@ -369,12 +372,15 @@ export function generateLabelHtml(
       </tr>`;
   }).join('');
 
+  // 無定長ロール時は高さを固定しない（内容ぶんだけ伸びて、その長さでカットされる）。
+  // それ以外（固定サイズのラベル・A4）は従来どおり min/max 両方を固定してoverflow:hiddenで収める。
+  const labelHeightStyle = labelHeightAuto
+    ? `min-height: ${height}mm;`
+    : `min-height: ${height}mm;\n  max-height: ${height}mm;\n  overflow: hidden;`;
   const singleLabel = `
 <div class="label" style="
   width: ${width}mm;
-  min-height: ${height}mm;
-  max-height: ${height}mm;
-  overflow: hidden;
+  ${labelHeightStyle}
   font-size:${fontSize}pt;
   font-family: 'Noto Sans JP', 'Hiragino Sans', Meiryo, sans-serif;
   line-height: 1.15;
@@ -468,7 +474,7 @@ ${(content.barcode && content.showBarcode !== false) || (recycleMarks.length > 0
 <head>
 <meta charset="UTF-8">
 <style>
-  @page { margin: 0; size: ${width}mm ${height}mm; }
+  @page { margin: 0; size: ${width}mm ${labelHeightAuto ? 'auto' : height + 'mm'}; }
   body { margin: 0; padding: 0; } html, body { height: auto !important; }
   .label { break-after: page; }
   .label:last-child { break-after: avoid; page-break-after: avoid; }

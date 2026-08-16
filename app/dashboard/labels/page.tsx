@@ -705,8 +705,12 @@ export default function LabelsPage() {
                   <input type="checkbox" checked={labelHeightAuto}
                     onChange={e => { setLabelHeightAuto(e.target.checked); localStorage.setItem('label_labelHeightAuto', String(e.target.checked)); }}
                     className="accent-brand-500" />
-                  <span className="text-sm font-medium text-stone-700">印刷内容に応じて長さを自動で変える（可変長印刷）</span>
+                  <span className="text-sm font-medium text-stone-700">1枚ずつ印刷の長さを変える（レシートのような可変長印刷）</span>
                 </label>
+                <p className="text-xs text-amber-600">
+                  ※ ご利用のラベル用紙が「無定長ロール」という商品名でも、ここは通常チェック不要です（このチェックと用紙の種類は別の設定です）。
+                  用紙が固定サイズ（例：62mm×60mm）のシールなら、下記のとおりチェックは外したままにしてください。
+                </p>
                 {labelHeightAuto ? (
                   <p className="text-xs text-stone-400">
                     高さを固定せず、印刷内容に応じて1枚ごとに長さが変わります（上の「目安の高さ」は文字サイズ計算の目安としてのみ使われ、実際の印刷長さはこの通りになるとは限りません）。
@@ -714,10 +718,9 @@ export default function LabelsPage() {
                   </p>
                 ) : (
                   <p className="text-xs text-stone-400">
-                    ※ このチェックは「1枚ごとに印刷の長さを変えるか」の設定です。ダイカットではなく無定長（連続）ロール紙を使っている場合でも、
-                    このチェックは外したまま（OFF）で構いません。ラベル幅・高さに固定サイズ（例：62mm×60mm）を入れれば、その通りの大きさで印刷されます。
-                    ロール紙の種類（無定長／ダイカット）や幅の設定は、プリンタ本体のドライバ側（Windowsの「デバイスとプリンター」→ 印刷設定/プロパティ）で別途行ってください。
-                    ブラウザの印刷ダイアログの用紙サイズ選択より、ドライバ側の設定が優先されることがあります。
+                    このままでOKです。ラベル幅・高さに固定サイズ（例：62mm×60mm）を入れれば、その通りの大きさで印刷されます。
+                    お使いの用紙が無定長（連続）ロール紙であっても、幅・高さの設定はプリンタ本体のドライバ側（Windowsの「デバイスとプリンター」→ 印刷設定/プロパティ）で別途行うものなので、
+                    このチェックとは関係ありません。ブラウザの印刷ダイアログの用紙サイズ選択より、ドライバ側の設定が優先されることがあります。
                   </p>
                 )}
               </div>

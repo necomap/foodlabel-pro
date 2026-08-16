@@ -631,10 +631,16 @@ export default function LabelsPage() {
             <div>
               <label className="field-label">容器全体のサイズ（mm・任意）</label>
               <div className="grid grid-cols-2 gap-3">
-                <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="幅" value={packageWidthMm}
-                  onChange={e => { setPackageWidthMm(e.target.value); updateLabelStorage('packageWidthMm', e.target.value); }} className="field-input" />
-                <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="高さ" value={packageHeightMm}
-                  onChange={e => { setPackageHeightMm(e.target.value); updateLabelStorage('packageHeightMm', e.target.value); }} className="field-input" />
+                <div>
+                  <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="例：150" value={packageWidthMm}
+                    onChange={e => { setPackageWidthMm(e.target.value); updateLabelStorage('packageWidthMm', e.target.value); }} className="field-input" />
+                  <p className="text-xs text-stone-400 mt-0.5">↔ 幅（横方向）</p>
+                </div>
+                <div>
+                  <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="例：100" value={packageHeightMm}
+                    onChange={e => { setPackageHeightMm(e.target.value); updateLabelStorage('packageHeightMm', e.target.value); }} className="field-input" />
+                  <p className="text-xs text-stone-400 mt-0.5">↕ 高さ（縦方向）</p>
+                </div>
               </div>
               <p className="field-hint">シールを貼る容器・袋全体のサイズです。未入力の場合はシールサイズから推定します（実際の容器面積と異なる場合があります）。文字サイズの法令上の下限判定に使用します。</p>
             </div>
@@ -693,11 +699,11 @@ export default function LabelsPage() {
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="field-label">ラベル幅（mm）</label>
+                    <label className="field-label">↔ ラベル幅（横方向・mm）</label>
                     <input type="text" inputMode="numeric" pattern="[0-9]*" value={labelW} onChange={e => { setLabelW(e.target.value); updateLabelStorage('labelW', e.target.value); }} className="field-input" />
                   </div>
                   <div>
-                    <label className="field-label">{labelHeightAuto ? '目安の高さ（mm）' : 'ラベル高さ（mm）'}</label>
+                    <label className="field-label">↕ {labelHeightAuto ? '目安の高さ（縦方向・mm）' : 'ラベル高さ（縦方向・mm）'}</label>
                     <input type="text" inputMode="numeric" pattern="[0-9]*" value={labelH} onChange={e => { setLabelH(e.target.value); updateLabelStorage('labelH', e.target.value); }} className="field-input" />
                   </div>
                 </div>
@@ -736,23 +742,35 @@ export default function LabelsPage() {
                     <input type="text" inputMode="numeric" pattern="[0-9]*" value={a4Rows} onChange={e => { setA4Rows(e.target.value); updateLabelStorage('a4Rows', e.target.value); }} className="field-input" min="1" max="10" />
                   </div>
                 </div>
-　　　　　　　　<div>
+                <div>
                   <label className="field-label">ラベル1枚のサイズ（任意・mm）</label>
-                  <div className="flex items-center gap-2">
-                    <input type="text" inputMode="decimal" value={a4SealW} onChange={e => { setA4SealW(e.target.value); updateLabelStorage('a4SealW', e.target.value); }} className="field-input" placeholder="幅" />
-                    <span className="text-stone-400 text-sm">×</span>
-                    <input type="text" inputMode="decimal" value={a4SealH} onChange={e => { setA4SealH(e.target.value); updateLabelStorage('a4SealH', e.target.value); }} className="field-input" placeholder="高さ" />
-                    <span className="text-xs text-stone-400">mm</span>
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <input type="text" inputMode="decimal" value={a4SealW} onChange={e => { setA4SealW(e.target.value); updateLabelStorage('a4SealW', e.target.value); }} className="field-input" placeholder="例：70" />
+                      <p className="text-xs text-stone-400 mt-0.5">↔ 幅（横方向）</p>
+                    </div>
+                    <span className="text-stone-400 text-sm pb-5">×</span>
+                    <div className="flex-1">
+                      <input type="text" inputMode="decimal" value={a4SealH} onChange={e => { setA4SealH(e.target.value); updateLabelStorage('a4SealH', e.target.value); }} className="field-input" placeholder="例：30" />
+                      <p className="text-xs text-stone-400 mt-0.5">↕ 高さ（縦方向）</p>
+                    </div>
+                    <span className="text-xs text-stone-400 pb-5">mm</span>
                   </div>
                   <p className="text-xs text-stone-400 mt-1">入力するとラベル枠に合わせて配置します</p>
                 </div>
                 <div>
                   <label className="field-label">シール同士のスキマ（任意・mm）</label>
-                  <div className="flex items-center gap-2">
-                    <input type="text" inputMode="decimal" value={a4ColGap} onChange={e => { setA4ColGap(e.target.value); updateLabelStorage('a4ColGap', e.target.value); }} className="field-input" placeholder="横のスキマ" />
-                    <span className="text-stone-400 text-sm">×</span>
-                    <input type="text" inputMode="decimal" value={a4RowGap} onChange={e => { setA4RowGap(e.target.value); updateLabelStorage('a4RowGap', e.target.value); }} className="field-input" placeholder="縦のスキマ" />
-                    <span className="text-xs text-stone-400">mm</span>
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1">
+                      <input type="text" inputMode="decimal" value={a4ColGap} onChange={e => { setA4ColGap(e.target.value); updateLabelStorage('a4ColGap', e.target.value); }} className="field-input" placeholder="0" />
+                      <p className="text-xs text-stone-400 mt-0.5">↔ 横方向のスキマ（列と列の間）</p>
+                    </div>
+                    <span className="text-stone-400 text-sm pb-5">×</span>
+                    <div className="flex-1">
+                      <input type="text" inputMode="decimal" value={a4RowGap} onChange={e => { setA4RowGap(e.target.value); updateLabelStorage('a4RowGap', e.target.value); }} className="field-input" placeholder="0" />
+                      <p className="text-xs text-stone-400 mt-0.5">↕ 縦方向のスキマ（行と行の間）</p>
+                    </div>
+                    <span className="text-xs text-stone-400 pb-5">mm</span>
                   </div>
                   <p className="text-xs text-stone-400 mt-1">市販のスキマありラベル用紙（シールとシールの間に紙の地が見える用紙）を使う場合、その間隔を入力してください。隙間なく並んでいる用紙なら0のままで大丈夫です。</p>
                 </div>

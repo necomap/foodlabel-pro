@@ -371,30 +371,14 @@ export function generateLabelHtml(
         ${right ? `<td style="padding-left:2mm;">${right.label}</td><td style="text-align:right;">${right.value}</td>` : '<td></td><td></td>'}
       </tr>`;
   }).join('');
-
   // 無定長ロール時は高さを固定しない（内容ぶんだけ伸びて、その長さでカットされる）。
   // それ以外（固定サイズのラベル・A4）は従来どおり min/max 両方を固定してoverflow:hiddenで収める。
   const labelHeightStyle = labelHeightAuto
     ? `min-height: ${height}mm;`
     : `min-height: ${height}mm;\n  max-height: ${height}mm;\n  overflow: hidden;`;
-  const singleLabel = `
-<div class="label" style="
-  width: ${width}mm;
-  ${labelHeightStyle}
-  font-size:${fontSize}pt;
-  font-family: 'Noto Sans JP', 'Hiragino Sans', Meiryo, sans-serif;
-  line-height: 1.15;
-  padding: 1.2mm;
-  border: none;
-  box-sizing: border-box;
-  break-inside: avoid;
-  page-break-inside: avoid;
-  break-after: avoid;
-">
-  <!-- 品名 -->
-  <div style="font-weight:bold; font-size:${Math.round(fontSize * 1.1)}pt; border-bottom:0.3mm solid #ccc; margin-bottom:0.5mm; padding-bottom:0.3mm;">
-    ${escHtml(content.productName)}
-  </div>
+
+  // 名称〜保存方法（法令上必須の基本項目）
+  const primaryInfoHtml = `
   <!-- 名称 -->
   <div style="margin-bottom:0.3mm;">
     <span style="font-weight:bold;">名称：</span>${escHtml(content.categoryName)}
@@ -414,21 +398,55 @@ export function generateLabelHtml(
   <!-- 保存方法 -->
   <div style="margin-bottom:0.3mm;">
     <span style="font-weight:bold;">保存方法：</span>${escHtml(content.storageMethod)}
-  </div>
-  <!-- 栄養成分（表示可能面積が小さいなど、食品表示基準上の省略要件を満たす場合はOFFにできる） -->
-  ${config.displaySettings?.showNutrition !== false ? `<div style="border:0.3mm solid #ccc; padding:0.5mm 1mm; margin-bottom:0.3mm;">
+  </div>`;
+
+  // 栄養成分（表示可能面積が小さいなど、食品表示基準上の省略要件を満たす場合はOFFにできる）
+  const nutritionHtml = config.displaySettings?.showNutrition !== false ? `<div style="border:0.3mm solid #ccc; padding:0.5mm 1mm; margin-bottom:0.3mm;">
     <div style="font-weight:bold; margin-bottom:0.2mm;">
       栄養成分表示（${escHtml(content.nutritionPerUnit.label)}）${content.isEstimated ? '※推定値' : ''}
     </div>
     <table style="width:100%; border-collapse:collapse;">
       ${nutritionRowsHtml}
     </table>
-  </div>` : ''}
-  <!-- 注意事項（コメント＋お客様へのお願い） -->
-  ${(content.comment || content.qualityControl) ? `<div style="border:0.3mm solid #ccc; padding:0.5mm 1mm; margin-bottom:0.3mm;">
+  </div>` : '';
+
+  // 注意事項（コメント＋お客様へのお願い）
+  const noteHtml = (content.comment || content.qualityControl) ? `<div style="border:0.3mm solid #ccc; padding:0.5mm 1mm; margin-bottom:0.3mm;">
     ${content.comment ? `<div>${escHtml(content.comment)}</div>` : ''}
     ${content.qualityControl ? `<div>${escHtml(content.qualityControl)}</div>` : ''}
-  </div>` : ''}
+  </div>` : '';
+
+  // 横長（幅が高さよりかなり大きい。宛名ラベルのようなサイズ）の場合、縦方向のスペースが
+  // 不足しやすいため、名称〜保存方法を左カラム・栄養成分表示＋注意事項を右カラムに振り分けて
+  // 横のゆとりを使い、縦方向に必要な行数を減らす。それ以外の通常比率のラベルでは
+  // 従来どおり縦一列に積む（見慣れた並びを優先）。
+  const isWideFormat = height > 0 && width / height >= 1.6;
+  const middleSectionHtml = isWideFormat
+    ? `<div style="display:flex; gap:1.5mm; align-items:flex-start;">
+    <div style="flex:1.1; min-width:0;">${primaryInfoHtml}</div>
+    <div style="flex:1; min-width:0;">${nutritionHtml}${noteHtml}</div>
+  </div>`
+    : `${primaryInfoHtml}${nutritionHtml}${noteHtml}`;
+
+  const singleLabel = `
+<div class="label" style="
+  width: ${width}mm;
+  ${labelHeightStyle}
+  font-size:${fontSize}pt;
+  font-family: 'Noto Sans JP', 'Hiragino Sans', Meiryo, sans-serif;
+  line-height: 1.15;
+  padding: 1.2mm;
+  border: none;
+  box-sizing: border-box;
+  break-inside: avoid;
+  page-break-inside: avoid;
+  break-after: avoid;
+">
+  <!-- 品名 -->
+  <div style="font-weight:bold; font-size:${Math.round(fontSize * 1.1)}pt; border-bottom:0.3mm solid #ccc; margin-bottom:0.5mm; padding-bottom:0.3mm;">
+    ${escHtml(content.productName)}
+  </div>
+  ${middleSectionHtml}
   <!-- 製造者情報（ロゴ・QRコード含む） -->
   <div style="margin-top:0.3mm; border-top:0.3mm solid #ccc; padding-top:0.3mm; display:flex; align-items:flex-start; justify-content:space-between; gap:1mm;">
     <div style="flex:1; word-break:break-all; overflow-wrap:break-word; line-height:1.15;">

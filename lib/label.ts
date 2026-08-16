@@ -5,7 +5,7 @@
 import { addDays, format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import type { LabelContent, LabelConfig, RecipeDetail } from '@/types';
-import { buildIngredientsLabel, collectRecipeAllergens } from './allergen';
+import { buildIngredientsLabel, collectRecipeAllergens, prepareIngredientsForLabel } from './allergen';
 import { calcPerUnit, roundForDisplay } from './nutrition';
 
 /**
@@ -49,25 +49,24 @@ export function generateLabelContent(
     }))
   );
 
-  // 原材料表示（重量順ソート済み前提）
-  const sortedIngredients = [...recipe.ingredients].sort((a, b) => {
-    if (a.sortByWeight && a.unit === 'g' && b.unit === 'g') {
-      return b.amount - a.amount;
-    }
-    return (a.displayOrder ?? 0) - (b.displayOrder ?? 0);
-  });
-
-  const ingredientsText = buildIngredientsLabel(
-    sortedIngredients.map(i => ({
+  // 原材料表示用に整形：非表示設定の除外・同名原材料の合算・合算後の重量順ソートまで行う
+  // （アレルゲン表示は上のallergenInfoで別途、非表示設定に関係なく全原材料を対象に計算済み）
+  const preparedIngredients = prepareIngredientsForLabel(
+    recipe.ingredients.map(i => ({
       ingredientName: i.ingredientName,
       amount: i.amount,
       unit: i.unit,
+      displayOrder: i.displayOrder,
+      sortByWeight: i.sortByWeight,
       originCountry: i.originCountry ?? undefined,
       isAdditive: (i as any).isAdditive ?? false,
       additiveReason: (i as any).additiveReason ?? undefined,
-    })),
-    allergenInfo.all
+      hideFromLabel: (i as any).hideFromLabel ?? false,
+      ingredientAlwaysHideFromLabel: (i as any).ingredientAlwaysHideFromLabel ?? false,
+    }))
   );
+
+  const ingredientsText = buildIngredientsLabel(preparedIngredients, allergenInfo.all);
 
   // 栄養成分（1個あたり）
   const totalNutrition = recipe.nutrition;

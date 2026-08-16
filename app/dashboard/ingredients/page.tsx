@@ -128,6 +128,7 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
     name:            ingredient?.name ?? '',
     nameKana:        ingredient?.nameKana ?? '',
     genericName:     (ingredient as any)?.genericName ?? '',
+    alwaysHideFromLabel: (ingredient as any)?.alwaysHideFromLabel ?? false,
     ingredientCategoryId: ingredient?.ingredientCategoryId ?? '',
     purchaseUnitG:   ingredient?.purchaseUnitG ? String(ingredient.purchaseUnitG) : '',
     purchasePrice:   ingredient?.purchasePrice ? String(ingredient.purchasePrice) : '',
@@ -168,6 +169,7 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
         name:          form.name.trim(),
         nameKana:      form.nameKana.trim() || emptyValue,
         genericName:   form.genericName.trim() || emptyValue,
+        alwaysHideFromLabel: form.alwaysHideFromLabel,
         nutritionId:   selectedNutritionId ?? emptyValue,
         ingredientCategoryId: form.ingredientCategoryId || emptyValue,
         purchaseUnitG: form.purchaseUnitG ? parseInt(form.purchaseUnitG) : emptyValue,
@@ -244,6 +246,13 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
               {(ingredient as any)?.genericNameConfirmed === false && (
                 <p className="field-hint text-amber-600">⚠ 自動推測された仮の値です。内容を確認してください</p>
               )}
+              <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                <input type="checkbox" checked={form.alwaysHideFromLabel}
+                  onChange={e => setForm(f => ({...f, alwaysHideFromLabel: e.target.checked}))}
+                  className="accent-brand-500" />
+                <span className="text-sm text-stone-600">常にラベルの原材料表示から除外する（水・浄水など）</span>
+              </label>
+              <p className="field-hint">ONにすると、この食材を使っているすべてのレシピで、原材料名の表示から自動的に除かれます（栄養成分・アレルゲン表示には影響しません）。特定のレシピだけで除外したい場合は、レシピ編集画面の原材料ごとの設定を使ってください。</p>
             </div>
           </div>
           <div>
@@ -578,6 +587,7 @@ export default function IngredientsPage() {
                     )}
                     {ing.nameKana && <div className="text-xs text-stone-400">{ing.nameKana}</div>}
                     {!ing.isOwnRecord && <span className="badge badge-gray text-[10px] mt-0.5">共有</span>}
+                    {(ing as any).alwaysHideFromLabel && <span className="badge badge-gray text-[10px] mt-0.5 ml-1">表示除外中</span>}
                   </td>
                   <td className="hidden sm:table-cell">
                     {ing.ingredientCategoryName

@@ -5,7 +5,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { buildIngredientsLabel, collectRecipeAllergens } from '@/lib/allergen';
+import { buildIngredientsLabel, collectRecipeAllergens, prepareIngredientsForLabel } from '@/lib/allergen';
 import { calcPerUnit, roundForDisplay } from '@/lib/nutrition';
 import type { BakingStep } from '@/types';
 
@@ -25,7 +25,7 @@ export async function GET(_req: Request, { params }: Params) {
       ingredients: {
         orderBy: { displayOrder: 'asc' },
         include: {
-          ingredient: { select: { id: true, name: true, allergens: true, unitPrice: true, genericName: true, genericNameConfirmed: true } },
+          ingredient: { select: { id: true, name: true, allergens: true, unitPrice: true, genericName: true, genericNameConfirmed: true, alwaysHideFromLabel: true } },
         },
       },
       steps: { orderBy: { stepNumber: 'asc' } },
@@ -51,16 +51,23 @@ export async function GET(_req: Request, { params }: Params) {
     }))
   );
 
-  // 原材料表示テキスト（実際に印字される内容と一致するよう、一般名（ラベル表示用の名称）を優先）
+  // 原材料表示テキスト（実際に印字される内容と一致するよう、一般名（ラベル表示用の名称）を優先。
+  // 非表示設定の除外・同名原材料の合算・合算後の重量順ソートも印刷時と同じロジックで行う）
   const ingredientsLabel = buildIngredientsLabel(
-    sortedIngredients.map(ing => ({
-      ingredientName: (ing.ingredient as any)?.genericName || ing.ingredient?.name || ing.ingredientNameOverride || '',
-      amount:         Number(ing.amount),
-      unit:           ing.unit,
-      originCountry:  ing.originCountry ?? undefined,
-      isAdditive:     ing.isAdditive ?? false,
-      additiveReason: ing.additiveReason ?? undefined,
-    })),
+    prepareIngredientsForLabel(
+      sortedIngredients.map(ing => ({
+        ingredientName: (ing.ingredient as any)?.genericName || ing.ingredient?.name || ing.ingredientNameOverride || '',
+        amount:         Number(ing.amount),
+        unit:           ing.unit,
+        displayOrder:   ing.displayOrder,
+        sortByWeight:   ing.sortByWeight,
+        originCountry:  ing.originCountry ?? undefined,
+        isAdditive:     ing.isAdditive ?? false,
+        additiveReason: ing.additiveReason ?? undefined,
+        hideFromLabel:  (ing as any).hideFromLabel ?? false,
+        ingredientAlwaysHideFromLabel: (ing.ingredient as any)?.alwaysHideFromLabel ?? false,
+      }))
+    ),
     allergenInfo.all
   );
 
@@ -126,6 +133,8 @@ export async function GET(_req: Request, { params }: Params) {
         originCountry:          ing.originCountry,
         isAdditive:             ing.isAdditive ?? false,
         additiveReason:         ing.additiveReason ?? null,
+        hideFromLabel:          (ing as any).hideFromLabel ?? false,
+        ingredientAlwaysHideFromLabel: (ing.ingredient as any)?.alwaysHideFromLabel ?? false,
         costPrice:              ing.costPrice  ? Number(ing.costPrice)  : null,
         costTotal:              ing.costTotal  ? Number(ing.costTotal)  : null,
         allergenOverride:       ing.allergenOverride,
@@ -284,6 +293,7 @@ export async function PUT(request: Request, { params }: Params) {
           originCountry:         d.ing.originCountry || null,
           isAdditive:            d.ing.isAdditive ?? false,
           additiveReason:        d.ing.additiveReason ?? null,
+          hideFromLabel:         d.ing.hideFromLabel ?? false,
           isPrimaryIngredient:   d.ing.isPrimaryIngredient ?? false,
           allergenOverride:      d.allergens,
           nutritionUnconfirmed:  d.nutritionUnconfirmed,

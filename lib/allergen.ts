@@ -117,9 +117,69 @@ export function buildAllergenLabel(allergens: string[]): string {
   return `（原材料の一部に${allergens.join('・')}を含む）`;
 }
 
+// 原材料表示の並び替え・合算に使う入力の共通形
+export interface LabelIngredientInput {
+  ingredientName: string;
+  amount:         number;
+  unit:           string;
+  displayOrder?:  number;
+  sortByWeight?:  boolean;
+  originCountry?: string;
+  isAdditive?:    boolean;
+  additiveReason?: string;
+  // このレシピでの使用分だけの非表示指定（レシピ単位の一時的な例外）
+  hideFromLabel?: boolean;
+  // 食材マスタ側の「常に非表示」設定（この食材を使う全レシピに効く）
+  ingredientAlwaysHideFromLabel?: boolean;
+}
+
+/**
+ * 原材料表示の元データを、実際に印字する順番・内容に整形する。
+ *
+ * - 非表示設定（食材マスタの「常に非表示」／レシピ単位の「今回は非表示」のどちらか）が
+ *   付いている原材料は除外する。※ あくまで原材料名の表示だけを省略する設定であり、
+ *   栄養成分計算やアレルゲン表示（buildAllergenLabel）には一切影響しない
+ *   （実際に使っている以上、アレルゲンは省略してはいけないため、そちらは常に全原材料を対象にする）。
+ * - 同じ表示名（一般名）の原材料が同一レシピ内で複数回登場する場合
+ *   （例：卵白に混ぜる分の砂糖と卵黄に混ぜる分の砂糖）は、分量を合計して1項目にまとめる。
+ *   添加物は「同じ表示名」かつ「同じ使用理由」の場合のみまとめる（理由が異なる場合は
+ *   別々の情報として扱うべきなので、まとめずに両方表示する）。
+ * - 合算した後の重量をもとに表示順（重量順）を決め直す。単位が異なる同名項目は
+ *   合算できないため、別項目のまま残す。
+ */
+export function prepareIngredientsForLabel<T extends LabelIngredientInput>(ingredients: T[]): T[] {
+  const visible = ingredients.filter(i => !i.hideFromLabel && !i.ingredientAlwaysHideFromLabel);
+
+  const merged: T[] = [];
+  for (const ing of visible) {
+    const name = (ing.ingredientName || '').trim();
+    if (!name) continue;
+    const match = merged.find(m =>
+      m.ingredientName.trim() === name &&
+      !!m.isAdditive === !!ing.isAdditive &&
+      (m.isAdditive ? (m.additiveReason ?? '') === (ing.additiveReason ?? '') : true) &&
+      m.unit === ing.unit
+    );
+    if (match) {
+      match.amount = (match.amount ?? 0) + (ing.amount ?? 0);
+      match.displayOrder = Math.min(match.displayOrder ?? 0, ing.displayOrder ?? 0);
+      match.sortByWeight = (match.sortByWeight ?? true) || (ing.sortByWeight ?? true);
+      if (!match.originCountry && ing.originCountry) match.originCountry = ing.originCountry;
+    } else {
+      merged.push({ ...ing });
+    }
+  }
+
+  return merged.sort((a, b) => {
+    if (a.sortByWeight && a.unit === 'g' && b.unit === 'g') return (b.amount ?? 0) - (a.amount ?? 0);
+    return (a.displayOrder ?? 0) - (b.displayOrder ?? 0);
+  });
+}
+
 /**
  * 原材料表示文字列を生成する（食品表示法準拠）
- * @param ingredients - 重量順にソート済みの材料リスト
+ * @param ingredients - 重量順にソート・非表示除外・同名合算まで済んだ材料リスト
+ *   （通常は事前に prepareIngredientsForLabel() を通したものを渡す）
  * @param allergens - 集約済みアレルゲン
  * @returns 原材料表示文字列
  */

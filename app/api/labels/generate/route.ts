@@ -8,7 +8,7 @@ import { auth } from '@/lib/auth';
 import { getPlanLimits } from '@/lib/plan-limits';
 import { prisma } from '@/lib/db';
 import { generateLabelContent, generateLabelHtml, getDefaultDisplaySettings } from '@/lib/label';
-import { buildIngredientsLabel, collectRecipeAllergens } from '@/lib/allergen';
+import { buildIngredientsLabel, collectRecipeAllergens, prepareIngredientsForLabel } from '@/lib/allergen';
 import { calcPerUnit, roundForDisplay } from '@/lib/nutrition';
 import type { RecipeDetail, LabelConfig, BakingStep } from '@/types';
 
@@ -111,7 +111,7 @@ export async function POST(request: Request) {
       category:    { select: { name: true } },
       ingredients: {
         orderBy: [{ sortByWeight: 'desc' }, { displayOrder: 'asc' }],
-        include: { ingredient: { select: { name: true, allergens: true, genericName: true } } },
+        include: { ingredient: { select: { name: true, allergens: true, genericName: true, alwaysHideFromLabel: true } } },
       },
       steps: { orderBy: { stepNumber: 'asc' } },
     },
@@ -268,12 +268,20 @@ export async function POST(request: Request) {
     totalWeightG:   recipe.totalWeightG ? Number(recipe.totalWeightG) : null,
     nutrition:      totalNutrition,
     ingredientsLabel: buildIngredientsLabel(
-      sortedIngredients.map(i => ({
-        ingredientName: i.ingredient?.genericName || i.ingredient?.name || i.ingredientNameOverride || '',
-        amount: Number(i.amount),
-        originCountry: i.originCountry ?? undefined,
-        unit: i.unit,
-      })),
+      prepareIngredientsForLabel(
+        sortedIngredients.map(i => ({
+          ingredientName: i.ingredient?.genericName || i.ingredient?.name || i.ingredientNameOverride || '',
+          amount: Number(i.amount),
+          originCountry: i.originCountry ?? undefined,
+          unit: i.unit,
+          displayOrder: i.displayOrder,
+          sortByWeight: i.sortByWeight,
+          isAdditive: i.isAdditive ?? false,
+          additiveReason: i.additiveReason ?? undefined,
+          hideFromLabel: (i as any).hideFromLabel ?? false,
+          ingredientAlwaysHideFromLabel: (i.ingredient as any)?.alwaysHideFromLabel ?? false,
+        }))
+      ),
       allergenInfo.all
     ),
     allergensLabel: allergenInfo.all.join('・'),
@@ -294,6 +302,8 @@ export async function POST(request: Request) {
       originCountry:          ing.originCountry ?? undefined,
       isAdditive:             ing.isAdditive ?? false,
       additiveReason:         ing.additiveReason ?? undefined,
+      hideFromLabel:          (ing as any).hideFromLabel ?? false,
+      ingredientAlwaysHideFromLabel: (ing.ingredient as any)?.alwaysHideFromLabel ?? false,
       costPrice:              ing.costPrice   ? Number(ing.costPrice)  : null,
       costTotal:              ing.costTotal   ? Number(ing.costTotal)  : null,
       allergenOverride:       ing.allergenOverride,

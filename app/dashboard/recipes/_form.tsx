@@ -43,6 +43,10 @@ interface IngredientRow {
   nutritionUnconfirmed: boolean;
   isAdditive:       boolean;  // 添加物フラグ
   additiveReason:   string;   // 添加物の使用理由
+  // このレシピでの使用分だけを原材料表示から除外する（例：焼成後に表示義務の閾値未満になる添加物など）
+  hideFromLabel:    boolean;
+  // 食材マスタ側で「常に非表示」に設定されている食材かどうか（参照専用。食材マスタ側で変更する）
+  ingredientAlwaysHideFromLabel?: boolean;
   // computed
   energyKcal: number | null;
   costTotal:  number | null;
@@ -167,7 +171,7 @@ export default function RecipeForm() {
   // 材料
   const [focusedKey, setFocusedKey] = useState<string|null>(null);
   const [ingredients, setIngredients] = useState<IngredientRow[]>([
-    { key: 'r0', ingredientId: '', name: '', amount: '', unit: 'g', costPrice: '', originCountry: '', allergenOverride: [], nutritionUnconfirmed: false, isAdditive: false, additiveReason: '', energyKcal: null, costTotal: null },
+    { key: 'r0', ingredientId: '', name: '', amount: '', unit: 'g', costPrice: '', originCountry: '', allergenOverride: [], nutritionUnconfirmed: false, isAdditive: false, additiveReason: '', hideFromLabel: false, energyKcal: null, costTotal: null },
   ]);
 
   // 手順
@@ -245,6 +249,8 @@ export default function RecipeForm() {
             energyKcal:   ing.nutrition.energyKcal,
             costTotal:    ing.costTotal,
             additiveReason: (ing as any).additiveReason ?? '',
+            hideFromLabel: (ing as any).hideFromLabel ?? false,
+            ingredientAlwaysHideFromLabel: (ing as any).ingredientAlwaysHideFromLabel ?? false,
           })));
         }
         if (r.steps.length > 0) setSteps(r.steps);
@@ -275,7 +281,7 @@ export default function RecipeForm() {
     setIngredients(prev => [...prev, {
       key: `r${Date.now()}`, ingredientId: '', name: '', amount: '', unit: 'g',
       costPrice: '', originCountry: '', allergenOverride: [], nutritionUnconfirmed: false,
-      isAdditive: false, additiveReason: '', energyKcal: null, costTotal: null,
+      isAdditive: false, additiveReason: '', hideFromLabel: false, energyKcal: null, costTotal: null,
     }]);
   };
 
@@ -355,6 +361,7 @@ export default function RecipeForm() {
           costPrice:              ing.costPrice ? parseFloat(ing.costPrice) : undefined,
           allergenOverride:       ing.allergenOverride,
           isAdditive:            (ing as IngredientRow).isAdditive ?? false,
+          hideFromLabel:         (ing as IngredientRow).hideFromLabel ?? false,
         })),
         steps: steps.filter(s => s.trim()),
       };
@@ -638,6 +645,22 @@ export default function RecipeForm() {
                   )}
                 </div>
               )}
+
+              {/* ラベル非表示フラグ（今回だけ非表示） */}
+              {(ing as IngredientRow).ingredientAlwaysHideFromLabel ? (
+                <span className="flex items-center gap-1 text-xs text-stone-400 whitespace-nowrap hidden sm:flex">
+                  常に非表示（食材マスタ設定）
+                </span>
+              ) : (
+                <label className="flex items-center gap-1 text-xs text-stone-500 whitespace-nowrap cursor-pointer hidden sm:flex">
+                  <input type="checkbox"
+                    checked={!!(ing as IngredientRow).hideFromLabel}
+                    onChange={e => updateIngredient(ing.key, 'hideFromLabel', e.target.checked)}
+                    className="accent-brand-500" />
+                  ラベル非表示
+                </label>
+              )}
+
               {/* 原価単価 */}
               <input type="number" value={ing.costPrice}
                 onChange={e => updateIngredient(ing.key, 'costPrice', e.target.value)}

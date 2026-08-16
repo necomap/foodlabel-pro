@@ -147,6 +147,7 @@ export async function GET(request: Request) {
       nameKana:        ing.nameKana,
       genericName:          (ing as any).genericName ?? null,
       genericNameConfirmed: (ing as any).genericNameConfirmed ?? true,
+      alwaysHideFromLabel:  (ing as any).alwaysHideFromLabel ?? false,
       recipeUsageCount: usageMap[ing.id] ?? 0,
       allergens:       ing.allergens,
       nutritionId:     ing.nutritionId,
@@ -183,6 +184,7 @@ const ingredientCreateSchema = z.object({
   name:                 z.string().min(1).max(200),
   nameKana:             z.string().max(200).optional(),
   genericName:          z.string().max(200).optional(),
+  alwaysHideFromLabel:  z.boolean().default(false),
   nutritionId:          z.number().int().optional(),
   nutritionVariant:     z.string().optional(),
   ingredientCategoryId: z.string().optional(),
@@ -231,6 +233,7 @@ export async function POST(request: Request) {
       genericName:          data.genericName || null,
       // ユーザーが手入力した一般名は確定済み扱い（自動仮入力バッチのものはfalseになる）
       genericNameConfirmed: data.genericName ? true : false,
+      alwaysHideFromLabel:  data.alwaysHideFromLabel,
       nutritionId:     data.nutritionId,
       nutritionVariant: data.nutritionVariant,
       purchaseUnitG:   data.purchaseUnitG,

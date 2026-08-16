@@ -449,14 +449,20 @@ ${(content.barcode && content.showBarcode !== false) || (recycleMarks.length > 0
       <div style="width:100%;height:${content.barcodeHeightMm ?? 10}mm;overflow:hidden;">
         <!-- 数値はバーコード画像側の文字ではなく、下の行にラベル本文と同じフォントサイズで表示する
              （barcodeapi.org側の数値はバーコード縦幅に連動して大きくなり、フォントサイズと無関係に
-             不自然に大きく見えることがあったため、常に text=none で画像側の数値は非表示にしている）
+             不自然に大きく見えることがあったため、常に text=none で画像側の数値は非表示にしている。
+             barcodeapi.orgには文字サイズだけを独立に指定するパラメータは存在せず、"scale"/"dpi"は
+             バー・文字の両方に同時にかかるため、文字だけ別サイズにするにはこの分離方式しかない）。
              解像度は "height" ではなく "dpi" で上げる。barcodeapi.orgの"height"はバー自体の高さのみを
              指定するパラメータで、バーの太さ（モジュール幅）とは独立している。以前 height=300 のような
              大きな値を直接指定していたところ、コードの桁数に対してバーの太さが変わらないまま高さだけが
-             大きくなり、バーコードが縦長に引き伸ばされたような見た目になっていた（本文と数値を分離した際に
-             この値が意図せず支配的になり顕在化）。"dpi"（既定200）は物理的なバーコードの縦横比を保ったまま
-             解像度だけを上げるパラメータなので、この歪みが起きない。 -->
-        <img src="https://barcodeapi.org/api/${getBarcodeApiPath(content.barcode)}/${encodeURIComponent(content.barcode)}?dpi=600&text=none" style="width:100%;height:100%;object-fit:contain;" onerror="this.parentElement.parentElement.style.display='none'" />
+             大きくなり、バーコードが縦長に引き伸ばされたような見た目になっていた。"dpi"（既定200）は
+             物理的なバーコードの縦横比を保ったまま解像度だけを上げるパラメータなので、この歪みは起きない。
+             表示側は object-fit:contain ではなく fill にしている。containだと縦横比を保ったまま箱に収める
+             ため、箱の縦横比と画像の縦横比がズレていると「縦幅スライダーを変更しても実際は横幅側の制約で
+             見た目が変わらない」ことがあった（設定した高さぶんが確実に表示されない）。バーコード（1次元）は
+             バーの横幅・間隔さえ保たれていればバー自体の高さは自由に変えても読み取りに影響しないため、
+             縦方向だけ設定値ぴったりに引き伸ばして表示しても実用上問題ない。 -->
+        <img src="https://barcodeapi.org/api/${getBarcodeApiPath(content.barcode)}/${encodeURIComponent(content.barcode)}?dpi=600&text=none" style="width:100%;height:100%;object-fit:fill;" onerror="this.parentElement.parentElement.style.display='none'" />
       </div>
       ${content.showBarcodeText !== false ? `<div style="font-size:${fontSize}pt;line-height:1.1;margin-top:0.3mm;white-space:nowrap;">${escHtml(content.barcode)}</div>` : ''}
     </div>` : ''}

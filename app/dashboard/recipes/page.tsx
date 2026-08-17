@@ -65,15 +65,20 @@ export default function RecipesPage() {
   const [selected,   setSelected]   = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
   const PERPAGE = 24;
+  // 日本語IME変換中かどうか。変換確定前の中間テキストでAPIが呼ばれてしまい、
+  // 無関係なレシピが一瞬表示される不具合を防ぐため、確定するまで検索を実行しない
+  // （食材マスタ検索と同じ理由。詳細は食材マスタ側のコメント参照）。
+  const [isComposing, setIsComposing] = useState(false);
 
   // 検索欄の入力を350msデバウンスしてからsearchに反映する
   // （初回マウント時＝URLから復元した直後は、この副作用でpageを1に戻してしまわないようにする）
   const isFirstDebounce = useRef(true);
   useEffect(() => {
     if (isFirstDebounce.current) { isFirstDebounce.current = false; return; }
+    if (isComposing) return;
     const t = setTimeout(() => { setSearch(searchInput); setPage(1); }, 350);
     return () => clearTimeout(t);
-  }, [searchInput]);
+  }, [searchInput, isComposing]);
 
   // 現在の検索条件をURLのクエリパラメータに同期する（ブラウザ履歴に残すため）
   useEffect(() => {
@@ -179,7 +184,10 @@ export default function RecipesPage() {
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-            <input type="text" value={searchInput} onChange={e=>setSearchInput(e.target.value)} className="field-input pl-10" placeholder="レシピ名で検索..." />
+            <input type="text" value={searchInput} onChange={e=>setSearchInput(e.target.value)}
+              onCompositionStart={() => setIsComposing(true)}
+              onCompositionEnd={e => { setIsComposing(false); setSearchInput(e.currentTarget.value); }}
+              className="field-input pl-10" placeholder="レシピ名で検索..." />
           </div>
           <div className="relative w-full sm:w-44">
             <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />

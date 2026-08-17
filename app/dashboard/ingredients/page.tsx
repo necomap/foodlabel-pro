@@ -500,6 +500,13 @@ export default function IngredientsPage() {
   const [modal,        setModal]        = useState<{open:boolean;ingredient:Ingredient|null}>({open:false,ingredient:null});
   const [purchaseModal,setPurchaseModal]= useState<Ingredient|null>(null);
   const [showCatMgr,   setShowCatMgr]   = useState(false);
+  // 日本語IME変換中（例：「卵」を打つ途中の「たまご」「たこ」等の未確定文字）かどうか。
+  // これがfalseになる（＝変換確定）までは検索を実行しないようにする。
+  // trueの間もデバウンスを素通りさせてしまうと、変換確定前の中間テキスト
+  // （「たこ」「まいたけ」等、たまたま他の食材名にも含まれる文字列）でAPIが呼ばれてしまい、
+  // 「卵」と検索したつもりなのに無関係な食材が一瞬（人によっては変換完了後もそのまま）
+  // 表示されるように見える不具合の原因になっていた。
+  const [isComposing,  setIsComposing]  = useState(false);
 
   const fetchCategories = useCallback(async () => {
     const r = await fetch('/api/ingredient-categories'); const d = await r.json();
@@ -507,10 +514,12 @@ export default function IngredientsPage() {
   },[]);
 
   // 検索欄の入力を350msデバウンスしてからsearchに反映する（1文字ごとにAPIを叩かない）
+  // IME変換中（isComposing）は確定するまで検索を実行しない。
   useEffect(() => {
+    if (isComposing) return;
     const t = setTimeout(() => { setSearch(searchInput); setPage(1); }, 350);
     return () => clearTimeout(t);
-  }, [searchInput]);
+  }, [searchInput, isComposing]);
 
   // 連続して検索した場合に、後から返ってきた古いリクエストの結果で新しい結果を
   // 上書きしてしまわないようにするためのガード（リクエストごとに連番を振り、
@@ -566,7 +575,10 @@ export default function IngredientsPage() {
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-            <input type="text" value={searchInput} onChange={e=>setSearchInput(e.target.value)} className="field-input pl-10" placeholder="食材名・カナで検索..." />
+            <input type="text" value={searchInput} onChange={e=>setSearchInput(e.target.value)}
+              onCompositionStart={() => setIsComposing(true)}
+              onCompositionEnd={e => { setIsComposing(false); setSearchInput(e.currentTarget.value); }}
+              className="field-input pl-10" placeholder="食材名・カナで検索..." />
           </div>
           <select value={catFilter} onChange={e=>{setCatFilter(e.target.value);setPage(1);}} className="field-select w-full sm:w-44">
             <option value="">すべてのカテゴリ</option>

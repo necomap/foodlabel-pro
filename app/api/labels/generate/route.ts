@@ -111,7 +111,7 @@ export async function POST(request: Request) {
       category:    { select: { name: true } },
       ingredients: {
         orderBy: [{ sortByWeight: 'desc' }, { displayOrder: 'asc' }],
-        include: { ingredient: { select: { name: true, allergens: true, genericName: true, alwaysHideFromLabel: true } } },
+        include: { ingredient: { select: { name: true, allergens: true, genericName: true, alwaysHideFromLabel: true, originCountry: true } } },
       },
       steps: { orderBy: { stepNumber: 'asc' } },
     },
@@ -274,7 +274,10 @@ export async function POST(request: Request) {
         sortedIngredients.map(i => ({
           ingredientName: i.ingredient?.genericName || i.ingredient?.name || i.ingredientNameOverride || '',
           amount: Number(i.amount),
-          originCountry: i.originCountry ?? undefined,
+          // レシピ側で個別に原産地を指定していなければ、食材マスタ側の原産地（デフォルト）を使う。
+          // これが無いと、食材マスタで原産地を後から入力・修正しても、既存のレシピ（材料が
+          // マスタに紐づけられた時点で原産地が未入力だったもの）には反映されないままになる。
+          originCountry: i.originCountry || (i.ingredient as any)?.originCountry || undefined,
           unit: i.unit,
           displayOrder: i.displayOrder,
           sortByWeight: i.sortByWeight,
@@ -301,7 +304,7 @@ export async function POST(request: Request) {
       unit:                   ing.unit,
       displayOrder:           ing.displayOrder,
       sortByWeight:           ing.sortByWeight,
-      originCountry:          ing.originCountry ?? undefined,
+      originCountry:          ing.originCountry || (ing.ingredient as any)?.originCountry || undefined,
       isAdditive:             ing.isAdditive ?? false,
       additiveReason:         ing.additiveReason ?? undefined,
       hideFromLabel:          (ing as any).hideFromLabel ?? false,

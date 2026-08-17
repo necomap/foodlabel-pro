@@ -358,7 +358,12 @@ export function generateLabelHtml(
   const areaRatio = Math.min(Math.sqrt((width * height) / (60 * 60)), 1);
   const autoFontSize = Math.max(Math.round(baseFontSize * areaRatio * 10) / 10, legalMinFontPt);
   const fontSize = autoFontSize;
-  // バーコード幅：シールの横幅に応じて自動計算（25mm〜45mmの範囲、リーダーで読み取れる実用サイズ）
+  // バーコード幅：シールの横幅に応じて自動計算（25mm〜45mmの範囲、リーダーで読み取れる実用サイズ）。
+  // 表示側（下の<div>）はこの値をそのままCSSのwidthに使い、かつflex-shrink:0で固定する。
+  // 以前は表示側に「max-width:60%」も併せて指定していたため、シールの横幅が狭い（例：39mm×48mm）
+  // 場合にこの60%の方が25mmの下限より小さくなってしまい、結果的にバーコードがリーダーで
+  // 読み取れないサイズ（1cm程度）まで縮んでしまう不具合になっていた。25mmの下限を確実に
+  // 守らせるため、max-width指定は撤廃し、幅はこのbarcodeWidthMmだけで決める。
   const barcodeWidthMm = Math.min(Math.max(Math.round(width * 0.7 * 10) / 10, 25), 45);
 
   const escHtml = (s: string) =>
@@ -484,7 +489,7 @@ export function generateLabelHtml(
   </div>
   <!-- バーコード＋リサイクルマーク（一番下） -->
 ${(content.barcode && content.showBarcode !== false) || (recycleMarks.length > 0) ? `<div style="display:flex; align-items:center; justify-content:center; gap:2mm; margin-top:0.5mm; width:100%;">
-    ${content.barcode && content.showBarcode !== false ? `<div style="display:flex;flex-direction:column;align-items:center;width:${barcodeWidthMm}mm;max-width:60%;">
+    ${content.barcode && content.showBarcode !== false ? `<div style="display:flex;flex-direction:column;align-items:center;width:${barcodeWidthMm}mm;flex-shrink:0;">
       <div style="width:100%;height:${content.barcodeHeightMm ?? 10}mm;overflow:hidden;">
         <!-- 数値はバーコード画像側の文字ではなく、下の行にラベル本文と同じフォントサイズで表示する
              （barcodeapi.org側の数値はバーコード縦幅に連動して大きくなり、フォントサイズと無関係に

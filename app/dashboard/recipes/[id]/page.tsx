@@ -113,9 +113,22 @@ export default function RecipeDetailPage() {
     <div className="max-w-3xl space-y-5 animate-fade-in">
       {/* ヘッダー */}
       <div className="flex items-center gap-3">
-        <Link href="/dashboard/recipes" className="btn-ghost p-2">
+        {/* 一覧の「戻る」はrouter.back()でブラウザ履歴を戻ることで、一覧側の検索語・
+            ページ番号（URLに同期済み）を保った状態に復元する。一覧を経由せず直接この
+            ページを開いた場合など戻り先が無いときは、一覧トップにフォールバックする。 */}
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof window !== 'undefined' && window.history.length > 1) {
+              router.back();
+            } else {
+              router.push('/dashboard/recipes');
+            }
+          }}
+          className="btn-ghost p-2"
+        >
           <ArrowLeft className="w-5 h-5" />
-        </Link>
+        </button>
         <div className="flex-1">
           <h1 className="text-xl font-bold text-stone-800 font-display">{recipe.name}</h1>
           {recipe.categoryName && (

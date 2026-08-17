@@ -89,10 +89,14 @@ export async function PUT(request: Request, { params }: Params) {
   if (body.ingredientCategoryId !== undefined) {
     try {
       const catId = body.ingredientCategoryId || null;
+      // 注意：WHERE句のidにも::uuidキャストが必要。無いとPostgresが
+      // 「operator does not exist: uuid = text」で例外を投げ、下のcatchで黙って
+      // 握りつぶされてしまう（＝保存成功のトーストは出るのにカテゴリだけ実際には
+      // 保存されない、というバグの原因になっていた）。
       if (catId) {
-        await prisma.$executeRaw`UPDATE ingredients SET "ingredientCategoryId" = ${catId}::uuid WHERE id = ${params.id}`;
+        await prisma.$executeRaw`UPDATE ingredients SET "ingredientCategoryId" = ${catId}::uuid WHERE id = ${params.id}::uuid`;
       } else {
-        await prisma.$executeRaw`UPDATE ingredients SET "ingredientCategoryId" = NULL WHERE id = ${params.id}`;
+        await prisma.$executeRaw`UPDATE ingredients SET "ingredientCategoryId" = NULL WHERE id = ${params.id}::uuid`;
       }
     } catch (e) { console.warn('ingredientCategoryId update skipped:', e); }
   }

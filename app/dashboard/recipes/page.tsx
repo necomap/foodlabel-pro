@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Plus, Search, Filter, AlertTriangle, ChevronRight, Flame, Tag, TrendingUp, RefreshCw, Package, Printer, EyeOff, Eye, CheckSquare, Square } from 'lucide-react';
@@ -32,31 +32,73 @@ function SkeletonCard() {
   );
 }
 
+// URLのクエリパラメータを読む（SSR時はwindowが無いのでフォールバックを返す）
+function readQueryParam(key: string, fallback: string): string {
+  if (typeof window === 'undefined') return fallback;
+  return new URLSearchParams(window.location.search).get(key) ?? fallback;
+}
+
 export default function RecipesPage() {
   const router = useRouter();
   const [recipes,    setRecipes]    = useState<RecipeSummary[]>([]);
   const [loading,    setLoading]    = useState(true);
-  const [search,     setSearch]     = useState('');
-  const [category,   setCategory]   = useState('');
-  const [page,       setPage]       = useState(1);
+  // searchInputは入力欄に即時反映、searchはデバウンス後にAPIへ送る値
+  // （分けないと1文字ごとにAPIが呼ばれ、古いリクエストの結果が新しい結果を上書きして
+  // 一瞬「見つかりません」のような表示になることがある）
+  // 検索語・カテゴリ・ページ番号・非表示モードはURLのクエリパラメータにも同期する。
+  // これをしないと「検索→レシピを開く→戻る」で一覧ページが最初から作り直され、
+  // 検索条件・ページが失われてすべてのレシピが表示されてしまう
+  // （詳細ページの「戻る」はrouter.back()でブラウザ履歴を戻る実装にしており、
+  // 履歴に残ったURLからこの初期値を復元することで検索状態を保持している）。
+  const [searchInput, setSearchInput] = useState(() => readQueryParam('q', ''));
+  const [search,     setSearch]     = useState(() => readQueryParam('q', ''));
+  const [category,   setCategory]   = useState(() => readQueryParam('category', ''));
+  const [page,       setPage]       = useState(() => {
+    const p = parseInt(readQueryParam('page', '1'), 10);
+    return Number.isFinite(p) && p > 0 ? p : 1;
+  });
   const [total,      setTotal]      = useState(0);
   const [categories, setCategories] = useState<{id:string;name:string}[]>([]);
   // 非表示モード
-  const [showHidden, setShowHidden] = useState(false);
+  const [showHidden, setShowHidden] = useState(() => readQueryParam('hidden', '') === 'true');
   // 複数選択
   const [selected,   setSelected]   = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
   const PERPAGE = 24;
 
+  // 検索欄の入力を350msデバウンスしてからsearchに反映する
+  // （初回マウント時＝URLから復元した直後は、この副作用でpageを1に戻してしまわないようにする）
+  const isFirstDebounce = useRef(true);
+  useEffect(() => {
+    if (isFirstDebounce.current) { isFirstDebounce.current = false; return; }
+    const t = setTimeout(() => { setSearch(searchInput); setPage(1); }, 350);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  // 現在の検索条件をURLのクエリパラメータに同期する（ブラウザ履歴に残すため）
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (search)     params.set('q', search);
+    if (category)   params.set('category', category);
+    if (page > 1)   params.set('page', String(page));
+    if (showHidden) params.set('hidden', 'true');
+    const qs = params.toString();
+    router.replace(qs ? `/dashboard/recipes?${qs}` : '/dashboard/recipes', { scroll: false });
+  }, [search, category, page, showHidden, router]);
+
+  // 古いリクエストの結果が新しいリクエストの結果を上書きしないようにするためのガード
+  const fetchSeq = useRef(0);
   const fetchRecipes = useCallback(async () => {
     setLoading(true);
     setSelected(new Set());
+    const seq = ++fetchSeq.current;
     try {
       const params = new URLSearchParams({ page: String(page), perPage: String(PERPAGE), search, category, active: showHidden ? 'false' : 'true', hiddenOnly: showHidden ? 'true' : 'false' });
       const res  = await fetch(`/api/recipes?${params}`);
       const data = await res.json();
+      if (seq !== fetchSeq.current) return;
       if (data.success) { setRecipes(data.data.items); setTotal(data.data.total); }
-    } catch { toast.error('取得に失敗しました'); } finally { setLoading(false); }
+    } catch { if (seq === fetchSeq.current) toast.error('取得に失敗しました'); } finally { if (seq === fetchSeq.current) setLoading(false); }
   }, [page, search, category, showHidden]);
 
   useEffect(() => { fetchRecipes(); }, [fetchRecipes]);
@@ -137,7 +179,7 @@ export default function RecipesPage() {
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-            <input type="text" value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}} className="field-input pl-10" placeholder="レシピ名で検索..." />
+            <input type="text" value={searchInput} onChange={e=>setSearchInput(e.target.value)} className="field-input pl-10" placeholder="レシピ名で検索..." />
           </div>
           <div className="relative w-full sm:w-44">
             <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />

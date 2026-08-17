@@ -261,11 +261,13 @@ export async function POST(request: Request) {
   });
 
   // ingredientCategoryIdをraw SQLで更新（Prismaクライアント未生成対応）
+  // 注意：WHERE句のidにも::uuidキャストが必要（無いとPostgresがuuid=textの型不一致で
+  // 例外を投げ、下のcatchで黙って握りつぶされてカテゴリが保存されないバグになる）。
   if (data.ingredientCategoryId) {
     try {
       await prisma.$executeRaw`
         UPDATE ingredients SET "ingredientCategoryId" = ${data.ingredientCategoryId}::uuid
-        WHERE id = ${ingredient.id}
+        WHERE id = ${ingredient.id}::uuid
       `;
     } catch (e) { console.warn('ingredientCategoryId update skipped:', e); }
   }

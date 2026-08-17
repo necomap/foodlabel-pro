@@ -488,6 +488,11 @@ export default function IngredientsPage() {
   const [ingredients,  setIngredients]  = useState<Ingredient[]>([]);
   const [categories,   setCategories]   = useState<IngredientCategory[]>([]);
   const [loading,      setLoading]      = useState(true);
+  // searchInputは入力欄に即時反映する値、searchは実際に検索APIへ送る値（デバウンス後）。
+  // 分けていないと、1文字打つたびに検索APIが呼ばれてしまい、古い（打っている途中の）
+  // リクエストの結果が新しいリクエストより後に返ってきて上書きしてしまうことがあり、
+  // 「一瞬『見つかりません』と表示されてから正しい結果が出る」ような表示のガタつきの原因になる。
+  const [searchInput,  setSearchInput]  = useState('');
   const [search,       setSearch]       = useState('');
   const [catFilter,    setCatFilter]    = useState('');
   const [page,         setPage]         = useState(1);
@@ -501,14 +506,26 @@ export default function IngredientsPage() {
     if (d.success) setCategories(d.data);
   },[]);
 
+  // 検索欄の入力を350msデバウンスしてからsearchに反映する（1文字ごとにAPIを叩かない）
+  useEffect(() => {
+    const t = setTimeout(() => { setSearch(searchInput); setPage(1); }, 350);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  // 連続して検索した場合に、後から返ってきた古いリクエストの結果で新しい結果を
+  // 上書きしてしまわないようにするためのガード（リクエストごとに連番を振り、
+  // 一番新しいリクエストの結果だけを反映する）
+  const fetchSeq = useRef(0);
   const fetchIngredients = useCallback(async () => {
     setLoading(true);
+    const seq = ++fetchSeq.current;
     try {
       const params = new URLSearchParams({ q: search, page: String(page), perPage: '30', ...(catFilter && { categoryId: catFilter }) });
       const res = await fetch(`/api/ingredients?${params}`);
       const data = await res.json();
+      if (seq !== fetchSeq.current) return; // その間に新しい検索が始まっていたら、この結果は無視する
       if (data.success) { setIngredients(data.data.items); setTotal(data.data.total); }
-    } finally { setLoading(false); }
+    } finally { if (seq === fetchSeq.current) setLoading(false); }
   },[search, page, catFilter]);
 
   useEffect(()=>{ fetchCategories(); },[fetchCategories]);
@@ -549,7 +566,7 @@ export default function IngredientsPage() {
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
-            <input type="text" value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}} className="field-input pl-10" placeholder="食材名・カナで検索..." />
+            <input type="text" value={searchInput} onChange={e=>setSearchInput(e.target.value)} className="field-input pl-10" placeholder="食材名・カナで検索..." />
           </div>
           <select value={catFilter} onChange={e=>{setCatFilter(e.target.value);setPage(1);}} className="field-select w-full sm:w-44">
             <option value="">すべてのカテゴリ</option>

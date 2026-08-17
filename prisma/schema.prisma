@@ -190,6 +190,8 @@ model Ingredient {
   recipeIngredients    RecipeIngredient[]
   purchaseSettings     IngredientPurchaseSetting[]
 
+  // 食材マスタ一覧・検索（userId絞り込み＋isActive）の高速化用
+  @@index([userId, isActive])
   @@map("ingredients")
 }
 
@@ -237,6 +239,10 @@ model Recipe {
   category         Category?          @relation(fields: [categoryId], references: [id])
   user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // レシピ一覧（userId絞り込み＋isActive／hiddenOnly＋updatedAt降順）の高速化用。
+  // これが無いと一覧取得のたびにrecipesテーブル全体をスキャン＆ソートすることになり、
+  // レシピ件数が増えるほど一覧表示が遅くなる原因になっていた。
+  @@index([userId, isActive, updatedAt])
   @@map("recipes")
 }
 
@@ -277,6 +283,12 @@ model RecipeIngredient {
   ingredient             Ingredient? @relation(fields: [ingredientId], references: [id])
   recipe                 Recipe      @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 
+  // レシピ一覧・印刷・ラベル生成など「1レシピ分の材料を取得する」処理すべての高速化用。
+  // これが無いと材料件数が増えるほどrecipe_ingredientsテーブル全体を毎回スキャンすることになり、
+  // レシピ一覧表示が遅くなる最大の原因になっていた（recipesテーブル自体は件数が少なくても、
+  // 材料の合計行数はレシピ数×平均材料数で増えるため、こちらの影響の方が大きいケースが多い）。
+  @@index([recipeId])
+  @@index([ingredientId])
   @@map("recipe_ingredients")
 }
 

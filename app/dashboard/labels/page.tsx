@@ -360,8 +360,13 @@ export default function LabelsPage() {
       const data = await res.json();
       if (data.success) {
         setPreviewHtml(data.data.html);
+        // 以前はプレビュー時にwarnings（成分未確認など）を無視していたため、無料プランで
+        // 印刷枚数を消費してから初めて警告に気づく、という不親切な挙動になっていた。
+        // ラベル生成時と同じ警告をプレビュー時点で表示することで、事前に気づけるようにする。
+        setWarnings(data.data.warnings ?? []);
         setGenerated(true);
-        toast.success('プレビューを生成しました（印刷枚数にカウントされません）');
+        if (data.data.warnings?.length > 0) toast.error(`${data.data.warnings.length}件の警告があります（内容を確認してください）`);
+        else toast.success('プレビューを生成しました（印刷枚数にカウントされません）');
       } else {
         toast.error(data.error ?? 'プレビュー生成に失敗しました');
       }

@@ -132,21 +132,25 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
     genericName:     (ingredient as any)?.genericName ?? '',
     alwaysHideFromLabel: (ingredient as any)?.alwaysHideFromLabel ?? false,
     ingredientCategoryId: ingredient?.ingredientCategoryId ?? '',
-    purchaseUnitG:   ingredient?.purchaseUnitG ? String(ingredient.purchaseUnitG) : '',
-    purchasePrice:   ingredient?.purchasePrice ? String(ingredient.purchasePrice) : '',
+    // 以前は「値があれば」(truthy)判定で文字列化していたため、0（水など栄養成分が実際に0の食材で
+    // 意図的に入力した値）が「値なし」と同じ扱いになり、入力欄が空欄に見えてしまっていた
+    // （保存自体はできていたが、編集モーダルを開き直すと消えたように見える不具合）。
+    // 「値が入力されているかどうか」は != null で判定するよう修正。
+    purchaseUnitG:   ingredient?.purchaseUnitG != null ? String(ingredient.purchaseUnitG) : '',
+    purchasePrice:   ingredient?.purchasePrice != null ? String(ingredient.purchasePrice) : '',
     storage:         ingredient?.storage ?? 'ROOM_TEMP',
     supplier:        ingredient?.supplier ?? '',
     originCountry:   (ingredient as any)?.originCountry ?? '',
     isPublic:        ingredient?.isPublic ?? false,
     allergens:       ingredient?.allergens.join('、') ?? '',
-    energyKcal:      ingredient?.nutrition?.energyKcal ? String(ingredient.nutrition.energyKcal) : '',
-    protein:         ingredient?.nutrition?.protein    ? String(ingredient.nutrition.protein)    : '',
-    fat:             ingredient?.nutrition?.fat        ? String(ingredient.nutrition.fat)        : '',
-    carbohydrate:    ingredient?.nutrition?.carbohydrate ? String(ingredient.nutrition.carbohydrate) : '',
-    saltEquivalent:  ingredient?.nutrition?.saltEquivalent ? String(ingredient.nutrition.saltEquivalent) : '',
-    dietaryFiber:    ingredient?.nutrition?.dietaryFiber ? String(ingredient.nutrition.dietaryFiber) : '',
-    sugar:           ingredient?.nutrition?.sugar        ? String(ingredient.nutrition.sugar)        : '',
-    cholesterol:     ingredient?.nutrition?.cholesterol  ? String(ingredient.nutrition.cholesterol)  : '',
+    energyKcal:      ingredient?.nutrition?.energyKcal      != null ? String(ingredient.nutrition.energyKcal)      : '',
+    protein:         ingredient?.nutrition?.protein         != null ? String(ingredient.nutrition.protein)         : '',
+    fat:             ingredient?.nutrition?.fat             != null ? String(ingredient.nutrition.fat)             : '',
+    carbohydrate:    ingredient?.nutrition?.carbohydrate    != null ? String(ingredient.nutrition.carbohydrate)    : '',
+    saltEquivalent:  ingredient?.nutrition?.saltEquivalent  != null ? String(ingredient.nutrition.saltEquivalent)  : '',
+    dietaryFiber:    ingredient?.nutrition?.dietaryFiber    != null ? String(ingredient.nutrition.dietaryFiber)    : '',
+    sugar:           ingredient?.nutrition?.sugar           != null ? String(ingredient.nutrition.sugar)           : '',
+    cholesterol:     ingredient?.nutrition?.cholesterol     != null ? String(ingredient.nutrition.cholesterol)     : '',
   });
   const [nutritionSearch,  setNutritionSearch]  = useState('');
   const [nutritionResults, setNutritionResults] = useState<{id:number;foodName:string;energyKcal:number|null}[]>([]);

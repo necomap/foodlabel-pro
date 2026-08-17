@@ -9,7 +9,7 @@ import { getPlanLimits } from '@/lib/plan-limits';
 import { prisma } from '@/lib/db';
 import { generateLabelContent, generateLabelHtml, getDefaultDisplaySettings } from '@/lib/label';
 import { buildIngredientsLabel, collectRecipeAllergens, prepareIngredientsForLabel } from '@/lib/allergen';
-import { calcPerUnit, roundForDisplay } from '@/lib/nutrition';
+import { calcPerUnit, roundForDisplay, calcNutritionForAmount, resolveIngredientNutritionPer100g } from '@/lib/nutrition';
 import type { RecipeDetail, LabelConfig, BakingStep } from '@/types';
 
 const labelConfigSchema = z.object({
@@ -113,7 +113,18 @@ export async function POST(request: Request) {
       category:    { select: { name: true } },
       ingredients: {
         orderBy: [{ sortByWeight: 'desc' }, { displayOrder: 'asc' }],
-        include: { ingredient: { select: { name: true, allergens: true, genericName: true, alwaysHideFromLabel: true, originCountry: true } } },
+        include: {
+          ingredient: {
+            select: {
+              name: true, allergens: true, genericName: true, alwaysHideFromLabel: true, originCountry: true,
+              // 栄養成分「未確認」警告を、レシピ保存時点のスナップショットではなく食材マスタの
+              // 最新値から毎回判定し直すために必要（詳細はlib/nutrition.tsのコメント参照）
+              energyKcalManual: true, proteinManual: true, fatManual: true, carbohydrateManual: true,
+              sodiumManual: true, saltEquivalentManual: true, dietaryFiberManual: true, sugarManual: true, cholesterolManual: true,
+              nutritionData: { select: { energyKcal: true, protein: true, fat: true, carbohydrate: true, sodium: true, saltEquivalent: true, dietaryFiber: true, sugar: true, cholesterol: true } },
+            },
+          },
+        },
       },
       steps: { orderBy: { stepNumber: 'asc' } },
     },
@@ -121,10 +132,27 @@ export async function POST(request: Request) {
 
   if (!recipe) return NextResponse.json({ success: false, error: 'レシピが見つかりません' }, { status: 404 });
 
+  // 各材料について、食材マスタに紐づいているものは保存時点のスナップショット
+  // （RecipeIngredient.nutritionUnconfirmed）ではなく、食材マスタの最新の栄養成分から
+  // 「未確認」かどうかを毎回判定し直す。こうしないと、食材マスタ側で後から栄養成分を
+  // 入力・修正しても、このレシピを開き直して保存し直すまで警告が消えない
+  // （直したのに反映されないように見える）不具合になる。
+  const resolvedIngredients = recipe.ingredients.map(ing => {
+    let unconfirmed = ing.nutritionUnconfirmed;
+    let nutrition: ReturnType<typeof calcNutritionForAmount> | null = null;
+    if (ing.ingredientId && ing.ingredient) {
+      const resolved = resolveIngredientNutritionPer100g(ing.ingredient as any);
+      unconfirmed = resolved.unconfirmed;
+      if (!resolved.unconfirmed) nutrition = calcNutritionForAmount(resolved.per100g, Number(ing.amount));
+    }
+    return { ing, unconfirmed, nutrition };
+  });
+  const resolvedById = new Map(resolvedIngredients.map(r => [r.ing.id, r]));
+
   // 未確認成分の警告収集
-  const warnings = recipe.ingredients
-    .filter(i => i.nutritionUnconfirmed)
-    .map(i => `「${i.ingredient?.name ?? i.ingredientNameOverride ?? '不明'}」の成分情報が未確認です`);
+  const warnings = resolvedIngredients
+    .filter(r => r.unconfirmed)
+    .map(r => `「${r.ing.ingredient?.name ?? r.ing.ingredientNameOverride ?? '不明'}」の成分情報が未確認です`);
 
   // 店舗情報取得
   const shopId = config.shopId;
@@ -293,41 +321,45 @@ export async function POST(request: Request) {
     ),
     allergensLabel: allergenInfo.all.join('・'),
     allergens:      allergenInfo as unknown as string[],
-    hasUnconfirmedNutrition: recipe.ingredients.some(i => i.nutritionUnconfirmed),
+    hasUnconfirmedNutrition: resolvedIngredients.some(r => r.unconfirmed),
     isActive:       recipe.isActive,
     createdAt:      recipe.createdAt,
     updatedAt:      recipe.updatedAt,
-    ingredients: sortedIngredients.map(ing => ({
-      id:                     ing.id,
-      ingredientId:           ing.ingredientId ?? undefined,
-      ingredientName:         ing.ingredient?.genericName || ing.ingredient?.name || ing.ingredientNameOverride || '',
-      ingredientNameOverride: ing.ingredientNameOverride ?? undefined,
-      amount:                 Number(ing.amount),
-      unit:                   ing.unit,
-      displayOrder:           ing.displayOrder,
-      sortByWeight:           ing.sortByWeight,
-      originCountry:          ing.originCountry || (ing.ingredient as any)?.originCountry || undefined,
-      isAdditive:             ing.isAdditive ?? false,
-      additiveReason:         ing.additiveReason ?? undefined,
-      hideFromLabel:          (ing as any).hideFromLabel ?? false,
-      ingredientAlwaysHideFromLabel: (ing.ingredient as any)?.alwaysHideFromLabel ?? false,
-      costPrice:              ing.costPrice   ? Number(ing.costPrice)  : null,
-      costTotal:              ing.costTotal   ? Number(ing.costTotal)  : null,
-      allergenOverride:       ing.allergenOverride,
-      isPrimaryIngredient:    ing.isPrimaryIngredient,
-      nutritionUnconfirmed:   ing.nutritionUnconfirmed,
-      nutrition: {
-        energyKcal:     ing.energyKcal    ? Number(ing.energyKcal)     : null,
-        protein:        ing.protein       ? Number(ing.protein)        : null,
-        fat:            ing.fat           ? Number(ing.fat)            : null,
-        carbohydrate:   ing.carbohydrate  ? Number(ing.carbohydrate)   : null,
-        sodium:         ing.sodium        ? Number(ing.sodium)         : null,
-        saltEquivalent: ing.saltEquivalent ? Number(ing.saltEquivalent) : null,
-        dietaryFiber:   ing.dietaryFiber  ? Number(ing.dietaryFiber)   : null,
-        sugar:          ing.sugar         ? Number(ing.sugar)          : null,
-        cholesterol:    ing.cholesterol   ? Number(ing.cholesterol)    : null,
-      },
-    })),
+    ingredients: sortedIngredients.map(ing => {
+      const resolved = resolvedById.get(ing.id);
+      const nutrition = resolved?.nutrition ?? {
+        energyKcal:     ing.energyKcal     != null ? Number(ing.energyKcal)     : null,
+        protein:        ing.protein        != null ? Number(ing.protein)        : null,
+        fat:            ing.fat            != null ? Number(ing.fat)            : null,
+        carbohydrate:   ing.carbohydrate   != null ? Number(ing.carbohydrate)   : null,
+        sodium:         ing.sodium         != null ? Number(ing.sodium)         : null,
+        saltEquivalent: ing.saltEquivalent != null ? Number(ing.saltEquivalent) : null,
+        dietaryFiber:   ing.dietaryFiber   != null ? Number(ing.dietaryFiber)   : null,
+        sugar:          ing.sugar          != null ? Number(ing.sugar)          : null,
+        cholesterol:    ing.cholesterol    != null ? Number(ing.cholesterol)    : null,
+      };
+      return {
+        id:                     ing.id,
+        ingredientId:           ing.ingredientId ?? undefined,
+        ingredientName:         ing.ingredient?.genericName || ing.ingredient?.name || ing.ingredientNameOverride || '',
+        ingredientNameOverride: ing.ingredientNameOverride ?? undefined,
+        amount:                 Number(ing.amount),
+        unit:                   ing.unit,
+        displayOrder:           ing.displayOrder,
+        sortByWeight:           ing.sortByWeight,
+        originCountry:          ing.originCountry || (ing.ingredient as any)?.originCountry || undefined,
+        isAdditive:             ing.isAdditive ?? false,
+        additiveReason:         ing.additiveReason ?? undefined,
+        hideFromLabel:          (ing as any).hideFromLabel ?? false,
+        ingredientAlwaysHideFromLabel: (ing.ingredient as any)?.alwaysHideFromLabel ?? false,
+        costPrice:              ing.costPrice   != null ? Number(ing.costPrice)  : null,
+        costTotal:              ing.costTotal   != null ? Number(ing.costTotal)  : null,
+        allergenOverride:       ing.allergenOverride,
+        isPrimaryIngredient:    ing.isPrimaryIngredient,
+        nutritionUnconfirmed:   resolved?.unconfirmed ?? ing.nutritionUnconfirmed,
+        nutrition,
+      };
+    }),
     steps: recipe.steps.map(s => s.instruction),
   };
 

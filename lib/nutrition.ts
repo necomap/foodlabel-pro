@@ -127,6 +127,73 @@ export function roundForDisplay(nutrition: NutritionValues): NutritionValues {
 }
 
 /**
+ * 食材マスタ（Ingredientモデル）の栄養成分（食品成分表への紐付け値／手入力値）から、
+ * 100gあたりの栄養成分と「未確認」フラグを求める共通ロジック。
+ *
+ * レシピに材料を追加した時点でRecipeIngredientにスナップショットされた
+ * nutritionUnconfirmed/栄養成分値をそのまま使うと、後から食材マスタ側で
+ * 栄養成分を入力・修正しても、そのレシピを開き直して保存し直すまで反映されない
+ * （＝直したはずなのに警告が消えない）という不具合になっていた。
+ * この関数を使って、レシピ表示・ラベル生成のたびに食材マスタの最新値から
+ * 未確認かどうかを判定し直すことで、食材マスタ側を直すだけで即座に反映されるようにする。
+ *
+ * 「未確認」の判定は、手入力9項目のうち1つでも入力済み（0を含む）であれば確認済みとみなす
+ * （熱量だけを見ていた以前のロジックだと、熱量以外だけ0で入力したケースを見落としてしまうため）。
+ */
+export function resolveIngredientNutritionPer100g(rec: {
+  energyKcalManual?:     unknown;
+  proteinManual?:        unknown;
+  fatManual?:            unknown;
+  carbohydrateManual?:   unknown;
+  sodiumManual?:         unknown;
+  saltEquivalentManual?: unknown;
+  dietaryFiberManual?:   unknown;
+  sugarManual?:          unknown;
+  cholesterolManual?:    unknown;
+  nutritionData?: {
+    energyKcal?:     unknown;
+    protein?:        unknown;
+    fat?:            unknown;
+    carbohydrate?:   unknown;
+    sodium?:         unknown;
+    saltEquivalent?: unknown;
+    dietaryFiber?:   unknown;
+    sugar?:          unknown;
+    cholesterol?:    unknown;
+  } | null;
+} | null | undefined): { per100g: Partial<NutritionValues>; unconfirmed: boolean } {
+  if (!rec) return { per100g: {}, unconfirmed: true };
+
+  const hasManual = [
+    rec.energyKcalManual, rec.proteinManual, rec.fatManual, rec.carbohydrateManual,
+    rec.sodiumManual, rec.saltEquivalentManual, rec.dietaryFiberManual, rec.sugarManual, rec.cholesterolManual,
+  ].some(v => v != null);
+
+  if (!rec.nutritionData && !hasManual) {
+    return { per100g: {}, unconfirmed: true };
+  }
+
+  // Prisma の Decimal 型・素の number どちらが来ても Number() で変換できるので unknown で受けている
+  const pick = (manual: unknown, fromTable: unknown): number | null =>
+    manual != null ? Number(manual as any) : (fromTable != null ? Number(fromTable as any) : null);
+
+  return {
+    per100g: {
+      energyKcal:     pick(rec.energyKcalManual,     rec.nutritionData?.energyKcal),
+      protein:        pick(rec.proteinManual,        rec.nutritionData?.protein),
+      fat:            pick(rec.fatManual,            rec.nutritionData?.fat),
+      carbohydrate:   pick(rec.carbohydrateManual,   rec.nutritionData?.carbohydrate),
+      sodium:         pick(rec.sodiumManual,         rec.nutritionData?.sodium),
+      saltEquivalent: pick(rec.saltEquivalentManual, rec.nutritionData?.saltEquivalent),
+      dietaryFiber:   pick(rec.dietaryFiberManual,   rec.nutritionData?.dietaryFiber),
+      sugar:          pick(rec.sugarManual,          rec.nutritionData?.sugar),
+      cholesterol:    pick(rec.cholesterolManual,    rec.nutritionData?.cholesterol),
+    },
+    unconfirmed: false,
+  };
+}
+
+/**
  * 原価率を計算する
  * @param cost - 原価（円）
  * @param salePrice - 販売価格（円）

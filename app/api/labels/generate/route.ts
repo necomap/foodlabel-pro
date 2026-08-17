@@ -19,6 +19,8 @@ const labelConfigSchema = z.object({
   shelfLifeDays:   z.number().int().min(0).optional(),
   printCount:      z.number().int().positive().default(1),
   fontSizePt:      z.number().min(6).max(12).default(8),
+  // ラベル本文に使う日本語フォント。選べる値は lib/label.ts の FONT_FAMILY_OPTIONS 参照
+  fontFamily:      z.enum(['noto-sans-jp', 'yu-gothic', 'hiragino-kaku-gothic', 'meiryo']).default('noto-sans-jp'),
   deviceType:      z.enum(['LABEL_PRINTER', 'A4_PRINTER', 'OTHER']).default('LABEL_PRINTER'),
   labelWidthMm:    z.number().positive().optional(),
   labelHeightMm:   z.number().positive().optional(),

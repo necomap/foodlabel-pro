@@ -1,10 +1,12 @@
 // app/api/ingredients/route.ts - 食材マスタ検索・登録API
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import type { Prisma } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { toFullWidth } from '@/lib/excel-import-export';
 import { detectAllergens } from '@/lib/allergen';
+import { normalizeIngredientName, isSimilarName } from '@/lib/ingredient-similarity';
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -16,54 +18,77 @@ export async function GET(request: Request) {
   const perPage    = parseInt(searchParams.get('perPage') ?? '20');
   const categoryId = searchParams.get('categoryId') ?? '';
 
-  const where = {
-    isActive: true,
-    ...(categoryId === '__none__'
-      ? { ingredientCategoryId: null }
-      : categoryId
-        ? { ingredientCategoryId: categoryId }
-        : {}),
-    AND: [
-      {
-        // 自分の食材、または「共有申請され管理者に承認済み」の食材を対象にする。
-        // 以前は userId が null であることも条件にしていたが、共有食材の userId は
-        // 承認されても作成者のIDのまま変わらないため、他ユーザーの検索に一切出てこない
-        // バグになっていた（承認しても共有が反映されない）。userId 条件を外して修正。
-        OR: [
-          { userId: session.user.id },
-          { isPublic: true, isApproved: true },
-        ],
-      },
-      ...(q ? [{
-        OR: [
-          { name:      { contains: q, mode: 'insensitive' as const } },
-          { nameKana:  { contains: q, mode: 'insensitive' as const } },
-          { nameSearch: { contains: q, mode: 'insensitive' as const } },
-          { genericName: { contains: q, mode: 'insensitive' as const } },
-        ],
-      }] : []),
+  const categoryFilter = categoryId === '__none__'
+    ? { ingredientCategoryId: null }
+    : categoryId
+      ? { ingredientCategoryId: categoryId }
+      : {};
+  const qFilter = q ? {
+    OR: [
+      { name:      { contains: q, mode: 'insensitive' as const } },
+      { nameKana:  { contains: q, mode: 'insensitive' as const } },
+      { nameSearch: { contains: q, mode: 'insensitive' as const } },
+      { genericName: { contains: q, mode: 'insensitive' as const } },
     ],
+  } : undefined;
+
+  // 自分の食材と「共有申請され管理者に承認済み」の食材を別々のクエリで取得し、
+  // 常に自分の食材を先に表示する（要望：共有食材と自作食材が同名で並んでいると紛らわしい）。
+  // Prismaのfindmany().orderBy()には「userId===自分ならCASE WHENで先頭に」のような条件付き
+  // 並び替えを直接書けないため、2クエリに分けてページ境界をまたいでも自分の食材が
+  // 必ず先に来るよう skip/take を手計算で振り分ける。
+  const ownWhere = {
+    isActive: true,
+    ...categoryFilter,
+    userId: session.user.id,
+    ...(qFilter ? { AND: [qFilter] } : {}),
+  };
+  const sharedWhere = {
+    isActive: true,
+    ...categoryFilter,
+    userId: { not: session.user.id },
+    isPublic: true,
+    isApproved: true,
+    ...(qFilter ? { AND: [qFilter] } : {}),
   };
 
-  const [total, ingredients] = await Promise.all([
-    prisma.ingredient.count({ where }),
-    prisma.ingredient.findMany({
-      where,
-      skip:    (page - 1) * perPage,
-      take:    perPage,
-      orderBy: [{ userId: 'asc' }, { name: 'asc' }],
-      include: {
-        nutritionData: {
-          select: {
-            id: true, foodName: true,
-            energyKcal: true, protein: true, fat: true,
-            carbohydrate: true, sodium: true, saltEquivalent: true,
-            dietaryFiber: true, sugar: true, cholesterol: true,
-          },
-        },
-      },
-    }),
+  const [ownTotal, sharedTotal] = await Promise.all([
+    prisma.ingredient.count({ where: ownWhere }),
+    prisma.ingredient.count({ where: sharedWhere }),
   ]);
+  const total = ownTotal + sharedTotal;
+
+  const skip      = (page - 1) * perPage;
+  const ownSkip    = Math.min(skip, ownTotal);
+  const ownTake    = Math.max(0, Math.min(perPage, ownTotal - ownSkip));
+  const sharedSkip = Math.max(0, skip - ownTotal);
+  const sharedTake = Math.max(0, perPage - ownTake);
+
+  // include を変数に切り出す際、単なるオブジェクトリテラルのままだと select 内の `true` が
+  // `boolean` 型に広がってしまい、Prismaのfindmanyの戻り値型からnutritionDataが
+  // 消えてしまう（実際にビルドで発生した型エラー）。`satisfies Prisma.IngredientInclude`
+  // で literal型（true）を保ったまま型チェックすることで、inline指定した場合と同じ
+  // 戻り値の型推論（nutritionData含む）を維持する。
+  const nutritionInclude = {
+    nutritionData: {
+      select: {
+        id: true, foodName: true,
+        energyKcal: true, protein: true, fat: true,
+        carbohydrate: true, sodium: true, saltEquivalent: true,
+        dietaryFiber: true, sugar: true, cholesterol: true,
+      },
+    },
+  } satisfies Prisma.IngredientInclude;
+
+  // take:0 でも空配列がそのまま返る（Prisma的に有効なクエリ）ため、件数0のときも
+  // 同じfindMany呼び出しに統一する。三項演算子でPromise.resolve([])に分岐させていた
+  // 以前の実装は、分岐ごとに戻り値の型が微妙にズレてnutritionDataへのアクセスが
+  // 型エラーになる問題があったため、常に同じ形の呼び出しにして型を一致させている。
+  const [ownItems, sharedItems] = await Promise.all([
+    prisma.ingredient.findMany({ where: ownWhere, skip: ownSkip, take: ownTake, orderBy: { name: 'asc' }, include: nutritionInclude }),
+    prisma.ingredient.findMany({ where: sharedWhere, skip: sharedSkip, take: sharedTake, orderBy: { name: 'asc' }, include: nutritionInclude }),
+  ]);
+  const ingredients = [...ownItems, ...sharedItems];
 
   // ingredientCategoryNameをraw queryで取得
   // ingredientCategoryId が空文字（NULLではない）のレコードが混ざっていると ::uuid キャストが
@@ -197,6 +222,9 @@ const ingredientCreateSchema = z.object({
   originCountry:        z.string().max(100).optional(),
   allergens:            z.array(z.string()).optional(),
   isPublic:             z.boolean().default(false),
+  // trueの場合、下の類似食材チェックをスキップしてそのまま登録する
+  // （ユーザーが警告を見た上で「このまま登録する」を選んだ場合に送られてくる）
+  confirmDuplicate:     z.boolean().default(false),
   energyKcalManual:     z.number().optional(),
   proteinManual:        z.number().optional(),
   fatManual:            z.number().optional(),
@@ -220,6 +248,37 @@ export async function POST(request: Request) {
   const data = result.data;
 
   const normalizedName = toFullWidth(data.name);
+
+  // 似た名前の食材がすでにある場合は、確認なしにそのまま重複登録してしまわないよう
+  // 一旦警告を返す（confirmDuplicate:true が送られてきたときだけスキップする）。
+  // 自動で統合はせず、「このまま登録する」か「既存を使う」かはユーザーに選ばせる方針。
+  if (!data.confirmDuplicate) {
+    const compareName = normalizeIngredientName(normalizedName);
+    // 検索結果一覧（GET）と同じ可視範囲（自分の食材＋共有・承認済みの食材）で類似チェックする
+    const visible = await prisma.ingredient.findMany({
+      where: {
+        isActive: true,
+        OR: [
+          { userId: session.user.id },
+          { isPublic: true, isApproved: true },
+        ],
+      },
+      select: { id: true, name: true, isPublic: true },
+    });
+    const candidates = visible
+      .filter(v => isSimilarName(compareName, normalizeIngredientName(v.name)))
+      .slice(0, 5)
+      .map(v => ({ id: v.id, name: v.name, isPublic: v.isPublic }));
+    if (candidates.length > 0) {
+      return NextResponse.json({
+        success: false,
+        needsConfirmation: true,
+        error: '似た名前の食材が既に登録されています',
+        data: { candidates },
+      });
+    }
+  }
+
   let unitPrice: number | undefined;
   if (data.purchaseUnitG && data.purchasePrice) {
     unitPrice = data.purchasePrice / data.purchaseUnitG;

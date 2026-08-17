@@ -81,6 +81,7 @@ export default function LabelsPage() {
   const [mfgDate, setMfgDate] = useState('');  const [shelfOverride, setShelfOverride] = useState('');
   const [printCount,    setPrintCount]    = useState('1');
   const [fontSizePt,    setFontSizePt]    = useState('8');
+  const [fontFamily,    setFontFamily]    = useState('noto-sans-jp');
   const [deviceType,    setDeviceType]    = useState<'LABEL_PRINTER'|'A4_PRINTER'>('LABEL_PRINTER');
   
   // ラベルプリンタ
@@ -190,6 +191,7 @@ export default function LabelsPage() {
     
     if (getL('printCount')) setPrintCount(getL('printCount')!);
     if (getL('fontSizePt')) setFontSizePt(getL('fontSizePt')!);
+    if (getL('fontFamily')) setFontFamily(getL('fontFamily')!);
     if (getL('deviceType') === 'A4_PRINTER' || getL('deviceType') === 'LABEL_PRINTER') {
       setDeviceType(getL('deviceType') as any);
     }
@@ -316,6 +318,7 @@ export default function LabelsPage() {
         printCount: 1,  // プレビューは1枚固定
         isPreview: true, // カウントしない
         fontSizePt: fs,
+        fontFamily,
         deviceType,
         ...(deviceType === 'LABEL_PRINTER' ? {
           labelWidthMm:  parseFloat(labelW),
@@ -387,6 +390,7 @@ export default function LabelsPage() {
         shelfLifeDays:   shelfOverride ? parseInt(shelfOverride) : undefined,
         printCount:      parseInt(printCount) || 1,
         fontSizePt:      fs,
+        fontFamily,
         deviceType,
         ...(deviceType === 'LABEL_PRINTER' ? {
           labelWidthMm:  parseFloat(labelW),
@@ -627,6 +631,16 @@ export default function LabelsPage() {
               <input type="text" inputMode="numeric" pattern="[0-9]*" value={fontSizePt} onChange={e => { setFontSizePt(e.target.value); updateLabelStorage('fontSizePt', e.target.value); }}
                 className="field-input" min="6" max="12" step="0.5" />
               <p className="field-hint">法令上の下限（現在の表示可能面積 約{computeDisplayAreaCm2().toFixed(1)}cm²）: {computeLegalMinFontPt()}pt</p>
+            </div>
+            <div>
+              <label className="field-label">フォント</label>
+              <select value={fontFamily} onChange={e => { setFontFamily(e.target.value); updateLabelStorage('fontFamily', e.target.value); }} className="field-select">
+                <option value="noto-sans-jp">Noto Sans JP（標準・全環境で表示崩れなし）</option>
+                <option value="yu-gothic">游ゴシック体</option>
+                <option value="hiragino-kaku-gothic">ヒラギノ角ゴ</option>
+                <option value="meiryo">メイリオ</option>
+              </select>
+              <p className="field-hint">游ゴシック・ヒラギノ角ゴ・メイリオはOS標準搭載フォントです。印刷環境にそのフォントが無い場合はNoto Sans JPで表示されます。</p>
             </div>
             <div>
               <label className="field-label">容器全体のサイズ（mm・任意）</label>

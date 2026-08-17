@@ -208,6 +208,10 @@ export interface LabelConfig {
   shelfLifeDays?:  number;  // 上書き可
   printCount?:      number;
   fontSizePt?:      number;
+  // ラベル本文に使う日本語フォント。未指定時は 'noto-sans-jp'。
+  // 選べる値は lib/label.ts の FONT_FAMILY_MAP に定義している
+  // ('noto-sans-jp' | 'yu-gothic' | 'hiragino-kaku-gothic' | 'meiryo')
+  fontFamily?:      string;
   deviceType?:      PrintDeviceType;
   // ラベルプリンタ
   labelWidthMm?:   number;

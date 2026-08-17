@@ -305,6 +305,33 @@ function escHtmlModule(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// ============================================================
+// ラベル印刷で選べる日本語フォント一覧
+// 「食品表示法に基づくフォント」という法令上の指定は無いため、可読性の高い
+// ゴシック体という理解で、よく使われる日本語フォントから選べるようにしている。
+// 游ゴシック・ヒラギノ角ゴ・メイリオはOS標準搭載フォント（Webフォントとしては配布されていない）
+// なので、印刷環境にそのフォントが無い場合は 'Noto Sans JP'（Google Fontsから実体を読み込み済み。
+// 詳細はgenerateLabelHtml内のコメント参照）へフォールバックするよう常に末尾に含めている。
+// ============================================================
+export const FONT_FAMILY_OPTIONS: Array<{ key: string; label: string; note: string }> = [
+  { key: 'noto-sans-jp',         label: 'Noto Sans JP（標準・全環境で表示崩れなし）', note: 'default' },
+  { key: 'yu-gothic',            label: '游ゴシック体', note: 'Windows/Mac標準搭載' },
+  { key: 'hiragino-kaku-gothic', label: 'ヒラギノ角ゴ', note: 'Mac標準搭載' },
+  { key: 'meiryo',               label: 'メイリオ', note: 'Windows標準搭載' },
+];
+
+const FONT_FAMILY_MAP: Record<string, string> = {
+  'noto-sans-jp':         `'Noto Sans JP', 'Hiragino Sans', Meiryo, sans-serif`,
+  'yu-gothic':            `'游ゴシック体', 'Yu Gothic', YuGothic, '游ゴシック', 'Noto Sans JP', sans-serif`,
+  'hiragino-kaku-gothic': `'ヒラギノ角ゴ ProN', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Noto Sans JP', sans-serif`,
+  'meiryo':               `Meiryo, メイリオ, 'Noto Sans JP', sans-serif`,
+};
+const DEFAULT_FONT_FAMILY_KEY = 'noto-sans-jp';
+
+function resolveFontFamily(key?: string): string {
+  return (key && FONT_FAMILY_MAP[key]) || FONT_FAMILY_MAP[DEFAULT_FONT_FAMILY_KEY];
+}
+
 export function generateLabelHtml(
   content: LabelContent,
   config: LabelConfig,
@@ -459,7 +486,7 @@ export function generateLabelHtml(
   width: ${width}mm;
   ${labelHeightStyle}
   font-size:${fontSize}pt;
-  font-family: 'Noto Sans JP', 'Hiragino Sans', Meiryo, sans-serif;
+  font-family: ${resolveFontFamily(config.fontFamily)};
   line-height: 1.15;
   padding: 1.2mm;
   border: none;
@@ -523,6 +550,15 @@ ${(content.barcode && content.showBarcode !== false) || (recycleMarks.length > 0
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<!-- 日本語フォントをOS任せにせず明示的に読み込む。
+     'Noto Sans JP'は多くのWindows機に標準搭載されていないため、名前だけ指定しても
+     見つからずフォールバックし、結果的にブラウザ/プリンタドライバがOSの既定CJKフォント
+     （中国語のグリフ字形に寄った書体）を選んでしまい、日本語として不自然な字形で
+     印字される原因になっていた（Han Unificationの問題）。ここでWebフォントとして
+     実体を読み込むことで、印刷環境に依存せず確実に日本語向けの字形で表示させる。 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
 <style>
   @page { margin: 0; size: ${width}mm ${labelHeightAuto ? 'auto' : height + 'mm'}; }
   body { margin: 0; padding: 0; } html, body { height: auto !important; }
@@ -632,6 +668,10 @@ ${isPreview ? `
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<!-- ラベルプリンタ側と同じ理由でNoto Sans JPを明示的に読み込む（詳細はラベルプリンタ用テンプレート側のコメント参照） -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   @page { margin: 0; size: A4 portrait; }

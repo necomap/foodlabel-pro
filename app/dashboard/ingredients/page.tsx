@@ -124,6 +124,8 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
 }) {
   const isNew = !ingredient;
   const [saving, setSaving] = useState(false);
+  // 新規登録時、似た名前の食材が既にある場合のAPIからの警告候補（空なら警告なし）
+  const [duplicateCandidates, setDuplicateCandidates] = useState<{id:string;name:string;isPublic?:boolean}[]>([]);
   const [form, setForm] = useState({
     name:            ingredient?.name ?? '',
     nameKana:        ingredient?.nameKana ?? '',
@@ -157,7 +159,7 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
     if (d.success) setNutritionResults(d.data.items);
   };
 
-  const handleSave = async () => {
+  const handleSave = async (force: boolean = false) => {
     if (!form.name.trim()) { toast.error('食材名を入力してください'); return; }
     setSaving(true);
     try {
@@ -188,12 +190,15 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
         dietaryFiberManual: form.dietaryFiber ? parseFloat(form.dietaryFiber) : emptyValue,
         sugarManual:        form.sugar        ? parseFloat(form.sugar)        : emptyValue,
         cholesterolManual:  form.cholesterol   ? parseFloat(form.cholesterol)  : emptyValue,
+        // 新規登録時のみ意味を持つ（似た食材があっても確認済みでそのまま登録する場合にtrue）
+        ...(isNew ? { confirmDuplicate: force } : {}),
       };
       const url = ingredient ? `/api/ingredients/${ingredient.id}` : '/api/ingredients';
       const method = ingredient ? 'PUT' : 'POST';
       const res = await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
       const data = await res.json();
       if (data.success) { toast.success(isNew?'食材を登録しました':'食材を更新しました'); onSaved(); onClose(); }
+      else if (data.needsConfirmation) { setDuplicateCandidates(data.data?.candidates ?? []); }
       else toast.error(data.error??'保存に失敗しました');
     } catch { toast.error('通信エラー'); } finally { setSaving(false); }
   };
@@ -210,7 +215,7 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
             <div>
               <label className="field-label">食材名 <span className="text-red-500">*</span></label>
               <input type="text" value={form.name}
-                onChange={e => setForm(f => ({...f, name: e.target.value}))}
+                onChange={e => { setForm(f => ({...f, name: e.target.value})); if (duplicateCandidates.length) setDuplicateCandidates([]); }}
                 onBlur={e => {
                   const val = e.target.value;
                   if (val) searchNutrition(val);
@@ -348,12 +353,33 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
               </label>
             </div>
           </div>
+          {duplicateCandidates.length > 0 && (
+            <div className="border border-amber-300 bg-amber-50 rounded-xl p-3.5 space-y-2">
+              <p className="text-sm font-medium text-amber-800 flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />似た名前の食材が既にあります
+              </p>
+              <ul className="text-xs text-amber-700 space-y-0.5 pl-1">
+                {duplicateCandidates.map(c => (
+                  <li key={c.id}>・{c.name}{c.isPublic ? '（共有食材）' : ''}</li>
+                ))}
+              </ul>
+              <p className="text-xs text-amber-700">
+                既存の食材と同じものであれば、この登録はキャンセルして一覧から既存の食材を検索・編集してください。別の食材として登録したい場合は「このまま登録する」を選んでください。
+              </p>
+            </div>
+          )}
         </div>
         <div className="flex gap-3 p-5 border-t border-cream-200">
           <button onClick={onClose} className="btn-secondary flex-1">キャンセル</button>
-          <button onClick={handleSave} disabled={saving} className="btn-primary flex-1 flex items-center justify-center gap-2">
-            {saving?<Loader2 className="w-4 h-4 animate-spin"/>:null}{isNew?'登録する':'更新する'}
-          </button>
+          {duplicateCandidates.length > 0 ? (
+            <button onClick={()=>handleSave(true)} disabled={saving} className="btn-primary flex-1 flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700">
+              {saving?<Loader2 className="w-4 h-4 animate-spin"/>:null}このまま登録する
+            </button>
+          ) : (
+            <button onClick={()=>handleSave(false)} disabled={saving} className="btn-primary flex-1 flex items-center justify-center gap-2">
+              {saving?<Loader2 className="w-4 h-4 animate-spin"/>:null}{isNew?'登録する':'更新する'}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -480,6 +506,131 @@ function UsageCell({ ingredient }: { ingredient: Ingredient }) {
   );
 }
 
+// ---- 重複食材の統合モーダル ----
+// 自分が登録した食材の中から、表記ゆれ（全角半角・ひらがなカタカナ・スペース等）による
+// 重複と思われる名前をサーバー側（app/api/ingredients/merge のGET）で自動検出して候補提示し、
+// ユーザーが統合先を選んで統合する（自動では統合しない）。
+function MergeModal({ onClose, onMerged }: { onClose: () => void; onMerged: () => void }) {
+  type Item  = { id: string; name: string; nameKana: string | null; usageCount: number };
+  type Group = { suggestedKeepId: string; items: Item[] };
+
+  const [loading,  setLoading]  = useState(true);
+  const [groups,   setGroups]   = useState<Group[]>([]);
+  const [mergingGroup, setMergingGroup] = useState<number | null>(null);
+  const [keepByGroup,     setKeepByGroup]     = useState<Record<number, string>>({});
+  const [excludedByGroup, setExcludedByGroup] = useState<Record<number, Set<string>>>({});
+
+  const fetchCandidates = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await fetch('/api/ingredients/merge');
+      const d = await r.json();
+      if (d.success) {
+        setGroups(d.data.groups);
+        const keepInit: Record<number, string> = {};
+        (d.data.groups as Group[]).forEach((g, i) => { keepInit[i] = g.suggestedKeepId; });
+        setKeepByGroup(keepInit);
+        setExcludedByGroup({});
+      } else toast.error(d.error ?? '候補の取得に失敗しました');
+    } catch { toast.error('通信エラー'); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { fetchCandidates(); }, [fetchCandidates]);
+
+  const toggleExclude = (gi: number, id: string) => {
+    setExcludedByGroup(prev => {
+      const next = new Set(prev[gi] ?? []);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return { ...prev, [gi]: next };
+    });
+  };
+
+  const handleMerge = async (gi: number) => {
+    const group   = groups[gi];
+    const keepId  = keepByGroup[gi];
+    const excluded = excludedByGroup[gi] ?? new Set<string>();
+    const mergeIds = group.items.map(it => it.id).filter(id => id !== keepId && !excluded.has(id));
+    if (mergeIds.length === 0) { toast.error('統合する食材が選択されていません'); return; }
+    const keepName = group.items.find(it => it.id === keepId)?.name ?? '';
+    if (!confirm(`${mergeIds.length}件の食材を「${keepName}」に統合します。\n統合された食材は一覧から削除され、使用中のレシピは自動的に統合先へ付け替わります。よろしいですか？`)) return;
+
+    setMergingGroup(gi);
+    try {
+      const r = await fetch('/api/ingredients/merge', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keepId, mergeIds }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        toast.success(`${d.data.mergedCount}件を「${keepName}」に統合しました`);
+        setGroups(prev => prev.filter((_, idx) => idx !== gi));
+        onMerged();
+      } else toast.error(d.error ?? '統合に失敗しました');
+    } catch { toast.error('通信エラー'); }
+    finally { setMergingGroup(null); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-warm-lg w-full max-w-2xl flex flex-col max-h-[85vh]">
+        <div className="flex items-center justify-between p-5 border-b border-cream-200">
+          <div>
+            <h3 className="font-bold text-stone-800">重複食材の統合</h3>
+            <p className="text-xs text-stone-500 mt-0.5">名前が似ている食材を自動検出しました。統合先（残す食材）を選んで統合してください</p>
+          </div>
+          <button onClick={onClose} className="text-stone-400 text-2xl leading-none">×</button>
+        </div>
+        <div className="p-5 space-y-4 overflow-y-auto flex-1">
+          {loading && (
+            <div className="text-center py-10 text-stone-400"><Loader2 className="w-6 h-6 animate-spin mx-auto" /></div>
+          )}
+          {!loading && groups.length === 0 && (
+            <p className="text-stone-400 text-sm text-center py-10">似た名前の食材は見つかりませんでした</p>
+          )}
+          {groups.map((g, gi) => (
+            <div key={g.items.map(it=>it.id).join(',')} className="border border-cream-200 rounded-xl p-3.5 space-y-1.5">
+              <p className="text-xs text-stone-500 mb-1">統合先（残す食材）を選択</p>
+              {g.items.map(it => {
+                const isKeep = keepByGroup[gi] === it.id;
+                return (
+                  <div key={it.id} className={`flex items-center gap-2.5 p-2 rounded-lg ${isKeep ? 'bg-brand-50' : ''}`}>
+                    <input type="radio" name={`keep-${gi}`} checked={isKeep}
+                      onChange={() => setKeepByGroup(prev => ({ ...prev, [gi]: it.id }))}
+                      className="accent-brand-500 flex-shrink-0" />
+                    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setKeepByGroup(prev => ({ ...prev, [gi]: it.id }))}>
+                      <span className="text-sm font-medium text-stone-800">{it.name}</span>
+                      {it.nameKana && <span className="text-xs text-stone-400 ml-1.5">（{it.nameKana}）</span>}
+                    </div>
+                    <span className="text-xs text-stone-400 whitespace-nowrap">使用中レシピ {it.usageCount}件</span>
+                    {!isKeep && (
+                      <label className="flex items-center gap-1 text-xs text-stone-500 cursor-pointer whitespace-nowrap">
+                        <input type="checkbox" checked={!(excludedByGroup[gi]?.has(it.id))}
+                          onChange={() => toggleExclude(gi, it.id)} className="accent-brand-500" />
+                        統合する
+                      </label>
+                    )}
+                  </div>
+                );
+              })}
+              <div className="flex justify-end pt-1">
+                <button onClick={() => handleMerge(gi)} disabled={mergingGroup !== null}
+                  className="btn-primary text-sm px-4 py-1.5 flex items-center gap-1.5">
+                  {mergingGroup === gi ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                  この内容で統合する
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="p-4 border-t border-cream-200">
+          <button onClick={onClose} className="btn-secondary w-full">閉じる</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ---- メインページ ----
 export default function IngredientsPage() {
   const { data: session } = useSession();
@@ -500,6 +651,7 @@ export default function IngredientsPage() {
   const [modal,        setModal]        = useState<{open:boolean;ingredient:Ingredient|null}>({open:false,ingredient:null});
   const [purchaseModal,setPurchaseModal]= useState<Ingredient|null>(null);
   const [showCatMgr,   setShowCatMgr]   = useState(false);
+  const [showMergeMgr, setShowMergeMgr] = useState(false);
   // 日本語IME変換中（例：「卵」を打つ途中の「たまご」「たこ」等の未確定文字）かどうか。
   // これがfalseになる（＝変換確定）までは検索を実行しないようにする。
   // trueの間もデバウンスを素通りさせてしまうと、変換確定前の中間テキスト
@@ -563,6 +715,9 @@ export default function IngredientsPage() {
         <div className="flex gap-2">
           <button onClick={()=>setShowCatMgr(true)} className="btn-secondary flex items-center gap-2 text-sm">
             <Tag className="w-4 h-4" />カテゴリ管理
+          </button>
+          <button onClick={()=>setShowMergeMgr(true)} className="btn-secondary flex items-center gap-2 text-sm">
+            <AlertTriangle className="w-4 h-4" />重複食材を統合
           </button>
           <button onClick={()=>setModal({open:true,ingredient:null})} className="btn-primary flex items-center gap-2">
             <Plus className="w-4 h-4" />食材を追加
@@ -685,6 +840,7 @@ export default function IngredientsPage() {
       {modal.open && <IngredientModal ingredient={modal.ingredient} categories={categories} isAdmin={isAdmin} onClose={()=>setModal({open:false,ingredient:null})} onSaved={fetchIngredients} />}
       {purchaseModal && <PurchaseSettingModal ingredient={purchaseModal} onClose={()=>setPurchaseModal(null)} onSaved={fetchIngredients} />}
       {showCatMgr && <CategoryManager isAdmin={isAdmin} onClose={()=>{setShowCatMgr(false);fetchCategories();}} />}
+      {showMergeMgr && <MergeModal onClose={()=>setShowMergeMgr(false)} onMerged={fetchIngredients} />}
     </div>
   );
 }

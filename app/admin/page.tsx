@@ -9,6 +9,7 @@ import {
   ChevronDown, ChevronUp, FlaskConical, AlertTriangle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { INGREDIENT_REJECTION_REASONS } from '@/lib/ingredient-rejection-reasons';
 
 interface Stats {
   totalUsers: number; premiumUsers: number;
@@ -26,6 +27,8 @@ export default function AdminPage() {
   const [stats,   setStats]   = useState<Stats | null>(null);
   const [pending, setPending] = useState<PendingIngredient[]>([]);
   const [loading, setLoading] = useState(true);
+  // 却下理由を選ばせるモーダル。開いている間は対象の食材id・名前を保持する
+  const [rejectTarget, setRejectTarget] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => { fetchData(); }, []);
 
@@ -44,16 +47,36 @@ export default function AdminPage() {
     } finally { setLoading(false); }
   };
 
-  const approveIngredient = async (id: string, approve: boolean) => {
+  const approveIngredient = async (id: string) => {
     const res  = await fetch(`/api/admin/ingredients/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isApproved: approve, isPublic: approve }),
+      body: JSON.stringify({ isApproved: true, isPublic: true }),
     });
     const data = await res.json();
     if (data.success) {
-      toast.success(approve ? '承認しました' : '却下しました');
+      toast.success('承認しました');
       setPending(prev => prev.filter(i => i.id !== id));
+    } else {
+      toast.error(data.error ?? '承認に失敗しました');
+    }
+  };
+
+  // 却下は理由の選択が必須なため、直接APIを叩かずRejectReasonModalを開く（rejectTargetをセット）。
+  // モーダル側でreason/noteが決まってから、ここでAPIを呼ぶ。
+  const rejectIngredient = async (id: string, reason: string, note: string) => {
+    const res  = await fetch(`/api/admin/ingredients/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isApproved: false, isPublic: false, rejectionReason: reason, rejectionNote: note }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast.success('却下しました（理由はユーザーに通知されます）');
+      setPending(prev => prev.filter(i => i.id !== id));
+      setRejectTarget(null);
+    } else {
+      toast.error(data.error ?? '却下に失敗しました');
     }
   };
 
@@ -146,7 +169,9 @@ export default function AdminPage() {
         ) : (
           <div className="space-y-3">
             {pending.map(ing => (
-              <PendingIngredientCard key={ing.id} ing={ing} onApprove={approveIngredient} />
+              <PendingIngredientCard key={ing.id} ing={ing}
+                onApprove={approveIngredient}
+                onReject={(id, name) => setRejectTarget({ id, name })} />
             ))}
           </div>
         )}
@@ -168,13 +193,79 @@ export default function AdminPage() {
           ))}
         </div>
       </div>
+
+      {rejectTarget && (
+        <RejectReasonModal
+          ingredientName={rejectTarget.name}
+          onClose={() => setRejectTarget(null)}
+          onConfirm={(reason, note) => rejectIngredient(rejectTarget.id, reason, note)}
+        />
+      )}
     </div>
   );
 }
 
 const REQUIRED_ALLERGENS = ['えび','かに','小麦','そば','卵','乳','落花生','くるみ'];
 
-function PendingIngredientCard({ ing, onApprove }: { ing: PendingIngredient; onApprove: (id:string, approve:boolean)=>void }) {
+// ---- 却下理由選択モーダル ----
+function RejectReasonModal({ ingredientName, onClose, onConfirm }: {
+  ingredientName: string;
+  onClose: () => void;
+  onConfirm: (reason: string, note: string) => void;
+}) {
+  const [reason,  setReason]  = useState('');
+  const [note,    setNote]    = useState('');
+  const [sending, setSending] = useState(false);
+
+  const handleConfirm = () => {
+    if (!reason) { toast.error('却下理由を選択してください'); return; }
+    if (reason === 'OTHER' && !note.trim()) { toast.error('「その他」を選んだ場合はコメントを入力してください'); return; }
+    setSending(true);
+    onConfirm(reason, note.trim());
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-warm-lg w-full max-w-md">
+        <div className="flex items-center justify-between p-5 border-b border-cream-200">
+          <h3 className="font-bold text-stone-800">却下理由を選択</h3>
+          <button onClick={onClose} className="text-stone-400 text-2xl leading-none">×</button>
+        </div>
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-stone-600">「{ingredientName}」を却下します。理由はユーザーにアプリ内で通知されます。</p>
+          <div>
+            <label className="field-label">却下理由 <span className="text-red-500">*</span></label>
+            <div className="space-y-1.5 mt-1">
+              {INGREDIENT_REJECTION_REASONS.map(r => (
+                <label key={r.code} className="flex items-center gap-2 p-2 rounded-lg hover:bg-cream-50 cursor-pointer">
+                  <input type="radio" name="rejection-reason" checked={reason === r.code}
+                    onChange={() => setReason(r.code)} className="accent-brand-500" />
+                  <span className="text-sm text-stone-700">{r.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="field-label">
+              コメント
+              <span className="text-stone-400 text-xs ml-1">{reason === 'OTHER' ? '（「その他」の場合は必須）' : '（任意・補足があれば）'}</span>
+            </label>
+            <textarea value={note} onChange={e => setNote(e.target.value)} rows={3}
+              className="field-input" placeholder="例：既に「〇〇」として登録済みのため、そちらをご利用ください" />
+          </div>
+        </div>
+        <div className="flex gap-3 p-5 border-t border-cream-200">
+          <button onClick={onClose} className="btn-secondary flex-1">キャンセル</button>
+          <button onClick={handleConfirm} disabled={sending} className="btn-primary flex-1 flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700">
+            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}却下する
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PendingIngredientCard({ ing, onApprove, onReject }: { ing: PendingIngredient; onApprove: (id:string)=>void; onReject: (id:string, name:string)=>void }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -191,11 +282,11 @@ function PendingIngredientCard({ ing, onApprove }: { ing: PendingIngredient; onA
           </div>
         </button>
         <div className="flex gap-2 flex-shrink-0">
-          <button onClick={() => onApprove(ing.id, true)}
+          <button onClick={() => onApprove(ing.id)}
             className="flex items-center gap-1 text-sm text-green-700 bg-green-100 hover:bg-green-200 px-3 py-1.5 rounded-lg">
             <CheckCircle2 className="w-4 h-4" />承認
           </button>
-          <button onClick={() => onApprove(ing.id, false)}
+          <button onClick={() => onReject(ing.id, ing.name)}
             className="flex items-center gap-1 text-sm text-red-700 bg-red-100 hover:bg-red-200 px-3 py-1.5 rounded-lg">
             <XCircle className="w-4 h-4" />却下
           </button>

@@ -167,6 +167,15 @@ model Ingredient {
   allergens            String[]
   isPublic             Boolean             @default(false)
   isApproved           Boolean             @default(false)
+  // 共有申請の却下理由（選択式コード。lib/ingredient-rejection-reasons.ts参照）。
+  // 却下されていない／再承認された場合はnull。
+  rejectionReason      String?             @db.VarChar(50)
+  // 却下理由が「その他」の場合の自由記述、または他の理由への補足コメント
+  rejectionNote        String?
+  rejectedAt           DateTime?
+  // ユーザーがアプリ内通知でこの却下をまだ確認していない場合はfalse。
+  // 却下されたことが一度も無い食材はデフォルトtrue（通知対象外）にしておく。
+  rejectionSeen        Boolean             @default(true)
   energyKcalManual     Decimal?            @db.Decimal(8, 1)
   proteinManual        Decimal?            @db.Decimal(6, 2)
   fatManual            Decimal?            @db.Decimal(6, 2)

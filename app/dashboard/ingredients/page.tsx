@@ -663,6 +663,34 @@ export default function IngredientsPage() {
   // 「卵」と検索したつもりなのに無関係な食材が一瞬（人によっては変換完了後もそのまま）
   // 表示されるように見える不具合の原因になっていた。
   const [isComposing,  setIsComposing]  = useState(false);
+  // 共有食材が却下された際のアプリ内通知（まだ確認していないもの）
+  const [rejectionNotices, setRejectionNotices] = useState<{id:string;name:string;rejectionReasonLabel:string|null;rejectionNote:string|null;rejectedAt:string}[]>([]);
+  const [dismissingNotices, setDismissingNotices] = useState(false);
+
+  const fetchRejectionNotices = useCallback(async () => {
+    try {
+      const r = await fetch('/api/ingredients/rejection-notices');
+      const d = await r.json();
+      if (d.success) setRejectionNotices(d.data);
+    } catch { /* 通知の取得失敗はページ全体の利用を妨げないよう黙って諦める */ }
+  }, []);
+
+  const dismissRejectionNotices = async () => {
+    setDismissingNotices(true);
+    try {
+      const ids = rejectionNotices.map(n => n.id);
+      const r = await fetch('/api/ingredients/rejection-notices', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+      const d = await r.json();
+      if (d.success) setRejectionNotices([]);
+      else toast.error(d.error ?? '確認済みにできませんでした');
+    } catch { toast.error('通信エラー'); }
+    finally { setDismissingNotices(false); }
+  };
+
+  useEffect(() => { fetchRejectionNotices(); }, [fetchRejectionNotices]);
 
   const fetchCategories = useCallback(async () => {
     const r = await fetch('/api/ingredient-categories'); const d = await r.json();
@@ -711,6 +739,31 @@ export default function IngredientsPage() {
 
   return (
     <div className="animate-fade-in space-y-5">
+      {rejectionNotices.length > 0 && (
+        <div className="border border-red-300 bg-red-50 rounded-xl p-4 space-y-3">
+          <p className="text-sm font-medium text-red-800 flex items-center gap-1.5">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            共有食材の申請が却下されました（{rejectionNotices.length}件）
+          </p>
+          <ul className="text-sm text-red-700 space-y-2">
+            {rejectionNotices.map(n => (
+              <li key={n.id} className="bg-white/60 rounded-lg p-2.5">
+                <span className="font-medium">「{n.name}」</span>
+                <span className="text-xs text-red-500 ml-2">{new Date(n.rejectedAt).toLocaleDateString('ja-JP')}</span>
+                <div className="text-xs mt-0.5">理由：{n.rejectionReasonLabel}</div>
+                {n.rejectionNote && <div className="text-xs mt-0.5 text-red-600">コメント：{n.rejectionNote}</div>}
+              </li>
+            ))}
+          </ul>
+          <div className="flex justify-end">
+            <button onClick={dismissRejectionNotices} disabled={dismissingNotices}
+              className="btn-secondary text-sm px-4 py-1.5 flex items-center gap-1.5">
+              {dismissingNotices ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+              確認しました
+            </button>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-stone-800 font-display">食材マスタ</h1>

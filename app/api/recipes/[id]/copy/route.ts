@@ -2,10 +2,26 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { getPlanLimits } from '@/lib/plan-limits';
 
 export async function POST(_req: Request, { params }: { params: { id: string } }) {
   const session = await auth();
   if (!session) return NextResponse.json({ success: false, error: '認証が必要です' }, { status: 401 });
+
+  // プラン制限チェック（レシピ数）。POST /api/recipes と同じ上限を、コピーでも回避できないように適用する
+  // （以前はここに上限チェックが無く、複製を繰り返すことでフリー・プレミアムいずれの上限も
+  //   すり抜けられてしまっていた）
+  const limits = getPlanLimits((session.user as any).plan ?? 'free');
+  if (limits.maxRecipes !== Infinity) {
+    const recipeCount = await prisma.recipe.count({ where: { userId: session.user.id, isActive: true } });
+    if (recipeCount >= limits.maxRecipes) {
+      return NextResponse.json({
+        success: false,
+        error: `レシピ上限（${limits.maxRecipes}件）に達しているため、これ以上コピーできません。`,
+        upgradeRequired: true,
+      }, { status: 403 });
+    }
+  }
 
   const original = await prisma.recipe.findFirst({
     where: { id: params.id, userId: session.user.id },

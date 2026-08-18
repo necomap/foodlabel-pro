@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { Crown, Check, Loader2, Star, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -28,6 +28,16 @@ export default function UpgradePage() {
   const { data: session } = useSession();
   const [loading, setLoading] = useState(false);
   const isPremium = session?.user?.plan === 'premium' || session?.user?.plan === 'admin';
+
+  // 「初月500円」お試し価格の対象かどうか（未ログイン確定前・API未応答の間はfalse扱いにしておき、
+  // 対象と分かった時点でだけ案内を出す。過去にサブスクリプションを持ったことがある場合は対象外）
+  const [trialEligible, setTrialEligible] = useState(false);
+  useEffect(() => {
+    if (isPremium) return;
+    fetch('/api/stripe/trial-eligibility').then(r => r.json()).then(d => {
+      if (d.success) setTrialEligible(d.eligible);
+    }).catch(() => {});
+  }, [isPremium]);
 
   const handleUpgrade = async () => {
     setLoading(true);
@@ -91,8 +101,20 @@ export default function UpgradePage() {
               </h2>
               {isPremium && <span className="badge bg-amber-100 text-amber-700 text-xs">現在のプラン</span>}
             </div>
-            <div className="text-3xl font-bold text-stone-800 mt-2">¥980<span className="text-sm font-normal text-stone-500">/月</span></div>
-            <p className="text-xs text-stone-500 mt-1">税込 ・ いつでも解約可能</p>
+            {trialEligible ? (
+              <>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <span className="badge bg-amber-100 text-amber-700 text-[10px] font-bold">初月お試し</span>
+                  <span className="text-3xl font-bold text-stone-800">¥500</span>
+                </div>
+                <p className="text-xs text-stone-500 mt-1">2ヶ月目以降は¥980/月（税込）・いつでも解約可能</p>
+              </>
+            ) : (
+              <>
+                <div className="text-3xl font-bold text-stone-800 mt-2">¥980<span className="text-sm font-normal text-stone-500">/月</span></div>
+                <p className="text-xs text-stone-500 mt-1">税込 ・ いつでも解約可能</p>
+              </>
+            )}
           </div>
           <ul className="space-y-2">
             {PREMIUM_FEATURES.map(f => (
@@ -111,7 +133,7 @@ export default function UpgradePage() {
             <button onClick={handleUpgrade} disabled={loading}
               className="w-full py-3 px-4 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Crown className="w-4 h-4" />}
-              プレミアムにアップグレード
+              {trialEligible ? '初月500円でお試し' : 'プレミアムにアップグレード'}
             </button>
           )}
         </div>

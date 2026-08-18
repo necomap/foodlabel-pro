@@ -26,6 +26,13 @@ export async function POST() {
   const trialCouponId = process.env.STRIPE_TRIAL_COUPON_ID;
   const applyTrialDiscount = !priorSubscription && !!trialCouponId;
 
+  // ---- 一時デバッグ用（原因特定後に必ず削除すること）----
+  // 「No such coupon」エラーの原因切り分け用。実際にサーバーが読み込んだ環境変数の値を
+  // そのままログ・レスポンスに出す（coupon IDは秘密情報ではないので露出しても問題ない）。
+  console.log('[DEBUG] STRIPE_TRIAL_COUPON_ID raw value:', JSON.stringify(trialCouponId));
+  console.log('[DEBUG] length:', trialCouponId?.length, 'applyTrialDiscount:', applyTrialDiscount, 'priorSubscription found:', !!priorSubscription);
+  // ---- デバッグ用ここまで ----
+
   try {
     const checkoutSession = await stripe.checkout.sessions.create({
       mode:         'subscription',
@@ -40,8 +47,13 @@ export async function POST() {
       locale: 'ja',
     });
     return NextResponse.json({ success: true, url: checkoutSession.url });
-  } catch (err) {
+  } catch (err: any) {
     console.error('Stripe checkout error:', err);
-    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
+    // 一時デバッグ用：エラー本文とcoupon IDをそのまま画面のトーストに出す（原因特定後に戻すこと）
+    const message = err?.message ?? String(err);
+    return NextResponse.json({
+      success: false,
+      error: `${message} [debug: couponId="${trialCouponId}" applyTrialDiscount=${applyTrialDiscount}]`,
+    }, { status: 500 });
   }
 }

@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Plus, Search, Filter, AlertTriangle, ChevronRight, Flame, Tag, TrendingUp, RefreshCw, Package, Printer, EyeOff, Eye, CheckSquare, Square } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -40,6 +41,18 @@ function readQueryParam(key: string, fallback: string): string {
 
 export default function RecipesPage() {
   const router = useRouter();
+  const { update: updateSession } = useSession();
+  // Stripe決済完了後（success_url=/dashboard/recipes?upgraded=1）に戻ってきた時だけ、
+  // セッション（plan）をDBの最新値で明示的に再取得する。ログアウト→ログインし直さないと
+  // 画面上・ナビの表示が変わらない不具合の対策（lib/auth.ts のjwtコールバック参照）。
+  // upgraded の値自体は下の「検索条件をURLに同期する」useEffectが自動でURLから消してくれる。
+  useEffect(() => {
+    if (readQueryParam('upgraded', '') === '1') {
+      updateSession();
+      toast.success('プレミアムプランへのお支払いが完了しました。ありがとうございます！');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [recipes,    setRecipes]    = useState<RecipeSummary[]>([]);
   const [loading,    setLoading]    = useState(true);
   // searchInputは入力欄に即時反映、searchはデバウンス後にAPIへ送る値

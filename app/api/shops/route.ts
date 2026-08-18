@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { getPlanLimits } from '@/lib/plan-limits';
 
 export async function GET() {
   const session = await auth();
@@ -51,6 +52,19 @@ const shopSchema = z.object({
 export async function POST(request: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ success: false, error: '認証が必要です' }, { status: 401 });
+
+  // プラン制限チェック（店舗数）
+  const limits = getPlanLimits((session.user as any).plan ?? 'free');
+  if (limits.maxShops !== Infinity) {
+    const shopCount = await prisma.shop.count({ where: { userId: session.user.id, isActive: true } });
+    if (shopCount >= limits.maxShops) {
+      return NextResponse.json({
+        success: false,
+        error: `店舗数の上限（${limits.maxShops}件）に達しました。`,
+        upgradeRequired: true,
+      }, { status: 403 });
+    }
+  }
 
   const body   = await request.json();
   const result = shopSchema.safeParse(body);

@@ -17,7 +17,9 @@ export async function POST() {
 
   const portalSession = await stripe.billingPortal.sessions.create({
     customer:   user.stripeCustomerId,
-    return_url: `${process.env.NEXTAUTH_URL}/dashboard/settings`,
+    // billing_updated=1: 解約・プラン変更などポータルでの操作結果を反映するため、
+    // 戻り先の設定画面でセッション（plan）を明示的に再取得させるための目印。
+    return_url: `${process.env.NEXTAUTH_URL}/dashboard/settings?billing_updated=1`,
   });
   return NextResponse.json({ success: true, url: portalSession.url });
 }

@@ -8,9 +8,11 @@ export const PLAN_LIMITS = {
     hasAds:        true,
   },
   premium: {
-    maxRecipes:    Infinity,
+    // 2026-08時点: プロプラン新設に向けて、プレミアムのレシピ数・店舗数に上限を設定。
+    // ラベル印刷枚数はサーバー負荷的にコストが小さく、既存の「無制限」表示を維持するため据え置き。
+    maxRecipes:    100,
     maxLabelPrints: Infinity,
-    maxShops:      Infinity,
+    maxShops:      3,
     canExport:     true,
     hasAds:        false,
   },

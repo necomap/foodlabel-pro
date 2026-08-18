@@ -86,7 +86,7 @@ export default function DashboardNav({ isAdmin, isPremium, userName, userEmail }
                <Star className="w-4 h-4 text-amber-500 flex-shrink-0" />
                <div>
                  <p className="text-xs font-bold leading-tight">プレミアムにアップグレード</p>
-                 <p className="text-xs opacity-70">月額980円・無制限</p>
+                 <p className="text-xs opacity-70">月額980円・レシピ100件まで</p>
                </div>
              </a>
            )}
@@ -138,7 +138,7 @@ export default function DashboardNav({ isAdmin, isPremium, userName, userEmail }
                 <Star className="w-4 h-4 text-amber-500 flex-shrink-0" />
                 <div>
                   <p className="text-xs font-bold leading-tight">プレミアムにアップグレード</p>
-                  <p className="text-xs opacity-70">月額980円・無制限</p>
+                  <p className="text-xs opacity-70">月額980円・レシピ100件まで</p>
                 </div>
               </a>
             )}

@@ -40,6 +40,20 @@ function ProfileTab() {
   const [portalLoading, setPortalLoading] = useState(false);
   const [profile, setProfile] = useState({ companyName:'', representative:'', postalCode:'', address:'', phone:'' });
   const isPremium = session?.user?.plan === 'premium' || session?.user?.plan === 'admin';
+  // 請求ポータル（解約・プラン変更）から ?billing_updated=1 付きで戻ってきた時だけ、
+  // セッション（plan）をDBの最新値で明示的に再取得する。ログアウト→ログインし直さないと
+  // 画面上のプラン表示が変わらない不具合の対策（lib/auth.ts のjwtコールバック参照）。
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('billing_updated') === '1') {
+      update();
+      params.delete('billing_updated');
+      const qs = params.toString();
+      window.history.replaceState({}, '', qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const handlePortal = async () => {
     setPortalLoading(true);
     try {

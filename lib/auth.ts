@@ -107,7 +107,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
 
     // JWTにカスタムフィールドを追加
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger }) {
       if (account?.provider === 'google' && user?.email) {
         // Google認証時はDBから最新情報を取得してセット
         const dbUser = await prisma.user.findUnique({ where: { email: user.email } });
@@ -119,6 +119,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // Credentials認証時はauthorizeで返したuserオブジェクトを使用
         token.id   = user.id;
         token.plan = (user as { plan?: UserPlan }).plan ?? 'free';
+      } else if (trigger === 'update' && token.id) {
+        // クライアント側で明示的に session.update() が呼ばれた時だけDBから最新planを
+        // 再取得する（決済完了直後・解約ポータルから戻った直後など）。
+        // JWTセッションは通常のページ遷移ではDBを読みに行かない設計のため、
+        // ここでフックしないと「決済してもログインし直すまでplanが反映されない」問題が起きる
+        // （2026-08 発覚・再発防止コメント）。毎リクエストDBを叩くのは避けたいので、
+        // trigger === 'update' の時に限定している。
+        const dbUser = await prisma.user.findUnique({ where: { id: token.id as string } });
+        if (dbUser) {
+          token.plan = (dbUser.plan ?? 'free') as UserPlan;
+        }
       }
       return token;
     },

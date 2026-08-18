@@ -154,13 +154,16 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
   });
   const [nutritionSearch,  setNutritionSearch]  = useState('');
   const [nutritionResults, setNutritionResults] = useState<{id:number;foodName:string;energyKcal:number|null}[]>([]);
+  const [nutritionTotal,   setNutritionTotal]   = useState(0);
   const [selectedNutritionId, setSelectedNutritionId] = useState<number|null>(ingredient?.nutritionId ?? null);
 
   const searchNutrition = async (q: string) => {
-    if (!q.trim()) { setNutritionResults([]); return; }
-    const r = await fetch(`/api/nutrition?q=${encodeURIComponent(q)}&perPage=8`);
+    if (!q.trim()) { setNutritionResults([]); setNutritionTotal(0); return; }
+    // 20件までを関連度順（完全一致→前方一致→部分一致）で表示。それでも見つからない場合は
+    // キーワードを具体的にする（例：「油」→「ごま油」）と絞り込みやすい。
+    const r = await fetch(`/api/nutrition?q=${encodeURIComponent(q)}&perPage=20`);
     const d = await r.json();
-    if (d.success) setNutritionResults(d.data.items);
+    if (d.success) { setNutritionResults(d.data.items); setNutritionTotal(d.data.total ?? d.data.items.length); }
   };
 
   const handleSave = async (force: boolean = false) => {
@@ -286,13 +289,20 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
             )}
             {nutritionResults.length > 0 && (
               <div className="border border-cream-200 rounded-xl mt-1 overflow-hidden">
-                {nutritionResults.map(n=>(
-                  <button key={n.id} type="button" onClick={()=>{setSelectedNutritionId(n.id);setNutritionSearch(n.foodName);setNutritionResults([]);}}
-                    className={`w-full flex justify-between px-3 py-2 text-sm hover:bg-cream-50 text-left ${selectedNutritionId===n.id?'bg-brand-50 text-brand-700':''}`}>
-                    <span>{n.foodName}</span>
-                    {n.energyKcal!=null && <span className="text-stone-400">{n.energyKcal}kcal</span>}
-                  </button>
-                ))}
+                <div className="max-h-56 overflow-y-auto">
+                  {nutritionResults.map(n=>(
+                    <button key={n.id} type="button" onClick={()=>{setSelectedNutritionId(n.id);setNutritionSearch(n.foodName);setNutritionResults([]);}}
+                      className={`w-full flex justify-between px-3 py-2 text-sm hover:bg-cream-50 text-left ${selectedNutritionId===n.id?'bg-brand-50 text-brand-700':''}`}>
+                      <span>{n.foodName}</span>
+                      {n.energyKcal!=null && <span className="text-stone-400">{n.energyKcal}kcal</span>}
+                    </button>
+                  ))}
+                </div>
+                {nutritionTotal > nutritionResults.length && (
+                  <p className="text-xs text-stone-400 px-3 py-1.5 border-t border-cream-100 bg-cream-50">
+                    他に{nutritionTotal - nutritionResults.length}件見つかっています。絞り込むにはキーワードをより具体的にしてください（例:「油」→「ごま油」）
+                  </p>
+                )}
               </div>
             )}
             {selectedNutritionId && (

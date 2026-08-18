@@ -156,7 +156,9 @@ async function main() {
   neededNames.add('香辛料・スパイス');
   neededNames.add(OTHER);
 
-  const missing = [...neededNames].filter(n => !categoryIdByName.has(n));
+  // tsconfigのtargetがes2015未満のため、Setを直接スプレッド(...)すると
+  // 「--downlevelIterationフラグが必要」というビルドエラーになる。Array.from()なら問題ない。
+  const missing = Array.from(neededNames).filter(n => !categoryIdByName.has(n));
   if (missing.length > 0) {
     console.error('⚠ 以下の共通カテゴリがDBに存在しません（先に管理画面の「全ユーザー共通の基本カテゴリを追加」を実行してください）:');
     missing.forEach(n => console.error(`  - ${n}`));
@@ -212,12 +214,12 @@ async function main() {
   console.log(`スキップ（対象外の食品群コード、TARGET_FOOD_GROUPS外のデータが混入している可能性）: ${skippedUnknownFoodGroup}件`);
   if (unknownFoodGroups.size > 0) {
     console.log('  内訳:');
-    [...unknownFoodGroups.entries()].forEach(([code, count]) => {
+    Array.from(unknownFoodGroups.entries()).forEach(([code, count]) => {
       console.log(`    ${code}: ${count}件`);
     });
   }
   console.log('\nカテゴリ別の割り当て件数:');
-  [...perCategoryCount.entries()]
+  Array.from(perCategoryCount.entries())
     .sort((a, b) => b[1] - a[1])
     .forEach(([name, count]) => console.log(`  ${name}: ${count}件`));
 }

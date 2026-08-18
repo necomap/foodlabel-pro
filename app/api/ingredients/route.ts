@@ -100,7 +100,16 @@ export async function GET(request: Request) {
     };
     const sharedWhere = {
       isActive: true, ...categoryFilter,
-      userId: { not: session.user.id },
+      // 注意: `userId: { not: session.user.id }` だけだと、Prismaはこれを `userId <> 自分のid`
+      // というSQL比較に変換する。SQLでは `NULL <> 値` はNULL（不明）と評価されWHERE句から除外される
+      // ため、システム所有食材（userId: null、食品成分表由来の共有食材）が検索結果から一切
+      // 出てこなくなっていた（レシピ編集画面の材料検索で「食品成分表由来の食材名の一部を
+      // 入力しても自分の食材しかヒットしない」不具合の直接原因）。OR で `userId: null` も
+      // 明示的に含めることで、他ユーザー申請分・システム自動生成分の両方を確実に拾う。
+      OR: [
+        { userId: null as string | null },
+        { userId: { not: session.user.id } },
+      ],
       isPublic: true, isApproved: true,
       ...(qFilter ? { AND: [qFilter] } : {}),
     };

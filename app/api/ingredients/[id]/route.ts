@@ -63,6 +63,11 @@ export async function PUT(request: Request, { params }: Params) {
   // 「ラベル非表示」チェック（hideFromLabel）を使ってもらう（そちらはユーザー・レシピ単位の設定
   // なので、共有食材であってもこの安全策の影響を受けない）。
   const resolvedIsPublic = body.isPublic ?? ing.isPublic;
+  // isPublicの状態を明示的に変更した（=非公開にした／公開申請し直した）タイミングでは、
+  // 古い却下通知（rejectionReason等）を必ずクリアする。以前はここが漏れており、
+  // 却下→ユーザーが修正して再申請→管理者が承認、という流れの途中で「もう解決済みのはずの
+  // 却下通知」が残り続け、承認直後でも古い却下通知が表示されてしまう不具合の原因だった。
+  const isPublicTouched = body.isPublic !== undefined;
   const resolvedAlwaysHideFromLabel = resolvedIsPublic
     ? false
     : (body.alwaysHideFromLabel !== undefined ? body.alwaysHideFromLabel : (ing as any).alwaysHideFromLabel);
@@ -89,6 +94,10 @@ export async function PUT(request: Request, { params }: Params) {
       allergens:       allergens,
       isPublic:        resolvedIsPublic,
       isApproved:      body.isPublic === false ? true : (body.isPublic ? false : ing.isApproved),
+      rejectionReason: isPublicTouched ? null  : ing.rejectionReason,
+      rejectionNote:   isPublicTouched ? null  : ing.rejectionNote,
+      rejectedAt:      isPublicTouched ? null  : ing.rejectedAt,
+      rejectionSeen:   isPublicTouched ? true  : ing.rejectionSeen,
       energyKcalManual:    body.energyKcalManual    !== undefined ? body.energyKcalManual : ing.energyKcalManual,
       proteinManual:       body.proteinManual       !== undefined ? body.proteinManual : ing.proteinManual,
       fatManual:           body.fatManual           !== undefined ? body.fatManual : ing.fatManual,

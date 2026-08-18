@@ -233,7 +233,14 @@ export async function GET(request: Request) {
       supplier,
       // 共有食材について、自分がまだ仕入れ設定を入力していないかどうか（一覧のボタン表示切り替え用）
       hasPurchaseSetting: isOwnRecord ? true : !!mySetting,
-      ingredientCategoryId:   (ing as any).ingredientCategoryId ?? null,
+      // ingredientCategoryId は Prisma Client生成の都合でモデルの型に無い場合があるため、
+      // (ing as any).ingredientCategoryId は信頼できない（常にundefined/nullになりうる）。
+      // 上のカテゴリ名取得と同じraw SQL（categoryMap）から得たidを使うことで、実際にDBに
+      // 保存されている値と一致させる。ここで(ing as any).ingredientCategoryIdの方を使っていたのが、
+      // 編集モーダルを開いたときにカテゴリの選択状態が復元されず、そのまま保存すると
+      // せっかく設定したカテゴリがnullで上書きされてしまう不具合の原因だった
+      // （「カテゴリを設定して申請したのに承認待ちでは未設定になる」の直接の原因）。
+      ingredientCategoryId:   categoryMap[ing.id]?.id || null,
       ingredientCategoryName: categoryMap[ing.id]?.name || null,
       isPublic:        ing.isPublic,
       isOwnRecord,

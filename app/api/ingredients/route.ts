@@ -17,6 +17,11 @@ export async function GET(request: Request) {
   const page       = parseInt(searchParams.get('page')    ?? '1');
   const perPage    = parseInt(searchParams.get('perPage') ?? '20');
   const categoryId = searchParams.get('categoryId') ?? '';
+  // source: 'own'=自分の食材のみ／'community'=他ユーザーが共有した食材のみ／
+  // 'system'=食品成分表から自動生成した共有食材のみ／未指定='all'（従来どおり自分の食材を
+  // 先頭にした統合リスト。レシピ編集画面の材料検索など、タブ分けせず横断的に検索したい
+  // 呼び出し元との後方互換のために残している）。
+  const source = searchParams.get('source') ?? 'all';
 
   const categoryFilter = categoryId === '__none__'
     ? { ingredientCategoryId: null }
@@ -31,38 +36,6 @@ export async function GET(request: Request) {
       { genericName: { contains: q, mode: 'insensitive' as const } },
     ],
   } : undefined;
-
-  // 自分の食材と「共有申請され管理者に承認済み」の食材を別々のクエリで取得し、
-  // 常に自分の食材を先に表示する（要望：共有食材と自作食材が同名で並んでいると紛らわしい）。
-  // Prismaのfindmany().orderBy()には「userId===自分ならCASE WHENで先頭に」のような条件付き
-  // 並び替えを直接書けないため、2クエリに分けてページ境界をまたいでも自分の食材が
-  // 必ず先に来るよう skip/take を手計算で振り分ける。
-  const ownWhere = {
-    isActive: true,
-    ...categoryFilter,
-    userId: session.user.id,
-    ...(qFilter ? { AND: [qFilter] } : {}),
-  };
-  const sharedWhere = {
-    isActive: true,
-    ...categoryFilter,
-    userId: { not: session.user.id },
-    isPublic: true,
-    isApproved: true,
-    ...(qFilter ? { AND: [qFilter] } : {}),
-  };
-
-  const [ownTotal, sharedTotal] = await Promise.all([
-    prisma.ingredient.count({ where: ownWhere }),
-    prisma.ingredient.count({ where: sharedWhere }),
-  ]);
-  const total = ownTotal + sharedTotal;
-
-  const skip      = (page - 1) * perPage;
-  const ownSkip    = Math.min(skip, ownTotal);
-  const ownTake    = Math.max(0, Math.min(perPage, ownTotal - ownSkip));
-  const sharedSkip = Math.max(0, skip - ownTotal);
-  const sharedTake = Math.max(0, perPage - ownTake);
 
   // include を変数に切り出す際、単なるオブジェクトリテラルのままだと select 内の `true` が
   // `boolean` 型に広がってしまい、Prismaのfindmanyの戻り値型からnutritionDataが
@@ -80,15 +53,79 @@ export async function GET(request: Request) {
     },
   } satisfies Prisma.IngredientInclude;
 
-  // take:0 でも空配列がそのまま返る（Prisma的に有効なクエリ）ため、件数0のときも
-  // 同じfindMany呼び出しに統一する。三項演算子でPromise.resolve([])に分岐させていた
-  // 以前の実装は、分岐ごとに戻り値の型が微妙にズレてnutritionDataへのアクセスが
-  // 型エラーになる問題があったため、常に同じ形の呼び出しにして型を一致させている。
-  const [ownItems, sharedItems] = await Promise.all([
-    prisma.ingredient.findMany({ where: ownWhere, skip: ownSkip, take: ownTake, orderBy: { name: 'asc' }, include: nutritionInclude }),
-    prisma.ingredient.findMany({ where: sharedWhere, skip: sharedSkip, take: sharedTake, orderBy: { name: 'asc' }, include: nutritionInclude }),
-  ]);
-  const ingredients = [...ownItems, ...sharedItems];
+  let ingredients: Prisma.IngredientGetPayload<{ include: typeof nutritionInclude }>[];
+  let total: number;
+
+  if (source === 'own') {
+    // 自分が登録した食材のみ
+    const where = { isActive: true, ...categoryFilter, userId: session.user.id, ...(qFilter ? { AND: [qFilter] } : {}) };
+    [total, ingredients] = await Promise.all([
+      prisma.ingredient.count({ where }),
+      prisma.ingredient.findMany({ where, skip: (page - 1) * perPage, take: perPage, orderBy: { name: 'asc' }, include: nutritionInclude }),
+    ]);
+  } else if (source === 'community') {
+    // 他ユーザーが登録し、共有申請が承認された食材（システム自動生成分は除く）
+    const where = {
+      isActive: true, ...categoryFilter,
+      isPublic: true, isApproved: true,
+      userId: { not: null as string | null },
+      NOT: { userId: session.user.id },
+      ...(qFilter ? { AND: [qFilter] } : {}),
+    };
+    [total, ingredients] = await Promise.all([
+      prisma.ingredient.count({ where }),
+      prisma.ingredient.findMany({ where, skip: (page - 1) * perPage, take: perPage, orderBy: { name: 'asc' }, include: nutritionInclude }),
+    ]);
+  } else if (source === 'system') {
+    // 食品成分表から自動生成した共有食材（userId: null）
+    const where = {
+      isActive: true, ...categoryFilter,
+      isPublic: true, isApproved: true,
+      userId: null as string | null,
+      ...(qFilter ? { AND: [qFilter] } : {}),
+    };
+    [total, ingredients] = await Promise.all([
+      prisma.ingredient.count({ where }),
+      prisma.ingredient.findMany({ where, skip: (page - 1) * perPage, take: perPage, orderBy: { name: 'asc' }, include: nutritionInclude }),
+    ]);
+  } else {
+    // 'all'（後方互換）: 自分の食材と共有食材（他ユーザー申請分・システム自動生成分の両方）を
+    // 別々のクエリで取得し、常に自分の食材を先に表示する。Prismaのfindmany().orderBy()には
+    // 「userId===自分ならCASE WHENで先頭に」のような条件付き並び替えを直接書けないため、
+    // 2クエリに分けてページ境界をまたいでも自分の食材が必ず先に来るよう skip/take を手計算で振り分ける。
+    const ownWhere = {
+      isActive: true, ...categoryFilter,
+      userId: session.user.id,
+      ...(qFilter ? { AND: [qFilter] } : {}),
+    };
+    const sharedWhere = {
+      isActive: true, ...categoryFilter,
+      userId: { not: session.user.id },
+      isPublic: true, isApproved: true,
+      ...(qFilter ? { AND: [qFilter] } : {}),
+    };
+    const [ownTotal, sharedTotal] = await Promise.all([
+      prisma.ingredient.count({ where: ownWhere }),
+      prisma.ingredient.count({ where: sharedWhere }),
+    ]);
+    total = ownTotal + sharedTotal;
+
+    const skip      = (page - 1) * perPage;
+    const ownSkip    = Math.min(skip, ownTotal);
+    const ownTake    = Math.max(0, Math.min(perPage, ownTotal - ownSkip));
+    const sharedSkip = Math.max(0, skip - ownTotal);
+    const sharedTake = Math.max(0, perPage - ownTake);
+
+    // take:0 でも空配列がそのまま返る（Prisma的に有効なクエリ）ため、件数0のときも
+    // 同じfindMany呼び出しに統一する。三項演算子でPromise.resolve([])に分岐させていた
+    // 以前の実装は、分岐ごとに戻り値の型が微妙にズレてnutritionDataへのアクセスが
+    // 型エラーになる問題があったため、常に同じ形の呼び出しにして型を一致させている。
+    const [ownItems, sharedItems] = await Promise.all([
+      prisma.ingredient.findMany({ where: ownWhere, skip: ownSkip, take: ownTake, orderBy: { name: 'asc' }, include: nutritionInclude }),
+      prisma.ingredient.findMany({ where: sharedWhere, skip: sharedSkip, take: sharedTake, orderBy: { name: 'asc' }, include: nutritionInclude }),
+    ]);
+    ingredients = [...ownItems, ...sharedItems];
+  }
 
   // ingredientCategoryNameをraw queryで取得
   // ingredientCategoryId が空文字（NULLではない）のレコードが混ざっていると ::uuid キャストが
@@ -157,7 +194,10 @@ export async function GET(request: Request) {
       ing.sodiumManual, ing.saltEquivalentManual, ing.dietaryFiberManual, ing.sugarManual, ing.cholesterolManual,
     ].some(v => v != null);
 
-    const isOwnRecord   = ing.userId === session.user.id;
+    const isOwnRecord    = ing.userId === session.user.id;
+    // 食品成分表から自動生成したシステム所有食材（userId: null）かどうか。
+    // 管理者が編集・削除できるようにするための判定に使う（一般ユーザーは編集不可のまま）。
+    const isSystemOwned = ing.userId === null;
     const mySetting     = purchaseSettingMap[ing.id];
     // 自分の食材ならマスタ本体の値をそのまま、共有食材なら自分の個別設定（未設定ならnull）を使う。
     const purchaseUnitG = isOwnRecord ? ing.purchaseUnitG : (mySetting?.purchaseUnitG ?? null);
@@ -189,6 +229,7 @@ export async function GET(request: Request) {
       ingredientCategoryName: categoryMap[ing.id]?.name || null,
       isPublic:        ing.isPublic,
       isOwnRecord,
+      isSystemOwned,
       nutrition: (ing.nutritionData || hasManual) ? {
         energyKcal:     ing.energyKcalManual    != null ? Number(ing.energyKcalManual)    : (ing.nutritionData?.energyKcal     != null ? Number(ing.nutritionData.energyKcal)     : null),
         protein:        ing.proteinManual       != null ? Number(ing.proteinManual)       : (ing.nutritionData?.protein        != null ? Number(ing.nutritionData.protein)        : null),

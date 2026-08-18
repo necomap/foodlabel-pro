@@ -11,10 +11,16 @@ export async function PUT(request: Request, { params }: Params) {
   const session = await auth();
   if (!session) return NextResponse.json({ success: false, error: '認証が必要です' }, { status: 401 });
 
-  const ing = await prisma.ingredient.findFirst({
-    where: { id: params.id, userId: session.user.id },
-  });
+  const ing = await prisma.ingredient.findUnique({ where: { id: params.id } });
   if (!ing) return NextResponse.json({ success: false, error: '食材が見つかりません' }, { status: 404 });
+
+  // 編集できるのは (1) 自分が登録した食材、または (2) 管理者による「食品成分表から自動生成した
+  // システム所有食材（userId: null）」の編集・一般名確定作業のみ。他ユーザーが登録した食材
+  // （userIdが自分以外で設定されている）は、管理者であっても本人以外は編集できない
+  // （無断で他ユーザーの共有食材の内容を書き換えられてしまうのを防ぐため）。
+  const isAdmin = (session.user as any).plan === 'admin';
+  const canEdit = ing.userId === session.user.id || (isAdmin && ing.userId === null);
+  if (!canEdit) return NextResponse.json({ success: false, error: 'この食材を編集する権限がありません' }, { status: 403 });
 
   const body = await request.json();
   const name = body.name ? toFullWidth(body.name).trim() : ing.name;
@@ -107,10 +113,12 @@ export async function DELETE(_req: Request, { params }: Params) {
   const session = await auth();
   if (!session) return NextResponse.json({ success: false, error: '認証が必要です' }, { status: 401 });
 
-  const ing = await prisma.ingredient.findFirst({
-    where: { id: params.id, userId: session.user.id },
-  });
+  const ing = await prisma.ingredient.findUnique({ where: { id: params.id } });
   if (!ing) return NextResponse.json({ success: false, error: '食材が見つかりません' }, { status: 404 });
+
+  const isAdmin = (session.user as any).plan === 'admin';
+  const canEdit = ing.userId === session.user.id || (isAdmin && ing.userId === null);
+  if (!canEdit) return NextResponse.json({ success: false, error: 'この食材を削除する権限がありません' }, { status: 403 });
 
   await prisma.ingredient.update({ where: { id: params.id }, data: { isActive: false } });
   return NextResponse.json({ success: true });

@@ -9,11 +9,19 @@ interface Ingredient {
   id: string; name: string; nameKana: string|null; allergens: string[];
   nutritionId: number|null; purchaseUnitG: number|null; purchasePrice: number|null;
   unitPrice: number|null; storage: string|null; supplier: string|null;
-  isPublic: boolean; isOwnRecord: boolean; hasPurchaseSetting: boolean;
+  isPublic: boolean; isOwnRecord: boolean; isSystemOwned: boolean; hasPurchaseSetting: boolean;
   ingredientCategoryId: string|null; ingredientCategoryName: string|null;
   recipeUsageCount: number;
   nutrition: { energyKcal:number|null; protein:number|null; fat:number|null; carbohydrate:number|null; saltEquivalent:number|null; dietaryFiber:number|null; sugar:number|null; cholesterol:number|null; } | null;
 }
+
+// 食材マスタ一覧のタブ。自分の食材／他ユーザーが共有した食材／食品成分表から自動生成した
+// 共有食材、で見え方が大きく違う（編集可否・仕入れ設定の要否など）ため分けて表示する。
+const SOURCE_TABS: { key: 'own'|'community'|'system'; label: string }[] = [
+  { key: 'own',       label: '自分の食材' },
+  { key: 'community', label: 'コミュニティ共有' },
+  { key: 'system',    label: '食品成分表由来' },
+];
 interface IngredientCategory { id: string; name: string; isShared?: boolean; }
 interface RecipeUsage { id: string; name: string; variationName: string|null; isActive: boolean; amount: number; unit: string; }
 
@@ -660,6 +668,7 @@ export default function IngredientsPage() {
   const [searchInput,  setSearchInput]  = useState('');
   const [search,       setSearch]       = useState('');
   const [catFilter,    setCatFilter]    = useState('');
+  const [sourceTab,    setSourceTab]    = useState<'own'|'community'|'system'>('own');
   const [page,         setPage]         = useState(1);
   const [total,        setTotal]        = useState(0);
   const [modal,        setModal]        = useState<{open:boolean;ingredient:Ingredient|null}>({open:false,ingredient:null});
@@ -723,21 +732,26 @@ export default function IngredientsPage() {
     setLoading(true);
     const seq = ++fetchSeq.current;
     try {
-      const params = new URLSearchParams({ q: search, page: String(page), perPage: '30', ...(catFilter && { categoryId: catFilter }) });
+      const params = new URLSearchParams({ q: search, page: String(page), perPage: '30', source: sourceTab, ...(catFilter && { categoryId: catFilter }) });
       const res = await fetch(`/api/ingredients?${params}`);
       const data = await res.json();
       if (seq !== fetchSeq.current) return; // その間に新しい検索が始まっていたら、この結果は無視する
       if (data.success) { setIngredients(data.data.items); setTotal(data.data.total); }
     } finally { if (seq === fetchSeq.current) setLoading(false); }
-  },[search, page, catFilter]);
+  },[search, page, catFilter, sourceTab]);
 
   useEffect(()=>{ fetchCategories(); },[fetchCategories]);
   useEffect(()=>{ fetchIngredients(); },[fetchIngredients]);
 
-  const handleDelete = async (id: string, name: string, usageCount: number) => {
-    const message = usageCount > 0
+  const handleDelete = async (id: string, name: string, usageCount: number, isSystemOwned?: boolean) => {
+    // usageCountは「自分のレシピでの使用数」のみ（APIの仕様上、他ユーザーの使用状況は見えない）。
+    // 食品成分表由来の共有食材は他ユーザーも使っている可能性があるため、管理者向けに別途注意文を出す。
+    const systemOwnedNote = isSystemOwned
+      ? '\n\n※ この食材は食品成分表から自動生成した共有食材です。あなた以外のユーザーのレシピでも使われている可能性がありますが、その使用状況はここでは確認できません。'
+      : '';
+    const message = (usageCount > 0
       ? `「${name}」を削除しますか？\n\nこの食材は${usageCount}件のレシピで使用されています。削除すると、それらのレシピの材料情報が未確認（栄養成分・原価が計算されない状態）になります。\n先に「使用レシピ」から各レシピを開いて食材の紐付けを修正することをおすすめします。`
-      : `「${name}」を削除しますか？\n\nこの食材は現在どのレシピにも使用されていません。`;
+      : `「${name}」を削除しますか？\n\nこの食材は現在どのレシピにも使用されていません。`) + systemOwnedNote;
     if (!confirm(message)) return;
     try {
       const res = await fetch(`/api/ingredients/${id}`,{method:'DELETE'});
@@ -790,6 +804,21 @@ export default function IngredientsPage() {
             <Plus className="w-4 h-4" />食材を追加
           </button>
         </div>
+      </div>
+
+      {/* タブ切り替え：自分の食材／コミュニティ共有／食品成分表由来 */}
+      <div className="flex gap-1 border-b border-cream-200">
+        {SOURCE_TABS.map(tab => (
+          <button key={tab.key}
+            onClick={() => { setSourceTab(tab.key); setPage(1); }}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              sourceTab === tab.key
+                ? 'border-brand-500 text-brand-600'
+                : 'border-transparent text-stone-400 hover:text-stone-600'
+            }`}>
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* 検索・カテゴリフィルタ */}
@@ -846,7 +875,11 @@ export default function IngredientsPage() {
                       </div>
                     )}
                     {ing.nameKana && <div className="text-xs text-stone-400">{ing.nameKana}</div>}
-                    {!ing.isOwnRecord && <span className="badge badge-gray text-[10px] mt-0.5">共有</span>}
+                    {!ing.isOwnRecord && (
+                      <span className="badge badge-gray text-[10px] mt-0.5">
+                        {ing.isSystemOwned ? '成分表由来' : '共有'}
+                      </span>
+                    )}
                     {(ing as any).alwaysHideFromLabel && <span className="badge badge-gray text-[10px] mt-0.5 ml-1">表示除外中</span>}
                   </td>
                   <td className="hidden sm:table-cell">
@@ -875,10 +908,15 @@ export default function IngredientsPage() {
                     <UsageCell ingredient={ing} />
                   </td>
                   <td>
-                    {ing.isOwnRecord ? (
-                      <div className="flex gap-1">
-                        <button onClick={()=>setModal({open:true,ingredient:ing})} className="p-1.5 text-stone-400 hover:text-brand-500"><Edit2 className="w-4 h-4" /></button>
-                        <button onClick={()=>handleDelete(ing.id,ing.name,ing.recipeUsageCount)} className="p-1.5 text-stone-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                    {(ing.isOwnRecord || (isAdmin && ing.isSystemOwned)) ? (
+                      <div className="flex gap-1 items-center">
+                        <button onClick={()=>setModal({open:true,ingredient:ing})} className="p-1.5 text-stone-400 hover:text-brand-500" title="編集"><Edit2 className="w-4 h-4" /></button>
+                        <button onClick={()=>handleDelete(ing.id,ing.name,ing.recipeUsageCount,ing.isSystemOwned)} className="p-1.5 text-stone-400 hover:text-red-500" title="削除"><Trash2 className="w-4 h-4" /></button>
+                        {/* システム所有食材を管理者として編集している場合でも、自分がレシピで使うときの
+                            仕入れ設定（自分専用）は別途必要なので、編集ボタンとは別に用意しておく */}
+                        {!ing.isOwnRecord && (
+                          <button onClick={()=>setPurchaseModal(ing)} className="p-1.5 text-stone-400 hover:text-brand-600" title="仕入れ設定"><ShoppingCart className="w-4 h-4" /></button>
+                        )}
                       </div>
                     ) : (
                       <button onClick={()=>setPurchaseModal(ing)}

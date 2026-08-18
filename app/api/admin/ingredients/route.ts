@@ -35,13 +35,21 @@ export async function GET(request: Request) {
   let categoryMap: Record<string, string> = {};
   if (ingIds.length > 0) {
     try {
-      // ingredientCategoryId が空文字（NULLではない）のレコードが混ざっていると ::uuid キャストが
-      // 失敗してクエリ全体がエラーになり、結果として全件「未設定」になってしまう。
-      // NULLIF で空文字をNULLに正規化してから比較することで、そのレコードだけ「カテゴリなし」扱いにする。
+      // ingredientCategoryId が空文字や不正な形式（UUIDでない）のレコードが1件でも混ざっていると、
+      // ::uuid キャストがその行でエラーになりクエリ全体が失敗する（Postgresは1行のエラーで
+      // クエリ全体を中断する）。その結果、catch で握りつぶされて categoryMap が空のまま返り、
+      // 実際にはカテゴリが設定されている食材も含めて「一覧に含まれる食材全部が未設定」に
+      // 見えてしまう不具合があった（承認待ち一覧で報告されたのはこれ）。
+      // CASE式で「正規のUUID形式に一致する行だけ」キャストするようにし、それ以外の行は
+      // （エラーにせず）その行だけカテゴリなし扱いにすることで、1件の不正データが他の
+      // 正常なデータの表示まで巻き込まないようにしている。
       const catRows = await prisma.$queryRaw`
         SELECT i.id::text as ingredient_id, ic.name as cat_name
         FROM ingredients i
-        LEFT JOIN ingredient_categories ic ON ic.id = NULLIF(i."ingredientCategoryId", '')::uuid
+        LEFT JOIN ingredient_categories ic ON ic.id = (
+          CASE WHEN i."ingredientCategoryId" ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+               THEN i."ingredientCategoryId"::uuid END
+        )
         WHERE i.id::text = ANY(${ingIds})
       ` as Array<{ ingredient_id: string; cat_name: string | null }>;
       for (const row of catRows) if (row.cat_name) categoryMap[row.ingredient_id] = row.cat_name;

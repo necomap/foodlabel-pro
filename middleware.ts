@@ -15,7 +15,12 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const isLoggedIn = !!token;
 
-  const publicPaths = ['/auth/', '/api/auth', '/api/util', '/api/stripe/webhook', '/terms', '/privacy', '/legal', '/help', '/about', '/features', '/blog'];
+  // /api/cron/* はVercel Cronから呼ばれる（ログインセッションを持たない）ため、NextAuthの
+  // ログインリダイレクト対象から除外する。認証自体はルート側でCRON_SECRETのBearerトークンを
+  // 個別にチェックしているので、ここを公開パスにしてもセキュリティ上は問題ない。
+  // 2026-08: ここに/api/cronが無かったため、Cronからのリクエストが常に/auth/loginへ
+  // リダイレクトされ、バックアップメールが一度も送信されていなかった不具合を修正。
+  const publicPaths = ['/auth/', '/api/auth', '/api/util', '/api/stripe/webhook', '/api/cron', '/terms', '/privacy', '/legal', '/help', '/about', '/features', '/blog'];
   const isPublic = publicPaths.some(p => pathname.startsWith(p));
 
   if (!isLoggedIn && !isPublic && pathname !== '/' && pathname !== '') {

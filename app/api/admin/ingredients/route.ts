@@ -35,21 +35,18 @@ export async function GET(request: Request) {
   let categoryMap: Record<string, string> = {};
   if (ingIds.length > 0) {
     try {
-      // ingredientCategoryId が空文字や不正な形式（UUIDでない）のレコードが1件でも混ざっていると、
-      // ::uuid キャストがその行でエラーになりクエリ全体が失敗する（Postgresは1行のエラーで
-      // クエリ全体を中断する）。その結果、catch で握りつぶされて categoryMap が空のまま返り、
-      // 実際にはカテゴリが設定されている食材も含めて「一覧に含まれる食材全部が未設定」に
-      // 見えてしまう不具合があった（承認待ち一覧で報告されたのはこれ）。
-      // CASE式で「正規のUUID形式に一致する行だけ」キャストするようにし、それ以外の行は
-      // （エラーにせず）その行だけカテゴリなし扱いにすることで、1件の不正データが他の
-      // 正常なデータの表示まで巻き込まないようにしている。
+      // id / ingredientCategoryId はPrisma上String（実体はPostgresのtext型）でネイティブuuid型では
+      // ないため、以前ここにあった「CASE式で正規UUID形式の行だけ::uuidキャストする」実装は、
+      // キャストに成功した行こそが「text型のic.id」と「uuid型にキャストした値」の比較になり、
+      // Postgresが「operator does not exist: text = uuid」で例外を投げていた（キャストに失敗する
+      // 不正な値の行を守るための対策のはずが、キャストに成功する正常な値の行の方を毎回壊していた）。
+      // catchで握りつぶされてcategoryMapが空のまま返り、一覧の食材全部が「未設定」に見える不具合の
+      // 直接原因だった。text同士の単純比較にすれば、不正な値の行も単に一致せずnullになるだけで
+      // エラーにならないため、CASE式やキャスト自体が不要。
       const catRows = await prisma.$queryRaw`
         SELECT i.id::text as ingredient_id, ic.name as cat_name
         FROM ingredients i
-        LEFT JOIN ingredient_categories ic ON ic.id = (
-          CASE WHEN i."ingredientCategoryId" ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
-               THEN i."ingredientCategoryId"::uuid END
-        )
+        LEFT JOIN ingredient_categories ic ON ic.id = i."ingredientCategoryId"
         WHERE i.id::text = ANY(${ingIds})
       ` as Array<{ ingredient_id: string; cat_name: string | null }>;
       for (const row of catRows) if (row.cat_name) categoryMap[row.ingredient_id] = row.cat_name;

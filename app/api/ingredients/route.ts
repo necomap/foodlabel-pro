@@ -128,14 +128,14 @@ export async function GET(request: Request) {
   }
 
   // ingredientCategoryNameをraw queryで取得
-  // ingredientCategoryId が空文字や不正な形式（UUIDでない）のレコードが1件でも混ざっていると、
-  // ::uuid キャストがその行でエラーになりクエリ全体が失敗する（Postgresは1行のエラーでクエリ
-  // 全体を中断する）。その結果catchで握りつぶされてcategoryMapが空のまま返り、実際にはカテゴリが
-  // 設定されている食材も含めて「一覧の食材が全部カテゴリなし」に見えてしまう不具合があった
-  // （管理画面の承認待ち一覧で報告されたのと同種の不具合）。
-  // CASE式で「正規のUUID形式に一致する行だけ」キャストするようにし、それ以外の行は（エラーに
-  // せず）その行だけカテゴリなし扱いにすることで、1件の不正データが他の正常な表示まで
-  // 巻き込まないようにしている。
+  // id / ingredientCategoryId はPrisma上String（実体はPostgresのtext型）でネイティブuuid型では
+  // ないため、以前ここにあった「CASE式で正規UUID形式の行だけ::uuidキャストする」実装は、
+  // キャストに成功した行こそが「text型のic.id」と「uuid型にキャストした値」の比較になり、
+  // Postgresが「operator does not exist: text = uuid」で例外を投げていた（キャストに失敗する
+  // 不正な値の行を守るための対策のはずが、キャストに成功する正常な値の行の方を毎回壊していた）。
+  // catchで握りつぶされてcategoryMapが空のまま返り、一覧の食材全部が「未設定」に見える不具合の
+  // 直接原因だった。text同士の単純比較にすれば、不正な値の行も単に一致せずnullになるだけで
+  // エラーにならないため、CASE式やキャスト自体が不要。
   const ingIds = ingredients.map(i => i.id);
   let categoryMap: Record<string, {id:string;name:string}> = {};
   if (ingIds.length > 0) {
@@ -143,10 +143,7 @@ export async function GET(request: Request) {
       const catRows = await prisma.$queryRaw`
         SELECT i.id::text as ingredient_id, ic.id::text as cat_id, ic.name as cat_name
         FROM ingredients i
-        LEFT JOIN ingredient_categories ic ON ic.id = (
-          CASE WHEN i."ingredientCategoryId" ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
-               THEN i."ingredientCategoryId"::uuid END
-        )
+        LEFT JOIN ingredient_categories ic ON ic.id = i."ingredientCategoryId"
         WHERE i.id::text = ANY(${ingIds})
       ` as Array<{ingredient_id:string; cat_id:string|null; cat_name:string|null}>;
       for (const row of catRows) {
@@ -376,13 +373,15 @@ export async function POST(request: Request) {
   });
 
   // ingredientCategoryIdをraw SQLで更新（Prismaクライアント未生成対応）
-  // 注意：WHERE句のidにも::uuidキャストが必要（無いとPostgresがuuid=textの型不一致で
-  // 例外を投げ、下のcatchで黙って握りつぶされてカテゴリが保存されないバグになる）。
+  // 注意：id / ingredientCategoryId はPrisma上String（実体はPostgresのtext型）でネイティブuuid型
+  // ではないため、::uuidキャストを付けると「operator does not exist: text = uuid」で失敗する
+  // （以前は逆の理解でこのキャストが追加され、下のcatchで黙って握りつぶされてカテゴリが一度も
+  // 保存されないバグになっていた）。素の文字列のまま渡せば text = text / text への代入になり正しく動く。
   if (data.ingredientCategoryId) {
     try {
       await prisma.$executeRaw`
-        UPDATE ingredients SET "ingredientCategoryId" = ${data.ingredientCategoryId}::uuid
-        WHERE id = ${ingredient.id}::uuid
+        UPDATE ingredients SET "ingredientCategoryId" = ${data.ingredientCategoryId}
+        WHERE id = ${ingredient.id}
       `;
     } catch (e) { console.warn('ingredientCategoryId update skipped:', e); }
   }

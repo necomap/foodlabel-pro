@@ -95,14 +95,17 @@ export async function PUT(request: Request, { params }: Params) {
   if (body.ingredientCategoryId !== undefined) {
     try {
       const catId = body.ingredientCategoryId || null;
-      // 注意：WHERE句のidにも::uuidキャストが必要。無いとPostgresが
-      // 「operator does not exist: uuid = text」で例外を投げ、下のcatchで黙って
-      // 握りつぶされてしまう（＝保存成功のトーストは出るのにカテゴリだけ実際には
-      // 保存されない、というバグの原因になっていた）。
+      // 注意：id / ingredientCategoryId は Prisma上 String（実体はPostgresの text型）で、
+      // ネイティブの uuid 型ではない。以前ここに付いていた ::uuid キャストは「無いとエラーになる」
+      // という誤った想定で追加されたものだが、実際には逆で、text型のカラムをuuidにキャストした値と
+      // 比較・代入しようとすると Postgres が「operator does not exist: text = uuid」で例外を投げる。
+      // このtry/catchで例外が握りつぶされ、フロントには保存成功のトーストが出るのに、
+      // 実際にはカテゴリだけ一度も保存されていない、という不具合の直接原因だった。
+      // 素の文字列のまま（キャストなし）で比較・代入すれば text = text / text への代入になり正しく動く。
       if (catId) {
-        await prisma.$executeRaw`UPDATE ingredients SET "ingredientCategoryId" = ${catId}::uuid WHERE id = ${params.id}::uuid`;
+        await prisma.$executeRaw`UPDATE ingredients SET "ingredientCategoryId" = ${catId} WHERE id = ${params.id}`;
       } else {
-        await prisma.$executeRaw`UPDATE ingredients SET "ingredientCategoryId" = NULL WHERE id = ${params.id}::uuid`;
+        await prisma.$executeRaw`UPDATE ingredients SET "ingredientCategoryId" = NULL WHERE id = ${params.id}`;
       }
     } catch (e) { console.warn('ingredientCategoryId update skipped:', e); }
   }

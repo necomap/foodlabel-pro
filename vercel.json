@@ -3,10 +3,17 @@
     {
       "path": "/api/cron/keepalive",
       "schedule": "0 9 * * 1"
+    },
+    {
+      "path": "/api/cron/backup",
+      "schedule": "0 19 * * *"
     }
   ],
   "functions": {
     "app/api/import-export/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/cron/backup/route.ts": {
       "maxDuration": 60
     }
   }

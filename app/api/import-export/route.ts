@@ -125,6 +125,9 @@ export async function POST(request: Request) {
           });
           categoryCache.set(pr.category.trim(), cat);
         }
+        // 2026-08修正: catを解決していたにもかかわらずcategoryIdへの代入が漏れており、
+        // インポートされたレシピのカテゴリが常に未設定になっていた不具合を修正。
+        categoryId = cat.id;
       }
 
       // 材料の食材マスタ検索・作成
@@ -178,6 +181,13 @@ export async function POST(request: Request) {
           nutritionUnconfirmed: !ingredient.nutritionData,
           isPrimary:           false,
           nutrition,
+          // 2026-08: 個人バックアップ用に追加した材料ごとの原産国・添加物情報。
+          // 通常のインポート用Excelには無い列なので、無ければ空文字/falseのまま。
+          originCountry:       rawIng.originCountry || null,
+          isAdditive:          rawIng.isAdditive ?? false,
+          additiveReason:      rawIng.additiveReason || null,
+          hideFromLabel:       rawIng.hideFromLabel ?? false,
+          processLabel:        rawIng.processLabel || null,
         });
       }
 
@@ -213,6 +223,18 @@ export async function POST(request: Request) {
           salePrice:      pr.salePrice || null,
           totalCost:      totalCost || null,
           unitCost:       pr.unitCount > 0 ? (totalCost / pr.unitCount) || null : null,
+          // 2026-08修正: パース済みなのにDB保存が漏れていた項目
+          // （エクスポートには出るがインポートし直すと消えていた）
+          barcode:         pr.barcode || null,
+          variationName:   pr.variationName || null,
+          moldType:        pr.moldType || null,
+          contentAmount:   pr.contentAmount || null,
+          wasteAmountG:    pr.wasteAmountG ?? null,
+          shelfLifeType:   pr.shelfLifeType,
+          storageMethod:   pr.storageMethod || null,
+          notes:           pr.notes || null,
+          qualityControl:  pr.qualityControl || null,
+          printComment:    pr.printComment || null,
           energyKcal:     totalNutrition.energyKcal,
           protein:        totalNutrition.protein,
           fat:            totalNutrition.fat,
@@ -237,6 +259,11 @@ export async function POST(request: Request) {
               allergenOverride:    ing.allergenOverride,
               isPrimaryIngredient: ing.isPrimary,
               nutritionUnconfirmed: ing.nutritionUnconfirmed,
+              originCountry:       ing.originCountry,
+              isAdditive:          ing.isAdditive,
+              additiveReason:      ing.additiveReason,
+              hideFromLabel:       ing.hideFromLabel,
+              processLabel:        ing.processLabel,
               ...ing.nutrition,
             })),
           },
@@ -305,30 +332,50 @@ export async function GET(request: Request) {
   const exportData = recipes.map(r => ({
     name:           r.name,
     nameKana:       r.nameKana,
+    variationName:  r.variationName ?? null,
     categoryName:   r.category?.name ?? null,
     barcode:        r.barcode ?? null,
     unitCount:      r.unitCount,
+    moldType:       r.moldType ?? null,
+    contentAmount:  r.contentAmount ?? null,
     wasteAmountG:   r.wasteAmountG  != null ? Number(r.wasteAmountG)  : null,
+    wasteRatio:     r.wasteRatio    != null ? Number(r.wasteRatio)    : null,
+    totalWeightG:   r.totalWeightG  != null ? Number(r.totalWeightG)  : null,
     totalCost:      r.totalCost     != null ? Number(r.totalCost)     : null,
     unitCost:       r.unitCost      != null ? Number(r.unitCost)      : null,
     salePrice:      r.salePrice    ? Number(r.salePrice)    : null,
     costRate:       r.costRate     ? Number(r.costRate)     : null,
     shelfLifeDays:  r.shelfLifeDays,
+    shelfLifeType:  r.shelfLifeType,
+    storageMethod:  r.storageMethod ?? null,
     ingredientsLabel: r.ingredients
       .map(i => i.ingredient?.name ?? i.ingredientNameOverride ?? '')
       .join('、'),
     notes:          r.notes,
+    qualityControl: r.qualityControl ?? null,
+    printComment:   r.printComment ?? null,
     energyKcal:     r.energyKcal     ? Number(r.energyKcal)     : null,
     protein:        r.protein        ? Number(r.protein)        : null,
     fat:            r.fat            ? Number(r.fat)            : null,
     carbohydrate:   r.carbohydrate   ? Number(r.carbohydrate)   : null,
+    sugar:          r.sugar          != null ? Number(r.sugar)          : null,
+    dietaryFiber:   r.dietaryFiber   != null ? Number(r.dietaryFiber)   : null,
     saltEquivalent: r.saltEquivalent  ? Number(r.saltEquivalent) : null,
+    sodium:         r.sodium         != null ? Number(r.sodium)         : null,
+    cholesterol:    r.cholesterol    != null ? Number(r.cholesterol)    : null,
     ingredients:    r.ingredients.map(i => ({
       ingredientName: i.ingredient?.name ?? i.ingredientNameOverride ?? '',
       amount:         Number(i.amount),
       unit:           i.unit,
       displayOrder:   i.displayOrder,
       costTotal:      i.costTotal ? Number(i.costTotal) : null,
+      // 2026-08: 個人バックアップ用に追加（通常のインポート/エクスポートには不要だが、
+      // 材料マスタ側の情報が失われないよう全項目バックアップとして出力する）
+      originCountry:  i.originCountry ?? null,
+      isAdditive:     i.isAdditive ?? false,
+      additiveReason: i.additiveReason ?? null,
+      hideFromLabel:  i.hideFromLabel ?? false,
+      processLabel:   i.processLabel ?? null,
     })),
     steps: r.steps.map(s => s.instruction),
   }));

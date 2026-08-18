@@ -3,7 +3,12 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.EMAIL_FROM ?? 'FoodLabel Pro <noreply@lucke.jp>';
 const APP_URL = process.env.NEXTAUTH_URL ?? 'https://foodlabel.lucke.jp';
 
-async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+interface EmailAttachment {
+  filename: string;
+  content:  string; // base64
+}
+
+async function sendEmail(to: string, subject: string, html: string, attachments?: EmailAttachment[]): Promise<boolean> {
   if (!RESEND_API_KEY) {
     console.log(`[DEV] Email to ${to}: ${subject}`);
     return true;
@@ -15,7 +20,7 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
         'Authorization': `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
+      body: JSON.stringify({ from: FROM_EMAIL, to, subject, html, ...(attachments?.length ? { attachments } : {}) }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -28,6 +33,14 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
     console.error('Email send error:', err);
     return false;
   }
+}
+
+// バックアップメールなど、添付ファイル付きメールを他モジュール（Cronジョブ等）から
+// 送るための公開関数。添付サイズが大きくなりすぎるとResend側の上限（数十MB程度。
+// 最新の上限はResend公式ドキュメントを確認すること）に引っかかる可能性があるため、
+// データ量が増えてきたら分割送信などの見直しが必要になる。
+export async function sendBackupEmail(to: string, subject: string, html: string, attachments: EmailAttachment[]): Promise<boolean> {
+  return sendEmail(to, subject, html, attachments);
 }
 
 export async function sendVerificationEmail(email: string, token: string): Promise<boolean> {

@@ -87,10 +87,15 @@ function IngredientSearch({ value, onChange, onSelect, onFocus, onBlur }: {
         {loading && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-stone-400" />}
       </div>
       {open && results.length > 0 && (
-        <div className="absolute z-50 mt-1 w-full bg-white border border-cream-300 rounded-xl shadow-warm-lg overflow-hidden">
+        // 以前は w-full（＝材料名入力欄が並ぶ狭いflexカラムの幅）にドロップダウンを合わせていたため、
+        // 食品成分表由来の長い食材名（例：「＜いも類＞（さつまいも類）さつまいも 塊根 皮なし 生」等）が
+        // ブラウザの画面幅を最大まで広げても2文字程度で折り返してしまい読みにくいという問題があった。
+        // w-max（内容に応じて広がる）+ min-w-full（入力欄より狭くはならない）+ max-w-[90vw]（画面外に
+        // はみ出さない上限）にすることで、材料名カラムの狭さに縛られず横に広がるようにする。
+        <div className="absolute z-50 mt-1 w-max min-w-full max-w-[90vw] bg-white border border-cream-300 rounded-xl shadow-warm-lg overflow-hidden">
           {results.map(r => (
             <button key={r.id} type="button"
-              className="w-full flex items-center justify-between px-3 py-2 hover:bg-cream-50 text-sm text-left"
+              className="w-full flex flex-col items-start gap-0.5 px-3 py-2 hover:bg-cream-50 text-sm text-left"
               onMouseDown={() => {
                 // 選択直後にvalueの変化で検索し直してドロップダウンが再度開いてしまい、
                 // すぐ下の「＋手入力食材として追加」を誤クリックしてしまう事故があったため、
@@ -100,11 +105,14 @@ function IngredientSearch({ value, onChange, onSelect, onFocus, onBlur }: {
                 setOpen(false);
                 onChange(r.name);
               }}>
-              <span className="font-medium text-stone-800">{r.name}</span>
-              <span className="text-xs text-stone-400 flex items-center gap-2">
-                {r.nutrition?.energyKcal != null && <span><Flame className="inline w-3 h-3 text-orange-300" /> {r.nutrition.energyKcal}kcal/100g</span>}
-                {r.allergens.length > 0 && <span className="badge badge-red">{r.allergens.slice(0,2).join('・')}</span>}
-              </span>
+              {/* 食材名は栄養成分・アレルゲン表示に幅を圧迫されないよう別行にし、1行で収まるようにする */}
+              <span className="font-medium text-stone-800 whitespace-nowrap">{r.name}</span>
+              {(r.nutrition?.energyKcal != null || r.allergens.length > 0) && (
+                <span className="text-xs text-stone-400 flex items-center gap-2 whitespace-nowrap">
+                  {r.nutrition?.energyKcal != null && <span><Flame className="inline w-3 h-3 text-orange-300" /> {r.nutrition.energyKcal}kcal/100g</span>}
+                  {r.allergens.length > 0 && <span className="badge badge-red">{r.allergens.slice(0,2).join('・')}</span>}
+                </span>
+              )}
             </button>
           ))}
           {/* 入力中の名前が食材マスタの候補と完全一致する場合、手入力（未リンク・成分未確認）での重複登録は

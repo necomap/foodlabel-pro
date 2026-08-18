@@ -20,6 +20,10 @@ interface PendingIngredient {
   allergens: string[]; categoryName: string|null; createdAt: string;
   nutritionSource: string; nutritionLinkedFoodName: string|null;
   nutrition: { energyKcal:number|null; protein:number|null; fat:number|null; carbohydrate:number|null; saltEquivalent:number|null; } | null;
+  // 承認すると他ユーザーにも共有される項目。特にalwaysHideFromLabelは誤ってtrueのまま承認すると
+  // 全ユーザーのラベル表示に影響するため、承認前にここで確認できるようにする。
+  originCountry: string|null;
+  alwaysHideFromLabel: boolean;
 }
 
 export default function AdminPage() {
@@ -279,6 +283,10 @@ function PendingIngredientCard({ ing, onApprove, onReject }: { ing: PendingIngre
               <span className="text-xs text-brand-600 ml-2">表示名: {ing.genericName}</span>
             )}
             {ing.userEmail && <span className="text-xs text-stone-400 ml-2">by {ing.userEmail}</span>}
+            {/* 承認すると全ユーザーのラベル表示から該当原材料が消える設定なので、開かなくても目に付くように */}
+            {ing.alwaysHideFromLabel && (
+              <span className="badge badge-red text-[10px] ml-2 align-middle">常にラベル除外 ON</span>
+            )}
           </div>
         </button>
         <div className="flex gap-2 flex-shrink-0">
@@ -306,6 +314,16 @@ function PendingIngredientCard({ ing, onApprove, onReject }: { ing: PendingIngre
                   {ing.allergens.map(a => <span key={a} className={`badge text-[10px] ${REQUIRED_ALLERGENS.includes(a)?'badge-red':'badge-yellow'}`}>{a}</span>)}
                 </div>
               ) : <span className="text-stone-300 text-xs">なし</span>}
+            </div>
+            <div>
+              <span className="text-xs text-stone-400 block">原産地（デフォルト）</span>
+              {ing.originCountry ? <span className="text-xs text-stone-600">{ing.originCountry}</span> : <span className="text-stone-300 text-xs">未設定</span>}
+            </div>
+            <div>
+              <span className="text-xs text-stone-400 block">常にラベル除外</span>
+              {ing.alwaysHideFromLabel ? (
+                <span className="badge badge-red text-[10px]">ON（この食材を使う全ユーザーのラベルに表示されなくなります）</span>
+              ) : <span className="text-stone-300 text-xs">OFF</span>}
             </div>
           </div>
           <div>

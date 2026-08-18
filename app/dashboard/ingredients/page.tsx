@@ -368,11 +368,19 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
             </div>
           </div>
           <div className="grid sm:grid-cols-2 gap-3">
-            <div className="flex items-end pb-0.5">
+            <div className="pb-0.5">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={form.isPublic} onChange={e=>setForm(f=>({...f,isPublic:e.target.checked}))} className="accent-brand-500" />
                 <div><span className="text-sm font-medium text-stone-700">コミュニティに共有</span><p className="text-xs text-stone-500">承認後に他ユーザーも使用できます</p></div>
               </label>
+              {/* 「共有＝値段や仕入れ先も見られてしまうのでは」という不安を持たれやすいため、
+                  共有される項目・されない項目を明示する。仕入れ関連が別テーブル
+                  （ingredient_purchase_settings）でユーザーごとに独立管理されている実装と一致させること。 */}
+              <p className="text-xs text-stone-500 mt-1.5 pl-6">
+                共有されるのは<span className="font-medium text-stone-700">名前・一般名・カテゴリ・栄養成分・アレルゲン・原産地(デフォルト)</span>です。
+                <span className="font-medium text-emerald-700">仕入れ価格・仕入れ先・保管方法・仕入れ単位はいつでも共有されず、あなたにしか表示されません</span>
+                （他ユーザーが使う場合は、その方ご自身の仕入れ設定を個別に入力します）。
+              </p>
             </div>
           </div>
           {duplicateCandidates.length > 0 && (

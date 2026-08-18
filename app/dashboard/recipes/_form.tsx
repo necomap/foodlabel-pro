@@ -24,6 +24,11 @@ interface IngredientRow {
   unit:             string;
   costPrice:        string;
   originCountry:    string;
+  // 自分以外が登録した共有食材のデフォルト原産地をそのまま引き継いだ場合はtrue。
+  // 仕入れ先によって実際の原産国は変わりうる（例：鶏肉が国産のときもブラジル産のときもある）ため、
+  // 「共有元の設定をそのまま信じず、自分の仕入れ先に合わせて確認してください」という注意表示に使う。
+  // ユーザーがこの欄を編集した時点でfalseに戻す（確認・修正済みとみなす）。
+  originCountryUnconfirmed: boolean;
   allergenOverride: string[];
   nutritionUnconfirmed: boolean;
   isAdditive:       boolean;  // 添加物フラグ
@@ -43,11 +48,11 @@ interface IngredientRow {
 function IngredientSearch({ value, onChange, onSelect, onFocus, onBlur }: {
   value:    string;
   onChange: (v: string) => void;
-  onSelect: (ing: { id: string; name: string; allergens: string[]; unitPrice: number | null; nutrition: { energyKcal: number | null } | null; nutritionUnconfirmed: boolean; originCountry?: string | null }) => void;
+  onSelect: (ing: { id: string; name: string; allergens: string[]; unitPrice: number | null; nutrition: { energyKcal: number | null } | null; nutritionUnconfirmed: boolean; originCountry?: string | null; isOwnRecord?: boolean }) => void;
   onFocus?: () => void;
   onBlur?: () => void;
 }) {
-  const [results, setResults] = useState<{ id: string; name: string; allergens: string[]; unitPrice: number | null; nutrition: { energyKcal: number | null } | null; originCountry?: string | null }[]>([]);
+  const [results, setResults] = useState<{ id: string; name: string; allergens: string[]; unitPrice: number | null; nutrition: { energyKcal: number | null } | null; originCountry?: string | null; isOwnRecord?: boolean }[]>([]);
   const [open,    setOpen]    = useState(false);
   const [loading, setLoading] = useState(false);
   const userTyped = useRef(false);
@@ -166,7 +171,7 @@ export default function RecipeForm() {
   // 材料
   const [focusedKey, setFocusedKey] = useState<string|null>(null);
   const [ingredients, setIngredients] = useState<IngredientRow[]>([
-    { key: 'r0', ingredientId: '', name: '', amount: '', unit: 'g', costPrice: '', originCountry: '', allergenOverride: [], nutritionUnconfirmed: false, isAdditive: false, additiveReason: '', hideFromLabel: false, processLabel: '', energyKcal: null, costTotal: null },
+    { key: 'r0', ingredientId: '', name: '', amount: '', unit: 'g', costPrice: '', originCountry: '', originCountryUnconfirmed: false, allergenOverride: [], nutritionUnconfirmed: false, isAdditive: false, additiveReason: '', hideFromLabel: false, processLabel: '', energyKcal: null, costTotal: null },
   ]);
 
   // 手順
@@ -239,6 +244,9 @@ export default function RecipeForm() {
             unit:         ing.unit,
             costPrice:    ing.costPrice != null ? String(ing.costPrice) : '',
             originCountry: ing.originCountry ?? '',
+            // 保存済みレシピを読み込んだ時点では既に確認済みとみなし、要確認表示はしない
+            // （このフラグはUI上のみの一時的な状態で、DBには保存されていない）
+            originCountryUnconfirmed: false,
             allergenOverride: ing.allergenOverride ?? [],
             nutritionUnconfirmed: ing.nutritionUnconfirmed,
             energyKcal:   ing.nutrition.energyKcal,
@@ -276,7 +284,7 @@ export default function RecipeForm() {
   const addIngredient = () => {
     setIngredients(prev => [...prev, {
       key: `r${Date.now()}`, ingredientId: '', name: '', amount: '', unit: 'g',
-      costPrice: '', originCountry: '', allergenOverride: [], nutritionUnconfirmed: false,
+      costPrice: '', originCountry: '', originCountryUnconfirmed: false, allergenOverride: [], nutritionUnconfirmed: false,
       isAdditive: false, additiveReason: '', hideFromLabel: false,
       // 直前の材料と同じ工程・用途（湯種／本ごね／仕上げなど）が続くことが多いため、初期値として引き継ぐ
       processLabel: prev.length > 0 ? prev[prev.length - 1].processLabel : '',
@@ -289,7 +297,12 @@ export default function RecipeForm() {
   };
 
   const updateIngredient = (key: string, field: keyof IngredientRow, value: string | number | boolean | null | string[]) => {
-    setIngredients(prev => prev.map(i => i.key === key ? { ...i, [field]: value } : i));
+    setIngredients(prev => prev.map(i => {
+      if (i.key !== key) return i;
+      // 原産地欄をユーザーが自分で編集したら「確認・修正済み」とみなし、要確認表示を消す
+      const clearUnconfirmed = field === 'originCountry' ? { originCountryUnconfirmed: false } : {};
+      return { ...i, [field]: value, ...clearUnconfirmed };
+    }));
   };
 
   // ---- 材料の並び替え（ドラッグ＆ドロップ） ----
@@ -306,12 +319,15 @@ export default function RecipeForm() {
     });
   };
 
-  const onIngredientSelect = (key: string, ing: { id: string; name: string; allergens: string[]; unitPrice: number | null; nutrition: { energyKcal: number | null } | null; nutritionUnconfirmed: boolean; originCountry?: string | null }) => {
+  const onIngredientSelect = (key: string, ing: { id: string; name: string; allergens: string[]; unitPrice: number | null; nutrition: { energyKcal: number | null } | null; nutritionUnconfirmed: boolean; originCountry?: string | null; isOwnRecord?: boolean }) => {
     setIngredients(prev => prev.map(i => {
       if (i.key !== key) return i;
       const amount = parseFloat(i.amount) || 0;
       const kcal   = ing.nutrition?.energyKcal != null ? (ing.nutrition.energyKcal * amount / 100) : null;
       const cost   = ing.unitPrice && amount ? ing.unitPrice * amount : null;
+      // 自分以外（コミュニティ共有・食品成分表由来）が登録した食材の原産地デフォルトを引き継ぐ場合は、
+      // 仕入れ先によって実際の原産国が変わりうるため「要確認」フラグを立てる（下のUIで注意表示する）。
+      const originCountryFromOther = !!ing.originCountry && ing.isOwnRecord === false;
       return {
         // 食材マスタにリンクする場合、アレルゲンは常にマスタ側の最新値を使うため
         // ここではスナップショットを持たせない（[]のまま）。手入力食材（ing.idが空）の場合のみ、
@@ -321,6 +337,7 @@ export default function RecipeForm() {
         // 食材マスタに原産地のデフォルト値が設定されていれば、それを引き継ぐ
         // （この食材が最多重量の原材料になった場合、原産国表示欄に自動で入る）
         originCountry: ing.originCountry || i.originCountry,
+        originCountryUnconfirmed: originCountryFromOther,
         energyKcal: kcal, costTotal: cost,
         costPrice: ing.unitPrice ? String(Math.round(ing.unitPrice * 1000) / 1000) : i.costPrice,
       };
@@ -747,12 +764,20 @@ export default function RecipeForm() {
                 .filter(i => i.name && (i.unit === 'g' || i.unit === 'ml'))
                 .sort((a, b) => (parseFloat(b.amount)||0) - (parseFloat(a.amount)||0))[0];
               return primary ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-amber-800 font-medium">{primary.name}</span>
-                  <input type="text" value={primary.originCountry}
-                    onChange={e => updateIngredient(primary.key, 'originCountry', e.target.value)}
-                    className="field-input text-sm py-1.5 flex-1"
-                    placeholder="例: 国産, 北海道産, フランス産" />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-amber-800 font-medium">{primary.name}</span>
+                    <input type="text" value={primary.originCountry}
+                      onChange={e => updateIngredient(primary.key, 'originCountry', e.target.value)}
+                      className="field-input text-sm py-1.5 flex-1"
+                      placeholder="例: 国産, 北海道産, フランス産" />
+                  </div>
+                  {primary.originCountryUnconfirmed && (
+                    <p className="text-xs text-amber-700 mt-1 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                      共有食材の登録者が設定した原産地です。仕入れ先によって実際の原産国は異なる場合があるため、ご自身の仕入れ先に合わせて確認・修正してください
+                    </p>
+                  )}
                 </div>
               ) : null;
             })()}

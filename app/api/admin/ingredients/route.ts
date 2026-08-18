@@ -69,6 +69,12 @@ export async function GET(request: Request) {
         userEmail:       i.user?.email,
         allergens:       i.allergens,
         categoryName:    categoryMap[i.id] ?? null,
+        // 承認すると他ユーザーにも共有される項目のうち、以前ここに出ていなかった2つ。
+        // 特にalwaysHideFromLabelは誤ってtrueのまま承認すると、この食材を使う全ユーザーの
+        // ラベル原材料表示から該当原材料が消えてしまう（表示義務違反になりうる）ため、
+        // 承認前に必ず目視確認できるようにする。
+        originCountry:       (i as any).originCountry ?? null,
+        alwaysHideFromLabel: (i as any).alwaysHideFromLabel ?? false,
         createdAt:       i.createdAt,
         nutritionSource: i.nutritionData ? '成分表リンク' : (hasManual ? '手入力' : '未設定'),
         nutritionLinkedFoodName: i.nutritionData?.foodName ?? null,

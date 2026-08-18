@@ -223,7 +223,11 @@ export function exportRecipesToExcel(
     name:           string;
     nameKana:       string | null;
     categoryName:   string | null;
+    barcode:        string | null;
     unitCount:      number;
+    wasteAmountG:   number | null;
+    totalCost:      number | null;
+    unitCost:       number | null;
     salePrice:      number | null;
     costRate:       number | null;
     shelfLifeDays:  number | null;
@@ -248,8 +252,10 @@ export function exportRecipesToExcel(
   const wb = XLSX.utils.book_new();
 
   // ヘッダー行の構築
+  // 1列目は元々「No」（連番）だったが、実際の運用ではレジ読み取り用の自作バーコードを
+  // 入れる列として使われていたため、「バーコード」に変更（2026-08）。
   const baseHeaders = [
-    'No', 'カテゴリ', 'FLG', '品名', 'カナ', '仕上数量', '廃棄数量', '原価合計',
+    'バーコード', 'カテゴリ', 'FLG', '品名', 'カナ', '仕上数量', '廃棄数量', '原価合計',
     '1個原価', '販売価格', '原価率', '賞味期限', '原材料', '注意事項',
   ];
 
@@ -272,19 +278,22 @@ export function exportRecipesToExcel(
   const headers = [...baseHeaders, ...nutritionHeaders, ...matHeaders, ...stepHeaders];
 
   // データ行の構築
-  const dataRows = recipes.map((recipe, idx) => {
+  const dataRows = recipes.map((recipe) => {
+    // 原価情報（原価合計・1個原価・原価率、材料ごとの原価）は「原価情報を含める」
+    // オプション（includeCost）がOFFの場合はまとめて空欄にする。以前はこのオプションが
+    // 実際には使われておらず、チェックを外しても原価データが出力される不具合があった。
     const baseData = [
-      idx + 1,
+      recipe.barcode ?? '',
       recipe.categoryName ?? '',
       '',
       recipe.name,
       recipe.nameKana ?? '',
       recipe.unitCount,
-      '',
-      '',
-      '',
+      recipe.wasteAmountG ?? '',
+      options.includeCost ? (recipe.totalCost ?? '') : '',
+      options.includeCost ? (recipe.unitCost ?? '') : '',
       recipe.salePrice ?? '',
-      recipe.costRate != null ? (recipe.costRate * 100).toFixed(1) + '%' : '',
+      options.includeCost && recipe.costRate != null ? (recipe.costRate * 100).toFixed(1) + '%' : '',
       recipe.shelfLifeDays ?? '',
       recipe.ingredientsLabel,
       recipe.notes ?? '',
@@ -304,7 +313,7 @@ export function exportRecipesToExcel(
     for (let i = 0; i < 30; i++) {
       const ing = recipe.ingredients[i];
       if (ing) {
-        matData.push(ing.ingredientName, ing.amount, ing.unit, ing.displayOrder, ing.costTotal ?? '');
+        matData.push(ing.ingredientName, ing.amount, ing.unit, ing.displayOrder, options.includeCost ? (ing.costTotal ?? '') : '');
       } else {
         matData.push('', '', '', '', '');
       }

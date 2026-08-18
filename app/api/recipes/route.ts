@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { calcNutritionForAmount, sumNutrition, calcPerUnit, calcCostRate } from '@/lib/nutrition';
-import { getPlanLimits } from '@/lib/plan-limits';
+import { getPlanLimits, getReadOnlyRecipeIds } from '@/lib/plan-limits';
 import { detectAllergens } from '@/lib/allergen';
 import type { NutritionValues } from '@/types';
 
@@ -80,12 +80,11 @@ export async function GET(request: Request) {
     };
   });
 
-  // フリープランの場合、作成日が古い順に上限超え分をreadOnlyにする
-  const { getPlanLimits } = await import('@/lib/plan-limits');
-  const planLimits = getPlanLimits((session.user as any).plan ?? 'free');
-  if (planLimits.maxRecipes !== Infinity && items.length > planLimits.maxRecipes) {
-    const byDate = [...items].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-    const readOnlyIds = new Set(byDate.slice(planLimits.maxRecipes).map((r: any) => r.id));
+  // プラン上限を超えている場合、作成日が古い順に上限超え分をreadOnlyにする。
+  // 表示中のページ内だけで判定すると結果がぶれるため、そのユーザーの全アクティブレシピを
+  // 対象に判定するgetReadOnlyRecipeIds（lib/plan-limits.ts）を使う（2026-08 修正）。
+  const readOnlyIds = await getReadOnlyRecipeIds(session.user.id, (session.user as any).plan ?? 'free');
+  if (readOnlyIds.size > 0) {
     items.forEach((r: any) => { r.readOnly = readOnlyIds.has(r.id); });
   }
 

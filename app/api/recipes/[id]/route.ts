@@ -5,6 +5,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { getReadOnlyRecipeIds } from '@/lib/plan-limits';
 import { buildIngredientsLabel, collectRecipeAllergens, prepareIngredientsForLabel } from '@/lib/allergen';
 import { calcPerUnit, roundForDisplay, calcNutritionForAmount, resolveIngredientNutritionPer100g } from '@/lib/nutrition';
 import type { BakingStep } from '@/types';
@@ -200,6 +201,19 @@ export async function PUT(request: Request, { params }: Params) {
     where: { id: params.id, userId: session.user.id },
   });
   if (!existing) return NextResponse.json({ success: false, error: 'レシピが見つかりません' }, { status: 404 });
+
+  // プラン上限超過による読み取り専用チェック（2026-08追加・再発防止コメント）。
+  // 以前はこのAPIに上限チェックが一切無く、一覧画面の「読取専用」バッジは見た目だけで、
+  // 実際には解約後も既存レシピを何件でも編集し続けられてしまっていた。
+  // ラベル印刷（app/api/labels/generate/route.ts）は既存商品の運用を止めないため意図的に対象外。
+  const readOnlyIds = await getReadOnlyRecipeIds(session.user.id, (session.user as any).plan ?? 'free');
+  if (readOnlyIds.has(params.id)) {
+    return NextResponse.json({
+      success: false,
+      error: 'プランのレシピ上限を超えているため、このレシピは読み取り専用です。編集するにはプレミアムプランへのアップグレードが必要です。',
+      upgradeRequired: true,
+    }, { status: 403 });
+  }
 
   const body = await request.json();
 

@@ -272,7 +272,7 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
                 <input type="checkbox" checked={form.alwaysHideFromLabel}
                   onChange={e => setForm(f => ({...f, alwaysHideFromLabel: e.target.checked}))}
                   className="accent-brand-500" />
-                <span className="text-sm text-stone-600">常にラベルの原材料表示から除外する（水・浄水など）</span>
+                <span className="text-sm text-stone-600">常にラベルの原材料表示から除外する（水など）</span>
               </label>
               <p className="field-hint">ONにすると、この食材を使っているすべてのレシピで、原材料名の表示から自動的に除かれます（栄養成分・アレルゲン表示には影響しません）。特定のレシピだけで除外したい場合は、レシピ編集画面の原材料ごとの設定を使ってください。</p>
             </div>

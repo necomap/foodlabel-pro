@@ -55,6 +55,18 @@ export async function PUT(request: Request, { params }: Params) {
     ? body.allergens
     : detectAllergens(name);
 
+  // 「常にラベル除外」は、この食材を使う全ユーザーのラベルに一律で影響する強い設定。共有食材で
+  // 使う場面は実質「水」くらいしかなく、それ以外で誤ってONのまま共有されると、承認する管理者が
+  // 見落とした場合に他ユーザーの原材料表示が意図せず欠落する（表示義務違反になりうる）リスクが
+  // ある。そのためコミュニティ共有中（isPublicがtrueになる）は、リクエストの値に関わらず強制的に
+  // OFFにする。個別のレシピで水などを非表示にしたい場合は、レシピ編集画面の材料ごとの
+  // 「ラベル非表示」チェック（hideFromLabel）を使ってもらう（そちらはユーザー・レシピ単位の設定
+  // なので、共有食材であってもこの安全策の影響を受けない）。
+  const resolvedIsPublic = body.isPublic ?? ing.isPublic;
+  const resolvedAlwaysHideFromLabel = resolvedIsPublic
+    ? false
+    : (body.alwaysHideFromLabel !== undefined ? body.alwaysHideFromLabel : (ing as any).alwaysHideFromLabel);
+
   await prisma.ingredient.update({
     where: { id: params.id },
     data: {
@@ -64,7 +76,7 @@ export async function PUT(request: Request, { params }: Params) {
       genericName:          body.genericName !== undefined ? (body.genericName || null) : (ing as any).genericName,
       // ユーザーが画面から明示的に一般名を触ったら「確定済み」扱いにする（自動仮入力の要確認フラグを解除）
       genericNameConfirmed: body.genericName !== undefined ? true : (ing as any).genericNameConfirmed,
-      alwaysHideFromLabel: body.alwaysHideFromLabel !== undefined ? body.alwaysHideFromLabel : (ing as any).alwaysHideFromLabel,
+      alwaysHideFromLabel: resolvedAlwaysHideFromLabel,
       nutritionId:     body.nutritionId     !== undefined ? body.nutritionId : ing.nutritionId,
       nutritionVariant: body.nutritionVariant ?? ing.nutritionVariant,
       purchaseUnitG,
@@ -75,7 +87,7 @@ export async function PUT(request: Request, { params }: Params) {
       productCode:     body.productCode     ?? ing.productCode,
       originCountry:   body.originCountry   !== undefined ? (body.originCountry || null) : (ing as any).originCountry,
       allergens:       allergens,
-      isPublic:        body.isPublic        ?? ing.isPublic,
+      isPublic:        resolvedIsPublic,
       isApproved:      body.isPublic === false ? true : (body.isPublic ? false : ing.isApproved),
       energyKcalManual:    body.energyKcalManual    !== undefined ? body.energyKcalManual : ing.energyKcalManual,
       proteinManual:       body.proteinManual       !== undefined ? body.proteinManual : ing.proteinManual,

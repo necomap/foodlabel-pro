@@ -268,13 +268,20 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
               {(ingredient as any)?.genericNameConfirmed === false && (
                 <p className="field-hint text-amber-600">⚠ 自動推測された仮の値です。内容を確認してください</p>
               )}
-              <label className="flex items-center gap-2 mt-2 cursor-pointer">
-                <input type="checkbox" checked={form.alwaysHideFromLabel}
+              <label className={`flex items-center gap-2 mt-2 ${form.isPublic ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                <input type="checkbox" checked={form.alwaysHideFromLabel} disabled={form.isPublic}
                   onChange={e => setForm(f => ({...f, alwaysHideFromLabel: e.target.checked}))}
                   className="accent-brand-500" />
                 <span className="text-sm text-stone-600">常にラベルの原材料表示から除外する（水など）</span>
               </label>
-              <p className="field-hint">ONにすると、この食材を使っているすべてのレシピで、原材料名の表示から自動的に除かれます（栄養成分・アレルゲン表示には影響しません）。特定のレシピだけで除外したい場合は、レシピ編集画面の原材料ごとの設定を使ってください。</p>
+              {form.isPublic ? (
+                <p className="field-hint">
+                  コミュニティに共有する食材はこの設定を使えません（共有すると全ユーザーに影響するため、承認時に自動的にOFFになります）。
+                  水などを個別に非表示にしたい場合は、レシピ編集画面の材料ごとの「ラベル非表示」チェックを使ってください。
+                </p>
+              ) : (
+                <p className="field-hint">ONにすると、この食材を使っているすべてのレシピで、原材料名の表示から自動的に除かれます（栄養成分・アレルゲン表示には影響しません）。特定のレシピだけで除外したい場合は、レシピ編集画面の原材料ごとの設定を使ってください。</p>
+              )}
             </div>
           </div>
           <div>
@@ -370,7 +377,14 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
           <div className="grid sm:grid-cols-2 gap-3">
             <div className="pb-0.5">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={form.isPublic} onChange={e=>setForm(f=>({...f,isPublic:e.target.checked}))} className="accent-brand-500" />
+                <input type="checkbox" checked={form.isPublic}
+                  onChange={e => setForm(f => ({
+                    ...f, isPublic: e.target.checked,
+                    // 共有すると「常にラベル除外」はサーバー側で強制OFFになる（全ユーザーに影響する設定のため）。
+                    // 保存前の画面表示でも齟齬が出ないよう、チェックした時点でクライアント側も合わせておく。
+                    alwaysHideFromLabel: e.target.checked ? false : f.alwaysHideFromLabel,
+                  }))}
+                  className="accent-brand-500" />
                 <div><span className="text-sm font-medium text-stone-700">コミュニティに共有</span><p className="text-xs text-stone-500">承認後に他ユーザーも使用できます</p></div>
               </label>
               {/* 「共有＝値段や仕入れ先も見られてしまうのでは」という不安を持たれやすいため、

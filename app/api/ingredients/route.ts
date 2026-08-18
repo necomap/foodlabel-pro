@@ -356,7 +356,13 @@ export async function POST(request: Request) {
       genericName:          data.genericName || null,
       // ユーザーが手入力した一般名は確定済み扱い（自動仮入力バッチのものはfalseになる）
       genericNameConfirmed: data.genericName ? true : false,
-      alwaysHideFromLabel:  data.alwaysHideFromLabel,
+      // 「常にラベル除外」はこの食材を使う全ユーザーのラベルに一律で影響する強い設定。共有食材で
+      // 使う場面は実質「水」くらいしかなく、誤ってONのまま共有されると承認する管理者が見落とした
+      // 場合に他ユーザーの原材料表示が意図せず欠落するリスクがあるため、コミュニティ共有
+      // （isPublic: true）で新規登録する場合は入力値に関わらず強制的にOFFにする。
+      // 水などを個別に非表示にしたい場合は、レシピ編集画面の材料ごとの「ラベル非表示」
+      // （hideFromLabel）を使ってもらう。
+      alwaysHideFromLabel:  data.isPublic ? false : data.alwaysHideFromLabel,
       nutritionId:     data.nutritionId,
       nutritionVariant: data.nutritionVariant,
       purchaseUnitG:   data.purchaseUnitG,

@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { Loader2, Plus, Store, User, Tag, CheckCircle2, Trash2, AlertTriangle, Edit2, GripVertical } from 'lucide-react';
+import { Loader2, Plus, Store, User, Tag, CheckCircle2, Trash2, AlertTriangle, Edit2, GripVertical, Zap } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface Shop { id: string; shopName: string; companyName: string|null; representative: string|null; postalCode: string|null; address: string|null; phone: string|null; email: string|null; showPhone: boolean; showRepresentative: boolean; isDefault: boolean; qrUrl: string|null; logoUrl: string|null; logoHeightMm: number; qrSizeMm: number; }
@@ -37,7 +37,19 @@ function ProfileTab() {
   const { data: session, update } = useSession();
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
   const [profile, setProfile] = useState({ companyName:'', representative:'', postalCode:'', address:'', phone:'' });
+  const isPremium = session?.user?.plan === 'premium' || session?.user?.plan === 'admin';
+  const handlePortal = async () => {
+    setPortalLoading(true);
+    try {
+      const res  = await fetch('/api/stripe/portal', { method: 'POST' });
+      const data = await res.json();
+      if (data.success && data.url) window.location.href = data.url;
+      else toast.error(data.error ?? 'エラーが発生しました');
+    } catch { toast.error('通信エラーが発生しました'); }
+    finally   { setPortalLoading(false); }
+  };
   useEffect(() => {
     fetch('/api/user/profile').then(r=>r.json()).then(d => {
       if (d.success && d.data) {
@@ -59,9 +71,22 @@ function ProfileTab() {
   return (
     <div className="card space-y-5">
       <h2 className="section-title">アカウント情報</h2>
-      <div className="bg-cream-50 rounded-xl p-4 text-sm">
-        <div className="font-medium text-stone-700">{session?.user?.email}</div>
-        <div className="text-stone-500 mt-0.5">プラン: <span className="text-brand-600 font-medium capitalize">{session?.user?.plan ?? 'free'}</span></div>
+      <div className="bg-cream-50 rounded-xl p-4 text-sm space-y-3">
+        <div>
+          <div className="font-medium text-stone-700">{session?.user?.email}</div>
+          <div className="text-stone-500 mt-0.5">プラン: <span className="text-brand-600 font-medium capitalize">{session?.user?.plan ?? 'free'}</span></div>
+        </div>
+        {isPremium ? (
+          <button onClick={handlePortal} disabled={portalLoading}
+            className="btn-secondary text-sm flex items-center gap-2">
+            {portalLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+            請求・解約の管理
+          </button>
+        ) : (
+          <a href="/dashboard/upgrade" className="text-brand-600 text-sm font-medium hover:underline inline-flex items-center gap-1">
+            プレミアムにアップグレード →
+          </a>
+        )}
       </div>
       <h2 className="section-title">基本情報（ラベル製造者欄）</h2>
       <p className="text-sm text-stone-500 -mt-2">ラベルの製造者欄に印字される情報です</p>

@@ -94,8 +94,12 @@ export async function POST(request: Request) {
   });
   const recipeCache = new Map(existingRecipes.map(r => [r.name.trim(), r]));
 
-  // 1回あたりの処理上限（タイムアウト対策・最大20件）
-  const MAX_PER_REQUEST = 20;
+  // 1回あたりの処理上限（タイムアウト対策）。
+  // 2026-08: vercel.jsonのmaxDurationを60秒→300秒に引き上げたのに合わせて20→80件に引き上げ。
+  // 20件で60秒に収まっていた実績（1件あたり約3秒）から逆算し、300秒に対して安全マージンを
+  // 大きめに残す形（80件なら理論値約240秒）で設定。件数が非常に多い食材を含むレシピが
+  // 続くと超過する可能性は残るため、それでもタイムアウトする場合はさらに下げる。
+  const MAX_PER_REQUEST = 80;
   const effectiveLimit = Math.min(importLimit, MAX_PER_REQUEST);
   const recipesToProcess = parsedRecipes.slice(0, effectiveLimit);
   for (const pr of recipesToProcess) {

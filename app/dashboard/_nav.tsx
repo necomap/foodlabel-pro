@@ -6,7 +6,7 @@ import { signOut } from 'next-auth/react';
 import {
   Cookie, BookOpen, Tag, ShoppingBasket, Settings,
   LogOut, Menu, X, ChevronRight, ArrowLeftRight, HelpCircle, Shield, Crown,
-Star,
+Star, Search,
 } from 'lucide-react';
 
 const navItems = [
@@ -17,6 +17,11 @@ const navItems = [
   { href: '/dashboard/help',        label: 'ヘルプ・使い方',         icon: HelpCircle,     color: 'text-teal-600'   },
   { href: '/dashboard/settings',    label: '設定',                   icon: Settings,       color: 'text-stone-600'  },
 ];
+
+// ロット番号トレース検索（Proプラン限定機能）。フリー/プレミアムのユーザーには
+// 表示しない（モバイルボトムナビは先頭5件しか表示されないため、常時表示すると
+// 使えない機能が枠を占有してしまう）。Pro/管理者にはレシピ管理の次に表示する。
+const LOTS_NAV_ITEM = { href: '/dashboard/lots', label: 'ロット検索', icon: Search, color: 'text-rose-600' };
 
 interface Props {
   isAdmin:   boolean;
@@ -33,6 +38,11 @@ export default function DashboardNav({ isAdmin, plan, userName, userEmail }: Pro
   // free→プレミアム/プロへの案内、premium→プロへの案内、pro/admin→非表示。
   const isProOrAdmin = plan === 'pro' || isAdmin;
   const showUpgradeBanner = !isProOrAdmin;
+
+  // Pro/管理者のときだけ「レシピ管理」の次に「ロット検索」を挿入する
+  const items = isProOrAdmin
+    ? [navItems[0], LOTS_NAV_ITEM, ...navItems.slice(1)]
+    : navItems;
   const upgradeBannerTitle = plan === 'premium' ? 'Proにアップグレード' : 'プランをアップグレード';
   const upgradeBannerDesc  = plan === 'premium' ? '月額6,980円・レシピ無制限' : '月額980円〜・レシピ100件まで';
 
@@ -65,7 +75,7 @@ export default function DashboardNav({ isAdmin, plan, userName, userEmail }: Pro
         </div>
 
         <nav className="flex-1 py-4 px-3 overflow-y-auto space-y-0.5">
-          {navItems.map(item => <NavLink key={item.href} item={item} />)}
+          {items.map(item => <NavLink key={item.href} item={item} />)}
         </nav>
 
         <div className="p-3 border-t border-cream-200 space-y-1">
@@ -131,7 +141,7 @@ export default function DashboardNav({ isAdmin, plan, userName, userEmail }: Pro
               </button>
             </div>
             <nav className="flex-1 py-3 px-3 overflow-y-auto space-y-0.5">
-              {navItems.map(item => <NavLink key={item.href} item={item} onClick={() => setMobileOpen(false)} />)}
+              {items.map(item => <NavLink key={item.href} item={item} onClick={() => setMobileOpen(false)} />)}
               {isAdmin && (
                 <Link href="/admin" onClick={() => setMobileOpen(false)}
                   className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50">
@@ -162,7 +172,7 @@ export default function DashboardNav({ isAdmin, plan, userName, userEmail }: Pro
       {/* モバイルボトムナビ */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-cream-200 shadow-lg z-30">
         <div className="flex">
-          {navItems.slice(0, 5).map(item => {
+          {items.slice(0, 5).map(item => {
             const Icon   = item.icon;
             const active = pathname.startsWith(item.href);
             return (

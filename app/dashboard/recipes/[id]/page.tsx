@@ -3,7 +3,7 @@
 // ============================================================
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
@@ -12,9 +12,11 @@ import {
   ArrowLeft, Edit2, Tag, Trash2, Flame, Wheat,
   AlertTriangle, CheckCircle2, Loader2, Printer,
   ChevronRight, Info, TrendingUp, Copy, ShieldCheck, Lock,
+  ShoppingBag,
 } from 'lucide-react';
 import type { RecipeDetail } from '@/types';
 import { checkRecipeCompliance, type ComplianceIssue } from '@/lib/compliance-check';
+import { generateEcText, EC_TEXT_STYLES, type EcTextStyle } from '@/lib/ec-text-generator';
 
 // アレルゲン表示
 function AllergenChip({ name, required }: { name: string; required: boolean }) {
@@ -45,11 +47,20 @@ export default function RecipeDetailPage() {
   const id = params.id as string;
   const { data: session } = useSession();
   const canUseComplianceCheck = session?.user?.plan === 'pro' || session?.user?.plan === 'admin';
+  const canUseEcText = session?.user?.plan === 'pro' || session?.user?.plan === 'admin';
 
   const [recipe,  setRecipe]  = useState<RecipeDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [ecStyle, setEcStyle] = useState<EcTextStyle>('simple');
+
+  const handleCopyText = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${label}をコピーしました`);
+    } catch { toast.error('コピーに失敗しました'); }
+  };
 
   useEffect(() => {
     (async () => {
@@ -140,6 +151,23 @@ export default function RecipeDetailPage() {
     warning: 'text-amber-600',
     info:    'text-stone-500',
   };
+
+  // EC商品ページ用テキスト自動生成（Proプラン限定機能）。外部AIは使わず、
+  // 登録済みのレシピ情報からテンプレートで下書きテキストを組み立てる（生成コストゼロ）。
+  const ecText = canUseEcText
+    ? generateEcText({
+        name: recipe.name,
+        categoryName: recipe.categoryName,
+        ingredientsLabel: recipe.ingredientsLabel,
+        allergens: allergens.all,
+        contentAmount: recipe.contentAmount,
+        storageMethod: recipe.storageMethod,
+        shelfLifeDays: recipe.shelfLifeDays,
+        shelfLifeType: recipe.shelfLifeType,
+        qualityControl: recipe.qualityControl,
+        nutritionPerUnit: per1,
+      }, ecStyle)
+    : null;
 
   return (
     <div className="max-w-3xl space-y-5 animate-fade-in">
@@ -241,6 +269,74 @@ export default function RecipeDetailPage() {
           <div className="flex items-center gap-2 text-sm text-stone-500">
             <Lock className="w-4 h-4 flex-shrink-0" />
             表示コンプライアンスチェックはProプラン限定機能です
+          </div>
+          <Link href="/dashboard/upgrade" className="text-brand-600 text-sm font-medium hover:underline whitespace-nowrap">
+            詳しく見る →
+          </Link>
+        </div>
+      )}
+
+      {/* ============================================================
+          EC商品ページ用テキスト自動生成（Proプラン限定機能）
+          ============================================================ */}
+      {canUseEcText && ecText ? (
+        <div className="card space-y-4">
+          <h2 className="section-title flex items-center gap-2">
+            <ShoppingBag className="w-5 h-5 text-brand-500" />
+            ECページ用テキスト自動生成
+            <span className="badge bg-brand-100 text-brand-700 text-[10px] ml-1">Pro</span>
+          </h2>
+
+          <div className="flex flex-wrap gap-2">
+            {EC_TEXT_STYLES.map(s => (
+              <button key={s.key} type="button" onClick={() => setEcStyle(s.key)}
+                title={s.desc}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                  ecStyle === s.key
+                    ? 'bg-brand-500 border-brand-500 text-white'
+                    : 'border-cream-300 text-stone-500 hover:border-brand-300'
+                }`}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-stone-500 uppercase tracking-wide">キャッチコピー候補</label>
+            <ul className="mt-1.5 space-y-1.5">
+              {ecText.catchcopies.map((c, i) => (
+                <li key={i} className="flex items-center justify-between gap-2 p-2.5 bg-cream-50 rounded-xl text-sm border border-cream-200">
+                  <span className="text-stone-700">{c}</span>
+                  <button type="button" onClick={() => handleCopyText(c, 'キャッチコピー')}
+                    className="btn-ghost p-1.5 flex-shrink-0">
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-stone-500 uppercase tracking-wide">商品ページ全文（下書き）</label>
+              <button type="button" onClick={() => handleCopyText(ecText.fullText, '全文')}
+                className="btn-secondary text-xs flex items-center gap-1.5 py-1.5 px-3">
+                <Copy className="w-3.5 h-3.5" />全文をコピー
+              </button>
+            </div>
+            <textarea readOnly value={ecText.fullText} rows={10}
+              className="mt-1.5 w-full p-3 bg-cream-50 rounded-xl text-sm leading-relaxed border border-cream-200 text-stone-700 resize-y" />
+          </div>
+
+          <p className="text-xs text-stone-400 pt-1 border-t border-cream-100">
+            ※ 登録内容から自動生成した下書きです。実際の販売ページに掲載する前に、表現内容（景品表示法等）や表示内容（食品表示法等）を必ずご自身でご確認・修正してください。
+          </p>
+        </div>
+      ) : (
+        <div className="card flex items-center justify-between gap-3 bg-cream-50">
+          <div className="flex items-center gap-2 text-sm text-stone-500">
+            <Lock className="w-4 h-4 flex-shrink-0" />
+            ECページ用テキスト自動生成はProプラン限定機能です
           </div>
           <Link href="/dashboard/upgrade" className="text-brand-600 text-sm font-medium hover:underline whitespace-nowrap">
             詳しく見る →

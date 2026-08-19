@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Cookie, BookOpen, Tag, ShoppingBasket, Printer, ArrowLeftRight, Settings, Shield, ShieldCheck, Search } from 'lucide-react';
+import { Cookie, BookOpen, Tag, ShoppingBasket, Printer, ArrowLeftRight, Settings, Shield, ShieldCheck, Search, ShoppingBag } from 'lucide-react';
 
 export const metadata = {
   title: '機能一覧 | FoodLabel Pro',
@@ -66,6 +66,12 @@ const FEATURES = [
     title: 'ロット番号トレース検索',
     desc: '万一の回収時に、原材料ロットを使った商品をすぐ特定できます。（プロ限定）',
     items: ['ラベル印刷時に使用ロット番号を任意で記録', 'ロット番号・食材名から該当する印刷記録を検索', '在庫の数量管理は対象外（記録・検索のみに特化）'],
+  },
+  {
+    icon: ShoppingBag,
+    title: 'ECページ用テキスト自動生成',
+    desc: '登録済みのレシピ情報から、ネットショップにそのまま貼り付けられる下書き文章を自動生成します。（プロ限定）',
+    items: ['キャッチコピー候補を複数生成', '商品説明文・原材料・アレルギー表示・栄養成分をまとめて出力', 'シンプル／あたたかみ／ギフト向けの3スタイルから選択', 'ワンクリックでコピーしてそのまま貼り付け可能'],
   },
 ];
 

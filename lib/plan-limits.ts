@@ -12,6 +12,7 @@ export const PLAN_LIMITS = {
     canUseComplianceCheck: false,
     canUseLabelTemplates:  false,
     canUseLotTracking:     false,
+    canUseEcText:          false,
   },
   premium: {
     // 2026-08時点: プロプラン新設に向けて、プレミアムのレシピ数・店舗数に上限を設定。
@@ -24,12 +25,14 @@ export const PLAN_LIMITS = {
     canUseComplianceCheck: false,
     canUseLabelTemplates:  false,
     canUseLotTracking:     false,
+    canUseEcText:          false,
   },
   pro: {
     // 2026-08新設: プロプラン。レシピ・ラベル印刷は無制限、店舗数はプレミアムの3件から10件に拡張。
     // 目玉機能として表示法令コンプライアンスチェック（lib/compliance-check.ts）・
     // 複数ラベルデザインテンプレート（LabelTemplateモデル）・
-    // ロット番号トレーサビリティ（Label.lotInfo）を追加。
+    // ロット番号トレーサビリティ（Label.lotInfo）・
+    // EC商品ページ用テキスト自動生成（lib/ec-text-generator.ts）を追加。
     maxRecipes:    Infinity,
     maxLabelPrints: Infinity,
     maxShops:      10,
@@ -38,6 +41,7 @@ export const PLAN_LIMITS = {
     canUseComplianceCheck: true,
     canUseLabelTemplates:  true,
     canUseLotTracking:     true,
+    canUseEcText:          true,
   },
   admin: {
     maxRecipes:    Infinity,
@@ -48,6 +52,7 @@ export const PLAN_LIMITS = {
     canUseComplianceCheck: true,
     canUseLabelTemplates:  true,
     canUseLotTracking:     true,
+    canUseEcText:          true,
   },
 };
 

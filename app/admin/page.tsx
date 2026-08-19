@@ -12,7 +12,7 @@ import toast from 'react-hot-toast';
 import { INGREDIENT_REJECTION_REASONS } from '@/lib/ingredient-rejection-reasons';
 
 interface Stats {
-  totalUsers: number; premiumUsers: number;
+  totalUsers: number; premiumUsers: number; proUsers: number;
   totalRecipes: number; totalIngredients: number; pendingIngredients: number;
 }
 interface PendingIngredient {
@@ -104,10 +104,11 @@ export default function AdminPage() {
 
       {/* 統計 */}
       {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
           {[
             { label: '総ユーザー数', value: stats.totalUsers,       icon: Users,          color: 'text-blue-600',   bg: 'bg-blue-50'   },
             { label: 'プレミアム',   value: stats.premiumUsers,     icon: Shield,         color: 'text-brand-600',  bg: 'bg-brand-50'  },
+            { label: 'プロ',         value: stats.proUsers,         icon: Shield,         color: 'text-amber-600',  bg: 'bg-amber-50'  },
             { label: '総レシピ数',   value: stats.totalRecipes,     icon: FileText,       color: 'text-green-600',  bg: 'bg-green-50'  },
             { label: '食材マスタ',   value: stats.totalIngredients, icon: ShoppingBasket, color: 'text-purple-600', bg: 'bg-purple-50' },
           ].map(s => {

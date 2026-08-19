@@ -13,9 +13,9 @@ export default function AdBanner({ slot, format = 'auto', className = '' }: AdBa
   const adRef = useRef<HTMLModElement>(null);
   const initialized = useRef(false);
 
-  // プレミアム・管理者は広告非表示
+  // プレミアム・プロ・管理者は広告非表示
   const plan = (session?.user as any)?.plan;
-  if (plan === 'premium' || plan === 'admin') return null;
+  if (plan === 'premium' || plan === 'pro' || plan === 'admin') return null;
 
   useEffect(() => {
     if (initialized.current) return;

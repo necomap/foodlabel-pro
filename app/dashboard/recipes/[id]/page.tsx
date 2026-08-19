@@ -5,14 +5,16 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import {
   ArrowLeft, Edit2, Tag, Trash2, Flame, Wheat,
   AlertTriangle, CheckCircle2, Loader2, Printer,
-  ChevronRight, Info, TrendingUp, Copy,
+  ChevronRight, Info, TrendingUp, Copy, ShieldCheck, Lock,
 } from 'lucide-react';
 import type { RecipeDetail } from '@/types';
+import { checkRecipeCompliance, type ComplianceIssue } from '@/lib/compliance-check';
 
 // アレルゲン表示
 function AllergenChip({ name, required }: { name: string; required: boolean }) {
@@ -41,6 +43,8 @@ export default function RecipeDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+  const { data: session } = useSession();
+  const canUseComplianceCheck = session?.user?.plan === 'pro' || session?.user?.plan === 'admin';
 
   const [recipe,  setRecipe]  = useState<RecipeDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -109,6 +113,34 @@ export default function RecipeDetailPage() {
   const per1 = recipe.nutritionPerUnit;
   const allergens = (recipe.allergens as unknown as { required: string[]; optional: string[]; all: string[] }) ?? { required: [], optional: [], all: [] };
 
+  // 表示法令コンプライアンスチェック（Proプラン限定機能）。店舗（製造者情報）はこの画面では
+  // 未確定のため、店舗に関するチェックはここでは行わない（渡さないことでスキップされる）。
+  const complianceIssues: ComplianceIssue[] = canUseComplianceCheck
+    ? checkRecipeCompliance({
+        name: recipe.name,
+        ingredients: recipe.ingredients.map(ing => ({
+          ingredientName: ing.genericName || ing.ingredientName,
+          amount: ing.amount,
+          unit: ing.unit,
+          isAdditive: ing.isAdditive,
+          additiveReason: ing.additiveReason ?? undefined,
+          originCountry: ing.originCountry ?? undefined,
+          isPrimaryIngredient: ing.isPrimaryIngredient,
+          hideFromLabel: ing.hideFromLabel,
+          ingredientAlwaysHideFromLabel: ing.ingredientAlwaysHideFromLabel,
+        })),
+        contentAmount: recipe.contentAmount,
+        storageMethod: recipe.storageMethod,
+        shelfLifeDays: recipe.shelfLifeDays,
+        barcode: recipe.barcode,
+      })
+    : [];
+  const severityStyle: Record<ComplianceIssue['severity'], string> = {
+    error:   'text-red-600',
+    warning: 'text-amber-600',
+    info:    'text-stone-500',
+  };
+
   return (
     <div className="max-w-3xl space-y-5 animate-fade-in">
       {/* ヘッダー */}
@@ -169,6 +201,50 @@ export default function RecipeDetailPage() {
               で成分情報を設定してください。
             </p>
           </div>
+        </div>
+      )}
+
+      {/* ============================================================
+          表示法令コンプライアンスチェック（Proプラン限定機能）
+          ============================================================ */}
+      {canUseComplianceCheck ? (
+        <div className="card space-y-3">
+          <h2 className="section-title flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-brand-500" />
+            表示コンプライアンスチェック
+            <span className="badge bg-brand-100 text-brand-700 text-[10px] ml-1">Pro</span>
+          </h2>
+          {complianceIssues.length === 0 ? (
+            <div className="flex items-center gap-2 text-sm text-green-600">
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+              主要な表示項目に不備は見つかりませんでした
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {complianceIssues.map(issue => (
+                <li key={issue.code} className={`flex items-start gap-2 text-sm ${severityStyle[issue.severity]}`}>
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium">{issue.message}</p>
+                    {issue.hint && <p className="text-xs opacity-80 mt-0.5">{issue.hint}</p>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="text-xs text-stone-400 pt-1 border-t border-cream-100">
+            ※ このチェックは表示ミスを減らすための参考情報であり、食品表示法への適合を保証するものではありません。最終的な表示内容は必ずご自身でご確認ください。
+          </p>
+        </div>
+      ) : (
+        <div className="card flex items-center justify-between gap-3 bg-cream-50">
+          <div className="flex items-center gap-2 text-sm text-stone-500">
+            <Lock className="w-4 h-4 flex-shrink-0" />
+            表示コンプライアンスチェックはProプラン限定機能です
+          </div>
+          <Link href="/dashboard/upgrade" className="text-brand-600 text-sm font-medium hover:underline whitespace-nowrap">
+            詳しく見る →
+          </Link>
         </div>
       )}
 

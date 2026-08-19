@@ -3,7 +3,7 @@
 // ============================================================
 
 // ユーザープラン
-export type UserPlan = 'free' | 'premium' | 'admin';
+export type UserPlan = 'free' | 'premium' | 'pro' | 'admin';
 
 // 賞味期限タイプ
 export type ShelfLifeType = 'BEST_BEFORE' | 'USE_BY';

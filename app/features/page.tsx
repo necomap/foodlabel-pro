@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Cookie, BookOpen, Tag, ShoppingBasket, Printer, ArrowLeftRight, Settings, Shield } from 'lucide-react';
+import { Cookie, BookOpen, Tag, ShoppingBasket, Printer, ArrowLeftRight, Settings, Shield, ShieldCheck } from 'lucide-react';
 
 export const metadata = {
   title: '機能一覧 | FoodLabel Pro',
@@ -40,14 +40,20 @@ const FEATURES = [
   {
     icon: ArrowLeftRight,
     title: 'インポート・エクスポート',
-    desc: 'データの一括管理ができます。（プレミアム）',
+    desc: 'データの一括管理ができます。（プレミアム・プロ）',
     items: ['レシピデータのExcelエクスポート', '食材データのExcelエクスポート', '管理者による食品成分表データのインポート'],
   },
   {
     icon: Settings,
     title: '店舗・設定管理',
     desc: '複数店舗の情報を管理できます。',
-    items: ['複数店舗の登録・管理（プレミアム）', '店舗ごとの住所・電話番号設定', 'レシピカテゴリのカスタマイズ', 'プロフィール情報の編集'],
+    items: ['複数店舗の登録・管理（プレミアム3件・プロ10件）', '店舗ごとの住所・電話番号設定', 'レシピカテゴリのカスタマイズ', 'プロフィール情報の編集'],
+  },
+  {
+    icon: ShieldCheck,
+    title: '表示コンプライアンスチェック',
+    desc: '印刷前に表示漏れ・表記ミスの可能性を自動検出します。（プロ限定）',
+    items: ['名称・原材料・内容量・保存方法・期限表示の未設定チェック', '添加物の用途表記漏れの検出', '原料原産地表示の要確認箇所の検出', 'レシピ数・店舗数も無制限（プロ）'],
   },
 ];
 

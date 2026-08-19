@@ -39,7 +39,7 @@ function ProfileTab() {
   const [loaded, setLoaded] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
   const [profile, setProfile] = useState({ companyName:'', representative:'', postalCode:'', address:'', phone:'' });
-  const isPremium = session?.user?.plan === 'premium' || session?.user?.plan === 'admin';
+  const isPremium = session?.user?.plan === 'premium' || session?.user?.plan === 'pro' || session?.user?.plan === 'admin';
   // 請求ポータル（解約・プラン変更）から ?billing_updated=1 付きで戻ってきた時だけ、
   // セッション（plan）をDBの最新値で明示的に再取得する。ログアウト→ログインし直さないと
   // 画面上のプラン表示が変わらない不具合の対策（lib/auth.ts のjwtコールバック参照）。

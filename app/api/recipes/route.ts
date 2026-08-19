@@ -147,13 +147,19 @@ export async function POST(request: Request) {
   if (!session) return NextResponse.json({ success: false, error: '認証が必要です' }, { status: 401 });
 
   // プラン制限チェック
-  const limits = getPlanLimits(session.user.plan ?? 'free');
+  const currentPlan = session.user.plan ?? 'free';
+  const limits = getPlanLimits(currentPlan);
   if (limits.maxRecipes !== Infinity) {
     const recipeCount = await prisma.recipe.count({ where: { userId: session.user.id, isActive: true } });
     if (recipeCount >= limits.maxRecipes) {
+      // 2026-08 プロプラン新設: プレミアムユーザーが100件の上限に達した場合は「プロ」への
+      // アップグレードを案内する（フリープランのまま案内すると、既にプレミアムの人には
+      // 意味が通らないため、現在のプランに応じて文言を出し分ける）。
+      const planLabel  = currentPlan === 'premium' ? 'プレミアムプラン' : 'フリープラン';
+      const nextPlanLabel = currentPlan === 'premium' ? 'プロプラン' : 'プレミアムプラン';
       return NextResponse.json({
         success: false,
-        error: `フリープランのレシピ上限（${limits.maxRecipes}件）に達しました。プレミアムプランにアップグレードしてください。`,
+        error: `${planLabel}のレシピ上限（${limits.maxRecipes}件）に達しました。${nextPlanLabel}にアップグレードしてください。`,
         upgradeRequired: true,
       }, { status: 403 });
     }

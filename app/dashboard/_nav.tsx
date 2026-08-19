@@ -20,14 +20,21 @@ const navItems = [
 
 interface Props {
   isAdmin:   boolean;
-  isPremium: boolean;
+  plan:      string;
   userName:  string;
   userEmail: string;
 }
 
-export default function DashboardNav({ isAdmin, isPremium, userName, userEmail }: Props) {
+export default function DashboardNav({ isAdmin, plan, userName, userEmail }: Props) {
   const pathname    = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // 2026-08 プロプラン新設: バナーは「今のプランより上のプランがある」限り表示する。
+  // free→プレミアム/プロへの案内、premium→プロへの案内、pro/admin→非表示。
+  const isProOrAdmin = plan === 'pro' || isAdmin;
+  const showUpgradeBanner = !isProOrAdmin;
+  const upgradeBannerTitle = plan === 'premium' ? 'Proにアップグレード' : 'プランをアップグレード';
+  const upgradeBannerDesc  = plan === 'premium' ? '月額6,980円・レシピ無制限' : '月額980円〜・レシピ100件まで';
 
   const NavLink = ({ item, onClick }: { item: typeof navItems[0]; onClick?: () => void }) => {
     const Icon   = item.icon;
@@ -80,13 +87,13 @@ export default function DashboardNav({ isAdmin, isPremium, userName, userEmail }
             </Link>
           )}
 
-           {!isPremium && (
+           {showUpgradeBanner && (
              <a href="/dashboard/upgrade"
                className="flex items-center gap-2 mx-3 mb-2 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors">
                <Star className="w-4 h-4 text-amber-500 flex-shrink-0" />
                <div>
-                 <p className="text-xs font-bold leading-tight">プレミアムにアップグレード</p>
-                 <p className="text-xs opacity-70">月額980円・レシピ100件まで</p>
+                 <p className="text-xs font-bold leading-tight">{upgradeBannerTitle}</p>
+                 <p className="text-xs opacity-70">{upgradeBannerDesc}</p>
                </div>
              </a>
            )}
@@ -132,13 +139,13 @@ export default function DashboardNav({ isAdmin, isPremium, userName, userEmail }
                 </Link>
               )}
             </nav>
-            {!isPremium && (
+            {showUpgradeBanner && (
               <a href="/dashboard/upgrade"
                 className="flex items-center gap-2 mx-3 mb-2 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors">
                 <Star className="w-4 h-4 text-amber-500 flex-shrink-0" />
                 <div>
-                  <p className="text-xs font-bold leading-tight">プレミアムにアップグレード</p>
-                  <p className="text-xs opacity-70">月額980円・レシピ100件まで</p>
+                  <p className="text-xs font-bold leading-tight">{upgradeBannerTitle}</p>
+                  <p className="text-xs opacity-70">{upgradeBannerDesc}</p>
                 </div>
               </a>
             )}

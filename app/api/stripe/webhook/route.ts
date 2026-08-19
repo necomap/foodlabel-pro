@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/db';
+import { resolvePlanFromPriceId, isPaidPlan } from '@/lib/stripe-plans';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {});
 
@@ -41,10 +42,17 @@ export async function POST(request: Request) {
           const sub = await stripe.subscriptions.retrieve(stripeSubscriptionId);
           const priceId = sub.items.data[0]?.price?.id ?? null;
 
+          // 2026-08 プロプラン新設: どのプランかは価格IDから逆引きする（プレミアム/プロで
+          // 価格IDが異なるため）。価格IDが未登録・環境変数の設定漏れ等で解決できない場合のみ、
+          // Checkoutセッション作成時にセットしたmetadata.planをフォールバックとして使う。
+          // それも無ければ従来どおりpremium扱い（後方互換）。
+          const metaPlan = checkoutSession.metadata?.plan;
+          const plan = resolvePlanFromPriceId(priceId) ?? (isPaidPlan(metaPlan) ? metaPlan : 'premium');
+
           await prisma.user.update({
             where: { id: userId },
             data: {
-              plan: 'premium',
+              plan,
               ...(stripeCustomerId ? { stripeCustomerId } : {}),
             },
           });
@@ -55,10 +63,10 @@ export async function POST(request: Request) {
             where: { stripeSubscriptionId },
             create: {
               userId, stripeSubscriptionId, stripePriceId: priceId,
-              plan: 'premium', status: sub.status,
+              plan, status: sub.status,
             },
             update: {
-              stripePriceId: priceId, plan: 'premium', status: sub.status,
+              stripePriceId: priceId, plan, status: sub.status,
             },
           });
         }
@@ -90,10 +98,16 @@ export async function POST(request: Request) {
       case 'customer.subscription.updated': {
         const sub    = event.data.object as Stripe.Subscription;
         const status = sub.status;
-        const plan: 'premium' | 'free' = (status === 'active' || status === 'trialing') ? 'premium' : 'free';
         const priceId = sub.items.data[0]?.price?.id ?? null;
-
+        // 2026-08 プロプラン新設: プレミアム⇄プロの切り替え（Stripe請求ポータルでの「プラン変更」）も
+        // このイベントで届く。価格IDから現在のプランを都度判定し直すことで、切り替え後の価格に
+        // 追従する（解決できない価格IDの場合は、既存レコードのプランをそのまま維持する）。
         const existing = await prisma.subscription.findUnique({ where: { stripeSubscriptionId: sub.id } });
+        const resolvedPlan = resolvePlanFromPriceId(priceId);
+        const plan: 'premium' | 'pro' | 'free' = (status === 'active' || status === 'trialing')
+          ? (resolvedPlan ?? (isPaidPlan(existing?.plan) ? existing!.plan : 'premium'))
+          : 'free';
+
         if (existing) {
           await prisma.subscription.update({
             where: { stripeSubscriptionId: sub.id },

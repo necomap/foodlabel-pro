@@ -291,6 +291,59 @@ export interface LabelContent {
 }
 
 // ============================================================
+// ラベルデザインテンプレート（Proプラン限定機能）
+// ============================================================
+// app/dashboard/labels/page.tsx のstate変数と同じキー名で持つ（保存・復元の変換を単純にするため）。
+// レシピ・店舗・製造日・印刷枚数など「印刷ジョブごとに変わる値」は含めない。
+export interface LabelTemplateConfig {
+  fontSizePt:    string;
+  fontFamily:    string;
+  deviceType:    'LABEL_PRINTER' | 'A4_PRINTER';
+  labelW:        string;
+  labelH:        string;
+  labelHeightAuto: boolean;
+  a4Cols:  string;
+  a4Rows:  string;
+  marginT: string;
+  marginB: string;
+  marginL: string;
+  marginR: string;
+  a4SealW:  string;
+  a4SealH:  string;
+  a4ColGap: string;
+  a4RowGap: string;
+  showPostalCode: boolean;
+  showPhone:      boolean;
+  showRep:        boolean;
+  showFiber:      boolean;
+  showSugar:      boolean;
+  showCholest:    boolean;
+  showComment:    boolean;
+  showQC:         boolean;
+  showNutrition:  boolean;
+  logoHeightMm: number;
+  qrSizeMm:     number;
+  showLogo: boolean;
+  showQr:   boolean;
+  showBarcode:     boolean;
+  barcodeHeightMm: number;
+  showBarcodeText: boolean;
+  recycleMarks:        string[];
+  recycleMarkRoles:    Record<string, string>;
+  recycleMarkHeightMm: number;
+  packageWidthMm:  string;
+  packageHeightMm: string;
+}
+
+export interface LabelTemplateSummary {
+  id:        string;
+  name:      string;
+  config:    LabelTemplateConfig;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ============================================================
 // Excel インポート/エクスポート
 // ============================================================
 export interface ExcelImportResult {

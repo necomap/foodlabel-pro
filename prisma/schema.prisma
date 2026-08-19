@@ -34,11 +34,31 @@ model User {
   ingredientPurchaseSettings IngredientPurchaseSetting[]
   label_print_logs     label_print_logs[]
   labels               Label[]
+  labelTemplates       LabelTemplate[]
   recipes              Recipe[]
   shops                Shop[]
   subscriptions        Subscription[]
 
   @@map("users")
+}
+
+// 2026-08 プロプラン新設: 複数ラベルデザインテンプレート機能。
+// ラベル印刷画面（app/dashboard/labels/page.tsx）の「印刷設定」を名前を付けて保存し、
+// 用途別（例：小ロット用シール／A4シール大量印刷用）に切り替えて呼び出せるようにする。
+// レシピ・店舗・製造日・印刷枚数など「印刷ジョブごとに変わる値」は含めず、
+// レイアウト・表示項目などのデザインに関わる設定だけを保存する（詳細はtypes/index.tsの
+// LabelTemplateConfig、および app/api/label-templates/route.ts 参照）。
+model LabelTemplate {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String   @db.VarChar(100)
+  config    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("label_templates")
 }
 
 model Shop {

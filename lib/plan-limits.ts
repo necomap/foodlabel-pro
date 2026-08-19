@@ -10,6 +10,7 @@ export const PLAN_LIMITS = {
     hasAds:        true,
     // Pro限定機能（2026-08新設）。詳細はcanUseComplianceCheck等の各フラグ参照。
     canUseComplianceCheck: false,
+    canUseLabelTemplates:  false,
   },
   premium: {
     // 2026-08時点: プロプラン新設に向けて、プレミアムのレシピ数・店舗数に上限を設定。
@@ -20,16 +21,19 @@ export const PLAN_LIMITS = {
     canExport:     true,
     hasAds:        false,
     canUseComplianceCheck: false,
+    canUseLabelTemplates:  false,
   },
   pro: {
     // 2026-08新設: プロプラン。レシピ・ラベル印刷は無制限、店舗数はプレミアムの3件から10件に拡張。
-    // 目玉機能として表示法令コンプライアンスチェック（lib/compliance-check.ts）を追加。
+    // 目玉機能として表示法令コンプライアンスチェック（lib/compliance-check.ts）・
+    // 複数ラベルデザインテンプレート（LabelTemplateモデル）を追加。
     maxRecipes:    Infinity,
     maxLabelPrints: Infinity,
     maxShops:      10,
     canExport:     true,
     hasAds:        false,
     canUseComplianceCheck: true,
+    canUseLabelTemplates:  true,
   },
   admin: {
     maxRecipes:    Infinity,
@@ -38,6 +42,7 @@ export const PLAN_LIMITS = {
     canExport:     true,
     hasAds:        false,
     canUseComplianceCheck: true,
+    canUseLabelTemplates:  true,
   },
 };
 

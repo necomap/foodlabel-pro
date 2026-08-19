@@ -5,8 +5,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Printer, RefreshCw, Settings, AlertTriangle, ChevronLeft, ChevronDown, Eye, Loader2, CheckCircle2, Info } from 'lucide-react';
+import { Printer, RefreshCw, Settings, AlertTriangle, ChevronLeft, ChevronDown, Eye, Loader2, CheckCircle2, Info, Bookmark, Save, Trash2, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
+import type { LabelTemplateConfig } from '@/types';
 
 interface RecipeOption { id: string; name: string; variationName?: string | null; shelfLifeDays: number | null; shelfLifeType: string; contentAmount: string | null; }
 interface ShopOption   { id: string; shopName: string; isDefault: boolean; }
@@ -76,6 +77,13 @@ export default function LabelsPage() {
   const [generated, setGenerated] = useState(false);
   const [zoom, setZoom] = useState(100);
   const [printStats, setPrintStats] = useState<{used: number; limit: number; resetDate: string; isPremium: boolean; todayCount: number} | null>(null);
+
+  // ラベルデザインテンプレート（Proプラン限定機能）
+  const [labelTemplates,     setLabelTemplates]     = useState<Array<{id:string; name:string; config: LabelTemplateConfig}>>([]);
+  const [canUseTemplates,    setCanUseTemplates]    = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [templateSaving,     setTemplateSaving]     = useState(false);
+  const [templateDeleting,   setTemplateDeleting]   = useState<string | null>(null);
 
   // 印刷設定 (初期値はデフォルト)
   const [mfgDate, setMfgDate] = useState('');  const [shelfOverride, setShelfOverride] = useState('');
@@ -243,6 +251,12 @@ export default function LabelsPage() {
       .then(d => { if (d.success) setPrintStats(d.data); })
       .catch(() => {});
 
+    // 保存済みラベルデザインテンプレート（Pro限定。Pro未満はcanUse:falseが返る）
+    fetch('/api/label-templates')
+      .then(r => r.json())
+      .then(d => { if (d.success) { setCanUseTemplates(d.data.canUse); setLabelTemplates(d.data.templates); } })
+      .catch(() => {});
+
     // レシピ一覧を取得
     fetch('/api/recipes?perPage=1000').then(r => r.json()).then(d => {
       if (d.success) setRecipes(d.data.items.map((r: RecipeOption) => ({ id: r.id, name: r.name, shelfLifeDays: r.shelfLifeDays, shelfLifeType: r.shelfLifeType, contentAmount: r.contentAmount })));
@@ -261,6 +275,109 @@ export default function LabelsPage() {
 
   const updateLabelStorage = (key: string, val: string) => {
     localStorage.setItem('label_' + key, val);
+  };
+
+  // ============================================================
+  // ラベルデザインテンプレート（Proプラン限定機能）
+  // ============================================================
+  // 現在の印刷設定（レシピ・店舗・製造日・印刷枚数は含まない、デザインに関わる部分のみ）をまとめる
+  const buildTemplateConfig = (): LabelTemplateConfig => ({
+    fontSizePt, fontFamily, deviceType,
+    labelW, labelH, labelHeightAuto,
+    a4Cols, a4Rows, marginT, marginB, marginL, marginR,
+    a4SealW, a4SealH, a4ColGap, a4RowGap,
+    showPostalCode, showPhone, showRep, showFiber, showSugar, showCholest, showComment, showQC, showNutrition,
+    logoHeightMm, qrSizeMm, showLogo, showQr,
+    showBarcode, barcodeHeightMm, showBarcodeText,
+    recycleMarks, recycleMarkRoles, recycleMarkHeightMm,
+    packageWidthMm, packageHeightMm,
+  });
+
+  // テンプレートの内容を現在の画面状態に反映する（localStorageにも書き込み、次回訪問時も維持されるようにする）
+  const applyTemplateConfig = (config: LabelTemplateConfig) => {
+    setFontSizePt(config.fontSizePt);           updateLabelStorage('fontSizePt', config.fontSizePt);
+    setFontFamily(config.fontFamily);           updateLabelStorage('fontFamily', config.fontFamily);
+    setDeviceType(config.deviceType);           updateLabelStorage('deviceType', config.deviceType);
+    setLabelW(config.labelW);                   updateLabelStorage('labelW', config.labelW);
+    setLabelH(config.labelH);                   updateLabelStorage('labelH', config.labelH);
+    setLabelHeightAuto(config.labelHeightAuto); updateLabelStorage('labelHeightAuto', String(config.labelHeightAuto));
+    setA4Cols(config.a4Cols);                   updateLabelStorage('a4Cols', config.a4Cols);
+    setA4Rows(config.a4Rows);                   updateLabelStorage('a4Rows', config.a4Rows);
+    setMarginT(config.marginT);                 updateLabelStorage('marginT', config.marginT);
+    setMarginB(config.marginB);                 updateLabelStorage('marginB', config.marginB);
+    setMarginL(config.marginL);                 updateLabelStorage('marginL', config.marginL);
+    setMarginR(config.marginR);                 updateLabelStorage('marginR', config.marginR);
+    setA4SealW(config.a4SealW);                 updateLabelStorage('a4SealW', config.a4SealW);
+    setA4SealH(config.a4SealH);                 updateLabelStorage('a4SealH', config.a4SealH);
+    setA4ColGap(config.a4ColGap);               updateLabelStorage('a4ColGap', config.a4ColGap);
+    setA4RowGap(config.a4RowGap);               updateLabelStorage('a4RowGap', config.a4RowGap);
+    setShowPostalCode(config.showPostalCode);   updateLabelStorage('showPostalCode', String(config.showPostalCode));
+    setShowPhone(config.showPhone);             updateLabelStorage('showPhone', String(config.showPhone));
+    setShowRep(config.showRep);                 updateLabelStorage('showRep', String(config.showRep));
+    setShowFiber(config.showFiber);             updateLabelStorage('showFiber', String(config.showFiber));
+    setShowSugar(config.showSugar);             updateLabelStorage('showSugar', String(config.showSugar));
+    setShowCholest(config.showCholest);         updateLabelStorage('showCholest', String(config.showCholest));
+    setShowComment(config.showComment);         updateLabelStorage('showComment', String(config.showComment));
+    setShowQC(config.showQC);                   updateLabelStorage('showQC', String(config.showQC));
+    setShowNutrition(config.showNutrition);     updateLabelStorage('showNutrition', String(config.showNutrition));
+    setLogoHeightMm(config.logoHeightMm);       updateLabelStorage('logoHeightMm', String(config.logoHeightMm));
+    setQrSizeMm(config.qrSizeMm);               updateLabelStorage('qrSizeMm', String(config.qrSizeMm));
+    setShowLogo(config.showLogo);               updateLabelStorage('showLogo', String(config.showLogo));
+    setShowQr(config.showQr);                   updateLabelStorage('showQr', String(config.showQr));
+    setShowBarcode(config.showBarcode);         updateLabelStorage('showBarcode', String(config.showBarcode));
+    setBarcodeHeightMm(config.barcodeHeightMm); updateLabelStorage('barcodeHeightMm', String(config.barcodeHeightMm));
+    setShowBarcodeText(config.showBarcodeText); updateLabelStorage('showBarcodeText', String(config.showBarcodeText));
+    setRecycleMarks(config.recycleMarks);               updateLabelStorage('recycleMarks', JSON.stringify(config.recycleMarks));
+    setRecycleMarkRoles(config.recycleMarkRoles);       updateLabelStorage('recycleMarkRoles', JSON.stringify(config.recycleMarkRoles));
+    setRecycleMarkHeightMm(config.recycleMarkHeightMm); updateLabelStorage('recycleMarkHeightMm', String(config.recycleMarkHeightMm));
+    setPackageWidthMm(config.packageWidthMm);   updateLabelStorage('packageWidthMm', config.packageWidthMm);
+    setPackageHeightMm(config.packageHeightMm); updateLabelStorage('packageHeightMm', config.packageHeightMm);
+  };
+
+  const handleApplyTemplate = (id: string) => {
+    const t = labelTemplates.find(t => t.id === id);
+    if (!t) return;
+    applyTemplateConfig(t.config);
+    setSelectedTemplateId(id);
+    toast.success(`テンプレート「${t.name}」を適用しました`);
+  };
+
+  const handleSaveTemplate = async () => {
+    const name = window.prompt('テンプレート名を入力してください（例：小ロット用シール）');
+    if (!name || !name.trim()) return;
+    setTemplateSaving(true);
+    try {
+      const res  = await fetch('/api/label-templates', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), config: buildTemplateConfig() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('テンプレートを保存しました');
+        setLabelTemplates(prev => [{ id: data.data.id, name: data.data.name, config: data.data.config }, ...prev]);
+        setSelectedTemplateId(data.data.id);
+      } else {
+        toast.error(data.error ?? '保存に失敗しました');
+      }
+    } catch { toast.error('通信エラーが発生しました'); }
+    finally { setTemplateSaving(false); }
+  };
+
+  const handleDeleteTemplate = async (id: string, name: string) => {
+    if (!confirm(`テンプレート「${name}」を削除しますか？`)) return;
+    setTemplateDeleting(id);
+    try {
+      const res  = await fetch(`/api/label-templates/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('削除しました');
+        setLabelTemplates(prev => prev.filter(t => t.id !== id));
+        if (selectedTemplateId === id) setSelectedTemplateId('');
+      } else {
+        toast.error(data.error ?? '削除に失敗しました');
+      }
+    } catch { toast.error('通信エラーが発生しました'); }
+    finally { setTemplateDeleting(null); }
   };
 
   // 表示可能面積から法令上の文字サイズ下限を計算
@@ -620,6 +737,49 @@ export default function LabelsPage() {
                 className="field-input" min="1" max="200" />
             </div>
           </div>
+
+          {/* デザインテンプレート（Proプラン限定機能） */}
+          {canUseTemplates ? (
+            <div className="card space-y-3">
+              <h2 className="section-title flex items-center gap-2">
+                <Bookmark className="w-5 h-5 text-brand-500" />
+                デザインテンプレート
+                <span className="badge bg-brand-100 text-brand-700 text-[10px] ml-1">Pro</span>
+              </h2>
+              {labelTemplates.length > 0 && (
+                <div className="space-y-1.5">
+                  {labelTemplates.map(t => (
+                    <div key={t.id}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm ${selectedTemplateId === t.id ? 'border-brand-300 bg-brand-50/40' : 'border-cream-200'}`}>
+                      <button type="button" onClick={() => handleApplyTemplate(t.id)} className="flex-1 text-left truncate">
+                        {t.name}
+                      </button>
+                      <button type="button" onClick={() => handleDeleteTemplate(t.id, t.name)} disabled={templateDeleting === t.id}
+                        className="p-1 text-stone-400 hover:text-red-500 disabled:opacity-50 flex-shrink-0">
+                        {templateDeleting === t.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button type="button" onClick={handleSaveTemplate} disabled={templateSaving}
+                className="btn-secondary w-full text-sm flex items-center justify-center gap-2">
+                {templateSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                現在の設定を名前を付けて保存
+              </button>
+              <p className="text-xs text-stone-400">レシピ・店舗・製造日・印刷枚数は含まれず、プリンタ種別・サイズ・表示項目などのデザイン設定のみ保存されます。</p>
+            </div>
+          ) : (
+            <div className="card flex items-center justify-between gap-3 bg-cream-50">
+              <div className="flex items-center gap-2 text-sm text-stone-500">
+                <Lock className="w-4 h-4 flex-shrink-0" />
+                デザインテンプレートの保存はProプラン限定機能です
+              </div>
+              <a href="/dashboard/upgrade" className="text-brand-600 text-sm font-medium hover:underline whitespace-nowrap">
+                詳しく見る →
+              </a>
+            </div>
+          )}
 
           {/* プリンタ設定 */}
           <div className="card space-y-4">

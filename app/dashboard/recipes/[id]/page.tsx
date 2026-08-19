@@ -12,7 +12,7 @@ import {
   ArrowLeft, Edit2, Tag, Trash2, Flame, Wheat,
   AlertTriangle, CheckCircle2, Loader2, Printer,
   ChevronRight, Info, TrendingUp, Copy, ShieldCheck, Lock,
-  ShoppingBag,
+  ShoppingBag, ChevronDown,
 } from 'lucide-react';
 import type { RecipeDetail } from '@/types';
 import { checkRecipeCompliance, type ComplianceIssue } from '@/lib/compliance-check';
@@ -54,6 +54,9 @@ export default function RecipeDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [ecStyle, setEcStyle] = useState<EcTextStyle>('simple');
+  // ラベル印刷がメインの使い方で、EC用テキスト生成は使う人・頻度とも限定的なため、
+  // ページを占有しないよう初期状態は折りたたんでおく（クリックで開閉）
+  const [ecExpanded, setEcExpanded] = useState(false);
 
   const handleCopyText = async (text: string, label: string) => {
     try {
@@ -269,74 +272,6 @@ export default function RecipeDetailPage() {
           <div className="flex items-center gap-2 text-sm text-stone-500">
             <Lock className="w-4 h-4 flex-shrink-0" />
             表示コンプライアンスチェックはProプラン限定機能です
-          </div>
-          <Link href="/dashboard/upgrade" className="text-brand-600 text-sm font-medium hover:underline whitespace-nowrap">
-            詳しく見る →
-          </Link>
-        </div>
-      )}
-
-      {/* ============================================================
-          EC商品ページ用テキスト自動生成（Proプラン限定機能）
-          ============================================================ */}
-      {canUseEcText && ecText ? (
-        <div className="card space-y-4">
-          <h2 className="section-title flex items-center gap-2">
-            <ShoppingBag className="w-5 h-5 text-brand-500" />
-            ECページ用テキスト自動生成
-            <span className="badge bg-brand-100 text-brand-700 text-[10px] ml-1">Pro</span>
-          </h2>
-
-          <div className="flex flex-wrap gap-2">
-            {EC_TEXT_STYLES.map(s => (
-              <button key={s.key} type="button" onClick={() => setEcStyle(s.key)}
-                title={s.desc}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                  ecStyle === s.key
-                    ? 'bg-brand-500 border-brand-500 text-white'
-                    : 'border-cream-300 text-stone-500 hover:border-brand-300'
-                }`}>
-                {s.label}
-              </button>
-            ))}
-          </div>
-
-          <div>
-            <label className="text-xs font-semibold text-stone-500 uppercase tracking-wide">キャッチコピー候補</label>
-            <ul className="mt-1.5 space-y-1.5">
-              {ecText.catchcopies.map((c, i) => (
-                <li key={i} className="flex items-center justify-between gap-2 p-2.5 bg-cream-50 rounded-xl text-sm border border-cream-200">
-                  <span className="text-stone-700">{c}</span>
-                  <button type="button" onClick={() => handleCopyText(c, 'キャッチコピー')}
-                    className="btn-ghost p-1.5 flex-shrink-0">
-                    <Copy className="w-3.5 h-3.5" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-stone-500 uppercase tracking-wide">商品ページ全文（下書き）</label>
-              <button type="button" onClick={() => handleCopyText(ecText.fullText, '全文')}
-                className="btn-secondary text-xs flex items-center gap-1.5 py-1.5 px-3">
-                <Copy className="w-3.5 h-3.5" />全文をコピー
-              </button>
-            </div>
-            <textarea readOnly value={ecText.fullText} rows={10}
-              className="mt-1.5 w-full p-3 bg-cream-50 rounded-xl text-sm leading-relaxed border border-cream-200 text-stone-700 resize-y" />
-          </div>
-
-          <p className="text-xs text-stone-400 pt-1 border-t border-cream-100">
-            ※ 登録内容から自動生成した下書きです。実際の販売ページに掲載する前に、表現内容（景品表示法等）や表示内容（食品表示法等）を必ずご自身でご確認・修正してください。
-          </p>
-        </div>
-      ) : (
-        <div className="card flex items-center justify-between gap-3 bg-cream-50">
-          <div className="flex items-center gap-2 text-sm text-stone-500">
-            <Lock className="w-4 h-4 flex-shrink-0" />
-            ECページ用テキスト自動生成はProプラン限定機能です
           </div>
           <Link href="/dashboard/upgrade" className="text-brand-600 text-sm font-medium hover:underline whitespace-nowrap">
             詳しく見る →
@@ -575,6 +510,84 @@ export default function RecipeDetailPage() {
               </li>
             ))}
           </ol>
+        </div>
+      )}
+
+      {/* ============================================================
+          EC商品ページ用テキスト自動生成（Proプラン限定機能）
+          ラベル印刷がメインの使い方であるため、ページ下部に控えめに配置し、
+          初期状態は折りたたんでおく
+          ============================================================ */}
+      {canUseEcText ? (
+        <div className="card space-y-0">
+          <button type="button" onClick={() => setEcExpanded(v => !v)}
+            className="w-full flex items-center justify-between gap-2">
+            <h2 className="section-title flex items-center gap-2 mb-0">
+              <ShoppingBag className="w-5 h-5 text-brand-500" />
+              ECページ用テキスト自動生成
+              <span className="badge bg-brand-100 text-brand-700 text-[10px] ml-1">Pro</span>
+            </h2>
+            <ChevronDown className={`w-4 h-4 text-stone-400 flex-shrink-0 transition-transform ${ecExpanded ? 'rotate-180' : ''}`} />
+          </button>
+
+          {ecExpanded && ecText && (
+            <div className="space-y-4 pt-4 mt-4 border-t border-cream-100">
+              <div className="flex flex-wrap gap-2">
+                {EC_TEXT_STYLES.map(s => (
+                  <button key={s.key} type="button" onClick={() => setEcStyle(s.key)}
+                    title={s.desc}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                      ecStyle === s.key
+                        ? 'bg-brand-500 border-brand-500 text-white'
+                        : 'border-cream-300 text-stone-500 hover:border-brand-300'
+                    }`}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-stone-500 uppercase tracking-wide">キャッチコピー候補</label>
+                <ul className="mt-1.5 space-y-1.5">
+                  {ecText.catchcopies.map((c, i) => (
+                    <li key={i} className="flex items-center justify-between gap-2 p-2.5 bg-cream-50 rounded-xl text-sm border border-cream-200">
+                      <span className="text-stone-700">{c}</span>
+                      <button type="button" onClick={() => handleCopyText(c, 'キャッチコピー')}
+                        className="btn-ghost p-1.5 flex-shrink-0">
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-stone-500 uppercase tracking-wide">商品ページ全文（下書き）</label>
+                  <button type="button" onClick={() => handleCopyText(ecText.fullText, '全文')}
+                    className="btn-secondary text-xs flex items-center gap-1.5 py-1.5 px-3">
+                    <Copy className="w-3.5 h-3.5" />全文をコピー
+                  </button>
+                </div>
+                <textarea readOnly value={ecText.fullText} rows={10}
+                  className="mt-1.5 w-full p-3 bg-cream-50 rounded-xl text-sm leading-relaxed border border-cream-200 text-stone-700 resize-y" />
+              </div>
+
+              <p className="text-xs text-stone-400 pt-1 border-t border-cream-100">
+                ※ 登録内容から自動生成した下書きです（コピーされる本文には含まれません）。実際の販売ページに掲載する前に、表現内容（景品表示法等）や表示内容（食品表示法等）を必ずご自身でご確認・修正してください。
+              </p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="card flex items-center justify-between gap-3 bg-cream-50">
+          <div className="flex items-center gap-2 text-sm text-stone-500">
+            <Lock className="w-4 h-4 flex-shrink-0" />
+            ECページ用テキスト自動生成はProプラン限定機能です
+          </div>
+          <Link href="/dashboard/upgrade" className="text-brand-600 text-sm font-medium hover:underline whitespace-nowrap">
+            詳しく見る →
+          </Link>
         </div>
       )}
 

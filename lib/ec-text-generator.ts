@@ -137,8 +137,9 @@ export function generateEcText(input: EcTextInput, style: EcTextStyle = 'simple'
     ? `【お願い・注意事項】\n${input.qualityControl.trim()}`
     : '';
 
-  const disclaimer = '※本文は登録内容から自動生成した下書きです。実際の販売ページに掲載する前に、表現内容（景品表示法等）や表示内容（食品表示法等）を必ずご自身でご確認・修正してください。';
-
+  // 免責の注意書きはコピー先（EC商品ページ本文）にそのまま載せてしまうと不自然なため、
+  // コピー対象のfullTextには含めない。画面上には別途、常時表示のキャプションとして出す
+  // （app/dashboard/recipes/[id]/page.tsx参照）。
   const fullText = [
     catchcopies[style][0],
     description,
@@ -147,7 +148,6 @@ export function generateEcText(input: EcTextInput, style: EcTextStyle = 'simple'
     nutritionBlock,
     storageBlock,
     noteBlock,
-    disclaimer,
   ].filter(b => b && b.trim().length > 0).join('\n\n');
 
   return { catchcopies: catchcopies[style], description, ingredientsBlock, allergenBlock, nutritionBlock, storageBlock, fullText };

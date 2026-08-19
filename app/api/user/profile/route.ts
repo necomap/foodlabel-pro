@@ -9,10 +9,22 @@ export async function GET() {
 
   const user = await prisma.user.findUnique({
     where:  { id: session.user.id },
-    select: { id: true, email: true, companyName: true, representative: true, postalCode: true, address: true, phone: true, plan: true },
+    select: {
+      id: true, email: true, companyName: true, representative: true, postalCode: true, address: true, phone: true, plan: true,
+      // 電気代目安計算の設定（全プラン共通）
+      electricityUnitPrice: true, ovenPowerKw: true, ovenSteamExtraKw: true,
+    },
   });
 
-  return NextResponse.json({ success: true, data: user });
+  return NextResponse.json({
+    success: true,
+    data: user ? {
+      ...user,
+      electricityUnitPrice: user.electricityUnitPrice != null ? Number(user.electricityUnitPrice) : null,
+      ovenPowerKw:           user.ovenPowerKw           != null ? Number(user.ovenPowerKw)           : null,
+      ovenSteamExtraKw:      user.ovenSteamExtraKw      != null ? Number(user.ovenSteamExtraKw)      : null,
+    } : null,
+  });
 }
 
 export async function PUT(request: Request) {
@@ -28,6 +40,12 @@ export async function PUT(request: Request) {
       postalCode:     body.postalCode     || undefined,
       address:        body.address        || undefined,
       phone:          body.phone          || undefined,
+      // 電気代目安計算の設定（全プラン共通）。空欄で保存した場合に古い値が残らないよう、
+      // undefinedではなく明示的にnullを渡す（同種の不具合の再発防止パターン。
+      // app/api/recipes/[id]/route.tsのqualityControl周りのコメント参照）。
+      electricityUnitPrice: body.electricityUnitPrice != null && body.electricityUnitPrice !== '' ? Number(body.electricityUnitPrice) : null,
+      ovenPowerKw:           body.ovenPowerKw           != null && body.ovenPowerKw           !== '' ? Number(body.ovenPowerKw)           : null,
+      ovenSteamExtraKw:      body.ovenSteamExtraKw      != null && body.ovenSteamExtraKw      !== '' ? Number(body.ovenSteamExtraKw)      : null,
     },
   });
 

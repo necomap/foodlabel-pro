@@ -17,6 +17,7 @@ import {
 import type { RecipeDetail } from '@/types';
 import { checkRecipeCompliance, type ComplianceIssue } from '@/lib/compliance-check';
 import { generateEcText, EC_TEXT_STYLES, type EcTextStyle } from '@/lib/ec-text-generator';
+import { calcElectricityCostEstimate, type ElectricityCostSettings } from '@/lib/electricity-cost';
 
 // アレルゲン表示
 function AllergenChip({ name, required }: { name: string; required: boolean }) {
@@ -57,6 +58,20 @@ export default function RecipeDetailPage() {
   // ラベル印刷がメインの使い方で、EC用テキスト生成は使う人・頻度とも限定的なため、
   // ページを占有しないよう初期状態は折りたたんでおく（クリックで開閉）
   const [ecExpanded, setEcExpanded] = useState(false);
+  // 電気代目安計算（全プラン共通機能）。設定（電力量単価・オーブン消費電力）はアカウント単位
+  // （app/dashboard/settings/page.tsxのProフィールタブ）に保存されているため、ここで別途取得する。
+  const [electricitySettings, setElectricitySettings] = useState<ElectricityCostSettings>({ electricityUnitPrice: null, ovenPowerKw: null, ovenSteamExtraKw: null });
+  useEffect(() => {
+    fetch('/api/user/profile').then(r => r.json()).then(d => {
+      if (d.success && d.data) {
+        setElectricitySettings({
+          electricityUnitPrice: d.data.electricityUnitPrice ?? null,
+          ovenPowerKw:           d.data.ovenPowerKw           ?? null,
+          ovenSteamExtraKw:      d.data.ovenSteamExtraKw      ?? null,
+        });
+      }
+    }).catch(() => {});
+  }, []);
 
   const handleCopyText = async (text: string, label: string) => {
     try {
@@ -171,6 +186,10 @@ export default function RecipeDetailPage() {
         nutritionPerUnit: per1,
       }, ecStyle)
     : null;
+
+  // 電気代目安（全プラン共通）。設定が未入力、または焼成条件に時間が1つも入力されていない場合はnull
+  const electricityEstimate = calcElectricityCostEstimate(recipe.bakingConditions, electricitySettings, recipe.unitCount);
+  const electricitySettingsMissing = electricitySettings.electricityUnitPrice == null || electricitySettings.ovenPowerKw == null;
 
   return (
     <div className="max-w-3xl space-y-5 animate-fade-in">
@@ -493,6 +512,20 @@ export default function RecipeDetailPage() {
               </div>
             ))}
           </div>
+          {electricityEstimate ? (
+            <div className="mt-3 pt-3 border-t border-cream-100 flex items-center justify-between gap-2 text-sm">
+              <span className="text-stone-500">電気代目安（このレシピ1回分・{electricityEstimate.totalHours}時間）</span>
+              <span className="font-semibold text-stone-800">
+                約{electricityEstimate.totalYen}円
+                {electricityEstimate.perUnitYen != null && <span className="text-stone-400 font-normal ml-1">（1個あたり約{electricityEstimate.perUnitYen}円）</span>}
+              </span>
+            </div>
+          ) : electricitySettingsMissing ? (
+            <div className="mt-3 pt-3 border-t border-cream-100 text-xs text-stone-400">
+              <Link href="/dashboard/settings" className="text-brand-600 hover:underline">設定</Link>
+              で電力量単価・オーブン消費電力を入力すると、電気代の目安がここに表示されます。
+            </div>
+          ) : null}
         </div>
       )}
 

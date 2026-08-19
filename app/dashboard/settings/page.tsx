@@ -38,7 +38,7 @@ function ProfileTab() {
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
-  const [profile, setProfile] = useState({ companyName:'', representative:'', postalCode:'', address:'', phone:'' });
+  const [profile, setProfile] = useState({ companyName:'', representative:'', postalCode:'', address:'', phone:'', electricityUnitPrice:'', ovenPowerKw:'', ovenSteamExtraKw:'' });
   const isPremium = session?.user?.plan === 'premium' || session?.user?.plan === 'pro' || session?.user?.plan === 'admin';
   // 請求ポータル（解約・プラン変更）から ?billing_updated=1 付きで戻ってきた時だけ、
   // セッション（plan）をDBの最新値で明示的に再取得する。ログアウト→ログインし直さないと
@@ -67,7 +67,12 @@ function ProfileTab() {
   useEffect(() => {
     fetch('/api/user/profile').then(r=>r.json()).then(d => {
       if (d.success && d.data) {
-        setProfile({ companyName: d.data.companyName??'', representative: d.data.representative??'', postalCode: d.data.postalCode??'', address: d.data.address??'', phone: d.data.phone??'' });
+        setProfile({
+          companyName: d.data.companyName??'', representative: d.data.representative??'', postalCode: d.data.postalCode??'', address: d.data.address??'', phone: d.data.phone??'',
+          electricityUnitPrice: d.data.electricityUnitPrice != null ? String(d.data.electricityUnitPrice) : '',
+          ovenPowerKw:           d.data.ovenPowerKw           != null ? String(d.data.ovenPowerKw)           : '',
+          ovenSteamExtraKw:      d.data.ovenSteamExtraKw      != null ? String(d.data.ovenSteamExtraKw)      : '',
+        });
       }
       setLoaded(true);
     }).catch(()=>setLoaded(true));
@@ -111,6 +116,26 @@ function ProfileTab() {
         <div><label className="field-label">郵便番号</label><input type="text" value={profile.postalCode} onChange={e=>setProfile(p=>({...p,postalCode:e.target.value}))} className="field-input" placeholder="000-0000" /></div>
         <div className="sm:col-span-2"><label className="field-label">住所</label><input type="text" value={profile.address} onChange={e=>setProfile(p=>({...p,address:e.target.value}))} className="field-input" /></div>
       </div>
+
+      <h2 className="section-title flex items-center gap-2"><Zap className="w-4 h-4 text-amber-500" />電気代目安の設定（任意）</h2>
+      <p className="text-sm text-stone-500 -mt-2">
+        レシピ詳細画面の焼成条件から、電気代の目安を概算表示します（全プランで利用可）。オーブンの機種によって実際の消費電力は大きく異なるため、あくまで参考値です。未入力の場合は表示されません。
+      </p>
+      <div className="grid sm:grid-cols-3 gap-4">
+        <div>
+          <label className="field-label">電力量単価（円/kWh）</label>
+          <input type="number" step="0.01" min="0" value={profile.electricityUnitPrice} onChange={e=>setProfile(p=>({...p,electricityUnitPrice:e.target.value}))} className="field-input" placeholder="例: 31" />
+        </div>
+        <div>
+          <label className="field-label">オーブン消費電力（kW）</label>
+          <input type="number" step="0.1" min="0" value={profile.ovenPowerKw} onChange={e=>setProfile(p=>({...p,ovenPowerKw:e.target.value}))} className="field-input" placeholder="例: 3.0" />
+        </div>
+        <div>
+          <label className="field-label">スチームON時の追加消費電力（kW・任意）</label>
+          <input type="number" step="0.1" min="0" value={profile.ovenSteamExtraKw} onChange={e=>setProfile(p=>({...p,ovenSteamExtraKw:e.target.value}))} className="field-input" placeholder="例: 0.5" />
+        </div>
+      </div>
+
       <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center gap-2">
         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}保存する
       </button>

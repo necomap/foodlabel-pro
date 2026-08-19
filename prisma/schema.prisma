@@ -29,6 +29,13 @@ model User {
   emailVerifyExpires   DateTime?
   loginFailCount       Int                @default(0)
   loginLockedUntil     DateTime?
+  // 2026-08 電気代目安計算機能用（全プラン共通）。焼成条件（上火/下火・スチーム・時間）から
+  // 正確ではない「目安」を出すための簡易設定。オーブンの機種によって実際の消費電力は
+  // 大きく異なるため、温度は計算に使わず「オーブン1台分の消費電力（固定値）× 使用時間」で概算する。
+  // 3つとも未設定の場合はレシピ側で電気代目安を計算・表示しない（詳細はlib/electricity-cost.ts参照）。
+  electricityUnitPrice Decimal?           @db.Decimal(6, 2)  // 電力量単価（円/kWh）
+  ovenPowerKw          Decimal?           @db.Decimal(5, 2)  // オーブンの消費電力（kW）
+  ovenSteamExtraKw     Decimal?           @db.Decimal(5, 2)  // スチームON時に上乗せする消費電力（kW・任意）
   adminLogs            AdminLog[]
   ingredients          Ingredient[]
   ingredientPurchaseSettings IngredientPurchaseSetting[]

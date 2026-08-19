@@ -7,7 +7,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getReadOnlyRecipeIds } from '@/lib/plan-limits';
 import { buildIngredientsLabel, collectRecipeAllergens, prepareIngredientsForLabel } from '@/lib/allergen';
-import { calcPerUnit, roundForDisplay, calcNutritionForAmount, resolveIngredientNutritionPer100g } from '@/lib/nutrition';
+import { calcPerUnit, roundForDisplay, calcNutritionForAmount, resolveIngredientNutritionPer100g, calcCostRate } from '@/lib/nutrition';
 import type { BakingStep } from '@/types';
 
 type Params = { params: { id: string } };
@@ -101,6 +101,32 @@ export async function GET(_req: Request, { params }: Params) {
     cholesterol:    recipe.cholesterol   ? Number(recipe.cholesterol)    : null,
   };
 
+  // 原価は栄養成分と違い、これまで「材料をレシピに追加した時点の原価単価」のスナップショット
+  // （RecipeIngredient.costPrice）を保存するだけで、食材マスタ側の仕入単価（Ingredient.unitPrice）を
+  // 後から設定・変更してもこのレシピ画面には反映されなかった（栄養成分は上のnutritionUnconfirmed判定の
+  // ように、毎回マスタの最新値から再計算しているのに対し、原価だけこの自己修復が無かった）。
+  // 「レシピ側の原価単価が未設定（null）」の材料に限り、食材マスタの現在の仕入単価から補完する
+  // （ユーザーがこのレシピの材料行で明示的に原価単価を入力・上書きしている場合はそちらを尊重し、
+  // 上書きしない。null埋めのみを対象にすることで、既存の意図的な入力値を壊さない）。
+  const resolvedIngredients = sortedIngredients.map(ing => {
+    let costPrice = ing.costPrice != null ? Number(ing.costPrice) : null;
+    let costTotal = ing.costTotal != null ? Number(ing.costTotal) : null;
+    if (ing.ingredientId && ing.ingredient && costPrice == null) {
+      const masterUnitPrice = (ing.ingredient as any).unitPrice;
+      if (masterUnitPrice != null) {
+        costPrice = Number(masterUnitPrice);
+        costTotal = Math.round(costPrice * Number(ing.amount) * 100) / 100;
+      }
+    }
+    return { ing, costPrice, costTotal };
+  });
+  // 材料ごとの原価（上で補完済みのもの）を積み上げて合計・1個あたり・原価率を算出し直す。
+  // レシピ本体のtotalCost/unitCost/costRateカラムは直近の保存時点のスナップショットのままだと
+  // 上の材料単位の補完と食い違って見えるため、表示上はここで再計算した値を優先する。
+  const totalCostResolved = resolvedIngredients.reduce((s, d) => s + (d.costTotal ?? 0), 0);
+  const unitCostResolved  = recipe.unitCount > 0 ? totalCostResolved / recipe.unitCount : 0;
+  const costRateResolved  = recipe.salePrice ? calcCostRate(unitCostResolved, Number(recipe.salePrice)) : 0;
+
   return NextResponse.json({
     success: true,
     data: {
@@ -124,9 +150,9 @@ export async function GET(_req: Request, { params }: Params) {
       printComment:   recipe.printComment,
       qualityControl: recipe.qualityControl,
       bakingConditions: recipe.bakingConditions as unknown as BakingStep[] | null,
-      totalCost:      recipe.totalCost  ? Number(recipe.totalCost)  : null,
-      unitCost:       recipe.unitCost   ? Number(recipe.unitCost)   : null,
-      costRate:       recipe.costRate   ? Number(recipe.costRate)   : null,
+      totalCost:      totalCostResolved || null,
+      unitCost:       unitCostResolved  || null,
+      costRate:       costRateResolved  || null,
       totalWeightG:   recipe.totalWeightG ? Number(recipe.totalWeightG) : null,
       nutrition:      totalNutrition,
       nutritionPerUnit: roundForDisplay(calcPerUnit(totalNutrition, recipe.unitCount, Number(recipe.wasteRatio ?? 0))),
@@ -136,7 +162,7 @@ export async function GET(_req: Request, { params }: Params) {
       isActive:       recipe.isActive,
       createdAt:      recipe.createdAt,
       updatedAt:      recipe.updatedAt,
-      ingredients: sortedIngredients.map(ing => {
+      ingredients: resolvedIngredients.map(({ ing, costPrice, costTotal }) => {
         // 食材マスタに紐づいている材料は、RecipeIngredientに保存された時点のスナップショットではなく、
         // 食材マスタの最新の栄養成分から毎回「未確認」かどうかを判定し直す。
         // こうしないと、食材マスタ側で栄養成分を後から入力・修正しても、このレシピを開き直して
@@ -177,8 +203,8 @@ export async function GET(_req: Request, { params }: Params) {
           hideFromLabel:          (ing as any).hideFromLabel ?? false,
           ingredientAlwaysHideFromLabel: (ing.ingredient as any)?.alwaysHideFromLabel ?? false,
           processLabel:           (ing as any).processLabel ?? null,
-          costPrice:              ing.costPrice  != null ? Number(ing.costPrice)  : null,
-          costTotal:              ing.costTotal  != null ? Number(ing.costTotal)  : null,
+          costPrice:              costPrice,
+          costTotal:              costTotal,
           allergenOverride:       ing.allergenOverride,
           isPrimaryIngredient:    ing.isPrimaryIngredient,
           nutritionUnconfirmed,
@@ -235,6 +261,8 @@ export async function PUT(request: Request, { params }: Params) {
         let allergens: string[] = [];
         let hasIngredientLink = false;
         let nutritionUnconfirmed = false;
+        // 食材マスタ側の現在の仕入単価（原価が未入力の材料行の補完用。下のcostTotal計算参照）
+        let masterUnitPrice: number | null = null;
         // ラベル表示名：食材マスタに一般名が設定されていればそちらを優先（例:「無塩バター よつ葉」→「バター」）
         let displayName = ing.ingredientNameOverride ?? ing.name ?? '';
 
@@ -245,6 +273,7 @@ export async function PUT(request: Request, { params }: Params) {
           });
           if (rec) {
             hasIngredientLink = true;
+            masterUnitPrice = rec.unitPrice != null ? Number(rec.unitPrice) : null;
             // 食材マスタに紐づいている場合は常にマスタ側のallergensのみを信頼する。
             // レシピ側に古いスナップショット（ing.allergenOverride）が残っていても使わない。
             // こうすることで、食材マスタ側でアレルゲンを修正すれば、このレシピを保存し直すだけで
@@ -273,8 +302,14 @@ export async function PUT(request: Request, { params }: Params) {
         }
         const amount = Number(ing.amount);
         const nutrition = calcNutritionForAmount(nutritionPer100g, amount);
-        const costTotal = ing.costPrice && amount ? Number(ing.costPrice) * amount : null;
-        return { ing, allergens, hasIngredientLink, nutrition, nutritionUnconfirmed, costTotal, displayName };
+        // 原価単価：この材料行で明示的に入力されていればそれを優先し、未入力（0/空欄/undefined）の
+        // 場合のみ食材マスタの現在の仕入単価で補完する（GET側の再計算ロジックと同じ考え方。
+        // 詳細はGETハンドラのresolvedIngredients付近のコメント参照）。
+        const costPriceResolved = (ing.costPrice != null && ing.costPrice !== '' && Number(ing.costPrice) > 0)
+          ? Number(ing.costPrice)
+          : masterUnitPrice;
+        const costTotal = costPriceResolved && amount ? Math.round(costPriceResolved * amount * 100) / 100 : null;
+        return { ing, allergens, hasIngredientLink, nutrition, nutritionUnconfirmed, costPriceResolved, costTotal, displayName };
       })
     );
 
@@ -347,7 +382,7 @@ export async function PUT(request: Request, { params }: Params) {
           unit:                  d.ing.unit ?? 'g',
           displayOrder:          idx,
           sortByWeight:          true,
-          costPrice:             d.ing.costPrice ? Number(d.ing.costPrice) : null,
+          costPrice:             d.costPriceResolved,
           costTotal:             d.costTotal,
           originCountry:         d.ing.originCountry || null,
           isAdditive:            d.ing.isAdditive ?? false,

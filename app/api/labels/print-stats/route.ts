@@ -33,7 +33,7 @@ export async function GET() {
     const monthUsed = Number(monthResult[0]?.total ?? 0);
     return NextResponse.json({
       success: true,
-      data: { used: monthUsed, limit: Infinity, resetDate: '-', isPremium: true, todayCount },
+      data: { used: monthUsed, limit: Infinity, resetDate: '-', isPremium: true, todayCount, canUseLotTracking: limits.canUseLotTracking },
     });
   }
 
@@ -59,6 +59,7 @@ export async function GET() {
       resetDate,
       isPremium: false,
       todayCount,
+      canUseLotTracking: limits.canUseLotTracking,
     },
   });
 }

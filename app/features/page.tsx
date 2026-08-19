@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Cookie, BookOpen, Tag, ShoppingBasket, Printer, ArrowLeftRight, Settings, Shield, ShieldCheck } from 'lucide-react';
+import { Cookie, BookOpen, Tag, ShoppingBasket, Printer, ArrowLeftRight, Settings, Shield, ShieldCheck, Search } from 'lucide-react';
 
 export const metadata = {
   title: '機能一覧 | FoodLabel Pro',
@@ -60,6 +60,12 @@ const FEATURES = [
     title: '複数ラベルデザインテンプレート',
     desc: '印刷設定を名前を付けて保存し、用途別に呼び出せます。（プロ限定）',
     items: ['プリンタ種別・サイズ・余白などのレイアウト設定を保存', '表示項目（バーコード・識別マーク等）の組み合わせを保存', '小ロット用・大量印刷用など用途別に切り替え', '保存したテンプレートはワンクリックで呼び出し'],
+  },
+  {
+    icon: Search,
+    title: 'ロット番号トレース検索',
+    desc: '万一の回収時に、原材料ロットを使った商品をすぐ特定できます。（プロ限定）',
+    items: ['ラベル印刷時に使用ロット番号を任意で記録', 'ロット番号・食材名から該当する印刷記録を検索', '在庫の数量管理は対象外（記録・検索のみに特化）'],
   },
 ];
 

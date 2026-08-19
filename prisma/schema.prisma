@@ -355,11 +355,21 @@ model Label {
   startPosition   Int             @default(1)
   displaySettings Json?
   generatedHtml   String?
+  // 2026-08 プロプラン新設: ロット番号トレーサビリティ（Pro限定）。この印刷（製造バッチ）で
+  // 使用した原材料のロット番号を任意で記録する。在庫の数量管理（残数・期限切れアラート等）は
+  // 別アプリ（ユーザーが別途開発中の在庫管理アプリ）の役割とし、ここでは「どのバッチにどの
+  // ロットを使ったか」の記録・検索（回収時のトレース）に機能を絞る。
+  // lotInfo: [{ ingredientName, lotNumber }, ...] 形式のスナップショット（食材マスタの改廃に
+  // 影響されないよう、入力時点の名称をそのまま保持する）。
+  lotInfo         Json?
+  // lotInfoの内容を小文字化・連結した検索用テキスト（部分一致検索を単純なcontainsで行うため）。
+  lotSearchText   String?
   createdAt       DateTime        @default(now())
   recipe          Recipe          @relation(fields: [recipeId], references: [id])
   shop            Shop?           @relation(fields: [shopId], references: [id])
   user            User            @relation(fields: [userId], references: [id])
 
+  @@index([userId, createdAt])
   @@map("labels")
 }
 

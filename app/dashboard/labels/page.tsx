@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Printer, RefreshCw, Settings, AlertTriangle, ChevronLeft, ChevronDown, Eye, Loader2, CheckCircle2, Info, Bookmark, Save, Trash2, Lock } from 'lucide-react';
+import { Printer, RefreshCw, Settings, AlertTriangle, ChevronLeft, ChevronDown, Eye, Loader2, CheckCircle2, Info, Bookmark, Save, Trash2, Lock, History } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { LabelTemplateConfig } from '@/types';
 
@@ -76,7 +76,10 @@ export default function LabelsPage() {
   const [warnings, setWarnings] = useState<string[]>([]);
   const [generated, setGenerated] = useState(false);
   const [zoom, setZoom] = useState(100);
-  const [printStats, setPrintStats] = useState<{used: number; limit: number; resetDate: string; isPremium: boolean; todayCount: number} | null>(null);
+  const [printStats, setPrintStats] = useState<{used: number; limit: number; resetDate: string; isPremium: boolean; todayCount: number; canUseLotTracking?: boolean} | null>(null);
+
+  // ロット番号トレーサビリティ（Proプラン限定・任意入力）
+  const [lots, setLots] = useState<Array<{ ingredientName: string; lotNumber: string }>>([]);
 
   // ラベルデザインテンプレート（Proプラン限定機能）
   const [labelTemplates,     setLabelTemplates]     = useState<Array<{id:string; name:string; config: LabelTemplateConfig}>>([]);
@@ -549,6 +552,8 @@ export default function LabelsPage() {
         showBarcodeText,
         packageWidthMm:  packageWidthMm  ? parseFloat(packageWidthMm)  : undefined,
         packageHeightMm: packageHeightMm ? parseFloat(packageHeightMm) : undefined,
+        // ロット番号トレーサビリティ（Pro限定・任意）。空欄の行は送らない
+        lots: lots.filter(l => l.ingredientName.trim() && l.lotNumber.trim()),
       };
 
       const res  = await fetch('/api/labels/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -1054,6 +1059,39 @@ export default function LabelsPage() {
               </label>
             )}
           </div>
+
+          {/* ロット番号トレーサビリティ（Proプラン限定・任意入力） */}
+          {printStats?.canUseLotTracking && (
+            <div className="card space-y-3">
+              <h2 className="section-title flex items-center gap-2">
+                <History className="w-5 h-5 text-brand-500" />
+                使用ロット番号（トレーサビリティ・任意）
+                <span className="badge bg-brand-100 text-brand-700 text-[10px] ml-1">Pro</span>
+              </h2>
+              {lots.map((lot, i) => (
+                <div key={i} className="flex gap-2">
+                  <input type="text" placeholder="食材名（例：小麦粉）" value={lot.ingredientName}
+                    onChange={e => setLots(prev => prev.map((l, idx) => idx === i ? { ...l, ingredientName: e.target.value } : l))}
+                    className="field-input flex-1" />
+                  <input type="text" placeholder="ロット番号" value={lot.lotNumber}
+                    onChange={e => setLots(prev => prev.map((l, idx) => idx === i ? { ...l, lotNumber: e.target.value } : l))}
+                    className="field-input flex-1" />
+                  <button type="button" onClick={() => setLots(prev => prev.filter((_, idx) => idx !== i))}
+                    className="p-2 text-stone-400 hover:text-red-500 flex-shrink-0">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+              <button type="button" onClick={() => setLots(prev => [...prev, { ingredientName: '', lotNumber: '' }])}
+                className="btn-secondary w-full text-sm">
+                ＋ ロットを追加
+              </button>
+              <p className="text-xs text-stone-400">
+                ここで入力した内容は「ラベルを生成」時にこの製造バッチの記録として保存されます（プレビューでは保存されません）。
+                <a href="/dashboard/lots" className="text-brand-600 hover:underline ml-1">過去のロットを検索 →</a>
+              </p>
+            </div>
+          )}
 
           <div className="flex gap-3 pt-2">
             <button onClick={handlePreview} disabled={loading || !recipeId}

@@ -67,6 +67,12 @@ const labelConfigSchema = z.object({
     role: z.string().max(20).optional(),
   })).optional(),
   recycleMarkHeightMm: z.number().min(6).max(30).optional(),
+  // 2026-08 プロプラン新設: ロット番号トレーサビリティ（Pro限定・任意入力）。
+  // Pro未満のプランから送られてきた場合はサーバー側で無視する（下記のLabel.create部分参照）。
+  lots: z.array(z.object({
+    ingredientName: z.string().max(200),
+    lotNumber:      z.string().max(100),
+  })).optional(),
 });
 
 export async function POST(request: Request) {
@@ -392,6 +398,15 @@ export async function POST(request: Request) {
 
   // 印刷履歴を保存
   if (!body.isPreview) {
+    // ロット番号トレーサビリティ（Pro限定）。Pro未満から送られてきた場合はサーバー側で無視する
+    // （クライアント側のUIはPro未満に表示していないが、念のためサーバー側でも強制する）。
+    const rawLots = (limits.canUseLotTracking ? config.lots : undefined)
+      ?.filter(l => l.ingredientName.trim() && l.lotNumber.trim()) ?? [];
+    const lotInfo = rawLots.length > 0 ? rawLots : undefined;
+    const lotSearchText = rawLots.length > 0
+      ? rawLots.map(l => `${l.ingredientName} ${l.lotNumber}`).join(' ').toLowerCase()
+      : undefined;
+
     await prisma.label.create({
       data: {
         recipeId:       config.recipeId,
@@ -409,6 +424,8 @@ export async function POST(request: Request) {
         startPosition:  config.startPosition,
         displaySettings: config.displaySettings ?? getDefaultDisplaySettings(),
         generatedHtml:  html.substring(0, 10000), // DBサイズ制限
+        lotInfo,
+        lotSearchText,
       },
     });
   }

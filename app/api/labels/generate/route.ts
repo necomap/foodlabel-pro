@@ -27,6 +27,11 @@ const labelConfigSchema = z.object({
   labelHeightAuto: z.boolean().optional(),
   isPrecut:        z.boolean().optional(),
   cutMarginMm:     z.number().optional(),
+  // ラベル内側の余白（プリンタードライバーの印字不可能領域による欠け対策）
+  labelPaddingTopMm:    z.number().min(0).max(10).optional(),
+  labelPaddingBottomMm: z.number().min(0).max(10).optional(),
+  labelPaddingLeftMm:   z.number().min(0).max(10).optional(),
+  labelPaddingRightMm:  z.number().min(0).max(10).optional(),
   a4Cols:          z.number().int().positive().optional(),
   a4Rows:          z.number().int().positive().optional(),
   marginTopMm:     z.number().optional(),
@@ -57,7 +62,9 @@ const labelConfigSchema = z.object({
   showQr:           z.boolean().optional(),
   showBarcode:      z.boolean().optional(),
   showBarcodeText:  z.boolean().optional(),
-  barcodeHeightMm:  z.number().int().min(5).max(15).optional(),
+  // 2026-08: 5mmでも実機で問題なく読み取れたとのことで下限を3mmに引き下げ。
+  // 法令上の最小値ではなく、あくまでスキャナーでの読み取りやすさの目安（UI側にも注意書きあり）。
+  barcodeHeightMm:  z.number().int().min(3).max(15).optional(),
   packageWidthMm:   z.number().positive().optional(),
   packageHeightMm:  z.number().positive().optional(),
   // 識別マーク（リサイクルマーク）。バーコードとは別にサイズ指定できる。

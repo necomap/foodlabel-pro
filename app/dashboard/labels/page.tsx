@@ -75,6 +75,11 @@ export default function LabelsPage() {
   const [previewHtml, setPreviewHtml] = useState('');
   const [warnings, setWarnings] = useState<string[]>([]);
   const [generated, setGenerated] = useState(false);
+  // previewHtmlが「1枚プレビュー」（isPreview:true、はみ出し警告バッジ入り）由来か、
+  // 「ラベルを生成」（isPreview:false、印刷用のクリーンなHTML）由来かを区別するフラグ。
+  // これが無いと、プレビュー直後に印刷ボタンを押した際、警告バッジ付きのHTMLが
+  // そのまま印刷されてしまう（品名がバッジに押し出されて欠ける等の不具合の原因になっていた）。
+  const [printReady, setPrintReady] = useState(false);
   const [zoom, setZoom] = useState(100);
   const [printStats, setPrintStats] = useState<{used: number; limit: number; resetDate: string; isPremium: boolean; todayCount: number; canUseLotTracking?: boolean} | null>(null);
 
@@ -485,6 +490,7 @@ export default function LabelsPage() {
         // ラベル生成時と同じ警告をプレビュー時点で表示することで、事前に気づけるようにする。
         setWarnings(data.data.warnings ?? []);
         setGenerated(true);
+        setPrintReady(false); // プレビューHTMLには警告バッジが焼き込まれる可能性があるため、そのままの印刷は許可しない
         if (data.data.warnings?.length > 0) toast.error(`${data.data.warnings.length}件の警告があります（内容を確認してください）`);
         else toast.success('プレビューを生成しました（印刷枚数にカウントされません）');
       } else {
@@ -563,6 +569,7 @@ export default function LabelsPage() {
         setPreviewHtml(data.data.html);
         setWarnings(data.data.warnings ?? []);
         setGenerated(true);
+        setPrintReady(true); // isPreview:falseで生成した、警告バッジの入らない印刷用HTML
         if (data.data.warnings?.length > 0) toast.error(`${data.data.warnings.length}件の警告があります`);
         else toast.success('ラベルを生成しました');
       } else {
@@ -574,6 +581,10 @@ export default function LabelsPage() {
 
   const handlePrint = () => {
     if (!previewHtml) return;
+    if (!printReady) {
+      toast.error('「1枚プレビュー」の内容は確認用です。印刷する前に「ラベルを生成」を押してください');
+      return;
+    }
     const win = window.open('', '_blank');
     if (!win) { toast.error('ポップアップがブロックされました'); return; }
     win.document.write(previewHtml);
@@ -631,9 +642,21 @@ export default function LabelsPage() {
         <p className="text-stone-500 text-sm mt-0.5">製造日を入力してラベルを生成・印刷します</p>
       </div>
 
-      <div className="grid lg:grid-cols-5 gap-5">
+      <div className="space-y-5">
         {/* ============ 設定パネル ============ */}
-        <div className="lg:col-span-2 space-y-4">
+        {/* 以前は左右分割（設定|プレビュー）にしていたため、ブラウザ幅がそれほど広くない
+            環境（タブレット並みの画面でブラウザと横並び表示、等）では、設定側の実質幅が
+            さらに半分になり、カード1枚がとても細くなって見づらかった。
+            左右分割自体をやめ、設定パネルは常に画面の全幅を使う。
+            以前はCSSのcolumns-2で自動的に左右へ振り分けていたが、「プリンタ設定」カードが
+            突出して長いため自動バランスだと片方の列だけ極端に長くなりがちだった。
+            そこで、長いカード（デザインテンプレート・プリンタ設定）を右カラムに、
+            それ以外（基本設定・表示項目設定・ロゴ/QR/バーコード・ロット）を左カラムに
+            明示的に固定して割り振り、2列の高さが揃うようにしている（sm以上）。
+            プレビューはこの下に全幅で続けて表示する。sm未満（スマホ縦）は1カラムに戻る。 */}
+        <div className="grid sm:grid-cols-2 sm:gap-5 gap-4 sm:items-start">
+          {/* 左カラム：基本設定・表示項目・ロゴ/QR/バーコード・ロット */}
+          <div className="space-y-4">
 
           {/* レシピ選択 */}
           <div className="card space-y-4">
@@ -743,6 +766,127 @@ export default function LabelsPage() {
             </div>
           </div>
 
+          {/* 表示設定 */}
+          <div className="card space-y-3">
+            <h2 className="section-title">表示項目設定</h2>
+            {[
+              { label: '栄養成分表示を表示', value: showNutrition, onChange: (v:boolean)=>{setShowNutrition(v);localStorage.setItem('label_showNutrition',String(v));},
+                note: `現在の表示可能面積は約${computeDisplayAreaCm2().toFixed(1)}cm²です。食品表示基準上、表示可能面積が30cm²以下の場合は栄養成分表示を省略できます（詳細は最新の基準をご確認ください）。シールが小さいときはOFFにできます。` },
+              { label: '郵便番号を表示', value: showPostalCode, onChange: (v:boolean)=>{setShowPostalCode(v);localStorage.setItem('label_showPostalCode',String(v));} },
+              { label: '電話番号を表示', value: showPhone,   onChange: (v:boolean)=>{setShowPhone(v);localStorage.setItem('label_showPhone',String(v));} },
+              { label: '代表者名を表示', value: showRep,     onChange: (v:boolean)=>{setShowRep(v);localStorage.setItem('label_showRep',String(v));}, note: '個人事業主は法的義務を確認してください' },
+              { label: '食物繊維を表示', value: showFiber,   onChange: (v:boolean)=>{setShowFiber(v);localStorage.setItem('label_showFiber',String(v));} },
+              { label: '糖質を表示',     value: showSugar,   onChange: (v:boolean)=>{setShowSugar(v);localStorage.setItem('label_showSugar',String(v));} },
+              { label: 'コレステロールを表示', value: showCholest, onChange: (v:boolean)=>{setShowCholest(v);localStorage.setItem('label_showCholest',String(v));} },
+              { label: 'お客様へのお願い・注意事項を表示', value: showQC,      onChange: (v:boolean)=>{setShowQC(v);localStorage.setItem('label_showQC',String(v));} },
+              { label: '印字コメントを表示', value: showComment, onChange: (v:boolean)=>{setShowComment(v);localStorage.setItem('label_showComment',String(v));} },
+            ].map(item => (
+              <label key={item.label} className="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" checked={item.value} onChange={e => item.onChange(e.target.checked)}
+                  className="mt-0.5 accent-brand-500" />
+                <div>
+                  <span className="text-sm font-medium text-stone-700">{item.label}</span>
+                  {item.note && <p className="text-xs text-yellow-600 mt-0.5">{item.note}</p>}
+                </div>
+              </label>
+            ))}
+          </div>
+
+          {/* ロゴ・QRサイズ調整 */}
+          <div className="card space-y-3">
+            <h2 className="section-title">ロゴ・QRコード・バーコード</h2>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={showLogo} onChange={e => { setShowLogo(e.target.checked); localStorage.setItem('label_showLogo', String(e.target.checked)); }} className="accent-brand-500" />
+              <span className="text-sm font-medium text-stone-700">ロゴを表示</span>
+            </label>
+            {showLogo && (
+              <div>
+                <label className="field-label">ロゴの高さ: {logoHeightMm}mm</label>
+                <input type="range" min="4" max="20" value={logoHeightMm}
+                  onChange={e => { setLogoHeightMm(Number(e.target.value)); localStorage.setItem('label_logoHeightMm', e.target.value); }}
+                  className="w-full accent-brand-500" />
+                <div className="flex justify-between text-xs text-stone-400"><span>4mm</span><span>20mm</span></div>
+              </div>
+            )}
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={showQr} onChange={e => { setShowQr(e.target.checked); localStorage.setItem('label_showQr', String(e.target.checked)); }} className="accent-brand-500" />
+              <span className="text-sm font-medium text-stone-700">QRコードを表示</span>
+            </label>
+            {showQr && (
+              <div>
+                <label className="field-label">QRコードサイズ: {qrSizeMm}mm</label>
+                <input type="range" min="4" max="20" value={qrSizeMm}
+                  onChange={e => { setQrSizeMm(Number(e.target.value)); localStorage.setItem('label_qrSizeMm', e.target.value); }}
+                  className="w-full accent-brand-500" />
+                <div className="flex justify-between text-xs text-stone-400"><span>4mm（小）</span><span>20mm（大）</span></div>
+                <p className="text-xs text-amber-600 mt-1">※6mm未満はスマホで読み込めない場合があります</p>
+              </div>
+            )}
+            <p className="text-xs text-stone-400">ロゴ・QRコードのURL自体は設定画面のまま保持されます。シールサイズが小さいときなど、この印刷ジョブだけ一時的に非表示にしたい場合はチェックを外してください。</p>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={showBarcode} onChange={e => { setShowBarcode(e.target.checked); localStorage.setItem('label_showBarcode', String(e.target.checked)); }} className="accent-brand-500" />
+              <span className="text-sm font-medium text-stone-700">バーコードを表示</span>
+            </label>
+            {showBarcode && (
+              <div>
+                <label className="field-label">バーコード縦幅: {barcodeHeightMm}mm</label>
+                <input type="range" min="3" max="15" value={barcodeHeightMm}
+                  onChange={e => { setBarcodeHeightMm(Number(e.target.value)); localStorage.setItem('label_barcodeHeightMm', e.target.value); }}
+                  className="w-full accent-brand-500" />
+                <div className="flex justify-between text-xs text-stone-400"><span>3mm（細）</span><span>15mm（太）</span></div>
+                {barcodeHeightMm < 7 && showBarcodeText && (
+                  <p className="text-xs text-amber-600 mt-1">※7mm未満は数値表示ONだとリーダーで読み取れない場合があります。数値表示をOFFにすると読み取りやすくなります。</p>
+                )}
+                {barcodeHeightMm < 5 && (
+                  <p className="text-xs text-amber-600 mt-1">※5mm未満は特に薄いので、実際にお使いのスキャナー・レジ端末で読み取れるか、印刷して事前に確認することをおすすめします。</p>
+                )}
+              </div>
+            )}
+            {showBarcode && (
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked={showBarcodeText} onChange={e => { setShowBarcodeText(e.target.checked); localStorage.setItem('label_showBarcodeText', String(e.target.checked)); }} className="accent-brand-500" />
+                <span className="text-sm font-medium text-stone-700">バーコード数値を表示</span>
+              </label>
+            )}
+          </div>
+
+          {/* ロット番号トレーサビリティ（Proプラン限定・任意入力） */}
+          {printStats?.canUseLotTracking && (
+            <div className="card space-y-3">
+              <h2 className="section-title flex items-center gap-2">
+                <History className="w-5 h-5 text-brand-500" />
+                使用ロット番号（トレーサビリティ・任意）
+                <span className="badge bg-brand-100 text-brand-700 text-[10px] ml-1">Pro</span>
+              </h2>
+              {lots.map((lot, i) => (
+                <div key={i} className="flex gap-2">
+                  <input type="text" placeholder="食材名（例：小麦粉）" value={lot.ingredientName}
+                    onChange={e => setLots(prev => prev.map((l, idx) => idx === i ? { ...l, ingredientName: e.target.value } : l))}
+                    className="field-input flex-1" />
+                  <input type="text" placeholder="ロット番号" value={lot.lotNumber}
+                    onChange={e => setLots(prev => prev.map((l, idx) => idx === i ? { ...l, lotNumber: e.target.value } : l))}
+                    className="field-input flex-1" />
+                  <button type="button" onClick={() => setLots(prev => prev.filter((_, idx) => idx !== i))}
+                    className="p-2 text-stone-400 hover:text-red-500 flex-shrink-0">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+              <button type="button" onClick={() => setLots(prev => [...prev, { ingredientName: '', lotNumber: '' }])}
+                className="btn-secondary w-full text-sm">
+                ＋ ロットを追加
+              </button>
+              <p className="text-xs text-stone-400">
+                ここで入力した内容は「ラベルを生成」時にこの製造バッチの記録として保存されます（プレビューでは保存されません）。
+                <a href="/dashboard/lots" className="text-brand-600 hover:underline ml-1">過去のロットを検索 →</a>
+              </p>
+            </div>
+          )}
+          </div>
+
+          {/* 右カラム：デザインテンプレート・プリンタ設定（プリンタ設定が長いため分離） */}
+          <div className="space-y-4">
+
           {/* デザインテンプレート（Proプラン限定機能） */}
           {canUseTemplates ? (
             <div className="card space-y-3">
@@ -775,15 +919,18 @@ export default function LabelsPage() {
               <p className="text-xs text-stone-400">レシピ・店舗・製造日・印刷枚数は含まれず、プリンタ種別・サイズ・表示項目などのデザイン設定のみ保存されます。</p>
             </div>
           ) : (
-            <div className="card flex items-center justify-between gap-3 bg-cream-50">
-              <div className="flex items-center gap-2 text-sm text-stone-500">
+            // Pro限定機能の案内は、Pro未満のユーザーの設定操作の邪魔にならないよう
+            // 既定で折りたたんでおき、興味があれば開けば詳細（アップグレード導線）が見える形にする
+            <details className="card bg-cream-50 group">
+              <summary className="flex items-center gap-2 text-sm text-stone-500 cursor-pointer list-none">
                 <Lock className="w-4 h-4 flex-shrink-0" />
                 デザインテンプレートの保存はProプラン限定機能です
-              </div>
-              <a href="/dashboard/upgrade" className="text-brand-600 text-sm font-medium hover:underline whitespace-nowrap">
+                <ChevronDown className="w-4 h-4 ml-auto flex-shrink-0 transition-transform group-open:rotate-180" />
+              </summary>
+              <a href="/dashboard/upgrade" className="text-brand-600 text-sm font-medium hover:underline block mt-2">
                 詳しく見る →
               </a>
-            </div>
+            </details>
           )}
 
           {/* プリンタ設定 */}
@@ -978,149 +1125,39 @@ export default function LabelsPage() {
               </div>
             )}
           </div>
-
-          {/* 表示設定 */}
-          <div className="card space-y-3">
-            <h2 className="section-title">表示項目設定</h2>
-            {[
-              { label: '栄養成分表示を表示', value: showNutrition, onChange: (v:boolean)=>{setShowNutrition(v);localStorage.setItem('label_showNutrition',String(v));},
-                note: `現在の表示可能面積は約${computeDisplayAreaCm2().toFixed(1)}cm²です。食品表示基準上、表示可能面積が30cm²以下の場合は栄養成分表示を省略できます（詳細は最新の基準をご確認ください）。シールが小さいときはOFFにできます。` },
-              { label: '郵便番号を表示', value: showPostalCode, onChange: (v:boolean)=>{setShowPostalCode(v);localStorage.setItem('label_showPostalCode',String(v));} },
-              { label: '電話番号を表示', value: showPhone,   onChange: (v:boolean)=>{setShowPhone(v);localStorage.setItem('label_showPhone',String(v));} },
-              { label: '代表者名を表示', value: showRep,     onChange: (v:boolean)=>{setShowRep(v);localStorage.setItem('label_showRep',String(v));}, note: '個人事業主は法的義務を確認してください' },
-              { label: '食物繊維を表示', value: showFiber,   onChange: (v:boolean)=>{setShowFiber(v);localStorage.setItem('label_showFiber',String(v));} },
-              { label: '糖質を表示',     value: showSugar,   onChange: (v:boolean)=>{setShowSugar(v);localStorage.setItem('label_showSugar',String(v));} },
-              { label: 'コレステロールを表示', value: showCholest, onChange: (v:boolean)=>{setShowCholest(v);localStorage.setItem('label_showCholest',String(v));} },
-              { label: 'お客様へのお願い・注意事項を表示', value: showQC,      onChange: (v:boolean)=>{setShowQC(v);localStorage.setItem('label_showQC',String(v));} },
-              { label: '印字コメントを表示', value: showComment, onChange: (v:boolean)=>{setShowComment(v);localStorage.setItem('label_showComment',String(v));} },
-            ].map(item => (
-              <label key={item.label} className="flex items-start gap-3 cursor-pointer">
-                <input type="checkbox" checked={item.value} onChange={e => item.onChange(e.target.checked)}
-                  className="mt-0.5 accent-brand-500" />
-                <div>
-                  <span className="text-sm font-medium text-stone-700">{item.label}</span>
-                  {item.note && <p className="text-xs text-yellow-600 mt-0.5">{item.note}</p>}
-                </div>
-              </label>
-            ))}
-          </div>
-
-          {/* ロゴ・QRサイズ調整 */}
-          <div className="card space-y-3">
-            <h2 className="section-title">ロゴ・QRコード・バーコード</h2>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" checked={showLogo} onChange={e => { setShowLogo(e.target.checked); localStorage.setItem('label_showLogo', String(e.target.checked)); }} className="accent-brand-500" />
-              <span className="text-sm font-medium text-stone-700">ロゴを表示</span>
-            </label>
-            {showLogo && (
-              <div>
-                <label className="field-label">ロゴの高さ: {logoHeightMm}mm</label>
-                <input type="range" min="4" max="20" value={logoHeightMm}
-                  onChange={e => { setLogoHeightMm(Number(e.target.value)); localStorage.setItem('label_logoHeightMm', e.target.value); }}
-                  className="w-full accent-brand-500" />
-                <div className="flex justify-between text-xs text-stone-400"><span>4mm</span><span>20mm</span></div>
-              </div>
-            )}
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" checked={showQr} onChange={e => { setShowQr(e.target.checked); localStorage.setItem('label_showQr', String(e.target.checked)); }} className="accent-brand-500" />
-              <span className="text-sm font-medium text-stone-700">QRコードを表示</span>
-            </label>
-            {showQr && (
-              <div>
-                <label className="field-label">QRコードサイズ: {qrSizeMm}mm</label>
-                <input type="range" min="4" max="20" value={qrSizeMm}
-                  onChange={e => { setQrSizeMm(Number(e.target.value)); localStorage.setItem('label_qrSizeMm', e.target.value); }}
-                  className="w-full accent-brand-500" />
-                <div className="flex justify-between text-xs text-stone-400"><span>4mm（小）</span><span>20mm（大）</span></div>
-                <p className="text-xs text-amber-600 mt-1">※6mm未満はスマホで読み込めない場合があります</p>
-              </div>
-            )}
-            <p className="text-xs text-stone-400">ロゴ・QRコードのURL自体は設定画面のまま保持されます。シールサイズが小さいときなど、この印刷ジョブだけ一時的に非表示にしたい場合はチェックを外してください。</p>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" checked={showBarcode} onChange={e => { setShowBarcode(e.target.checked); localStorage.setItem('label_showBarcode', String(e.target.checked)); }} className="accent-brand-500" />
-              <span className="text-sm font-medium text-stone-700">バーコードを表示</span>
-            </label>
-            {showBarcode && (
-              <div>
-                <label className="field-label">バーコード縦幅: {barcodeHeightMm}mm</label>
-                <input type="range" min="5" max="15" value={barcodeHeightMm}
-                  onChange={e => { setBarcodeHeightMm(Number(e.target.value)); localStorage.setItem('label_barcodeHeightMm', e.target.value); }}
-                  className="w-full accent-brand-500" />
-                <div className="flex justify-between text-xs text-stone-400"><span>5mm（細）</span><span>15mm（太）</span></div>
-                {barcodeHeightMm < 7 && showBarcodeText && (
-                  <p className="text-xs text-amber-600 mt-1">※7mm未満は数値表示ONだとリーダーで読み取れない場合があります。数値表示をOFFにすると読み取りやすくなります。</p>
-                )}
-              </div>
-            )}
-            {showBarcode && (
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" checked={showBarcodeText} onChange={e => { setShowBarcodeText(e.target.checked); localStorage.setItem('label_showBarcodeText', String(e.target.checked)); }} className="accent-brand-500" />
-                <span className="text-sm font-medium text-stone-700">バーコード数値を表示</span>
-              </label>
-            )}
-          </div>
-
-          {/* ロット番号トレーサビリティ（Proプラン限定・任意入力） */}
-          {printStats?.canUseLotTracking && (
-            <div className="card space-y-3">
-              <h2 className="section-title flex items-center gap-2">
-                <History className="w-5 h-5 text-brand-500" />
-                使用ロット番号（トレーサビリティ・任意）
-                <span className="badge bg-brand-100 text-brand-700 text-[10px] ml-1">Pro</span>
-              </h2>
-              {lots.map((lot, i) => (
-                <div key={i} className="flex gap-2">
-                  <input type="text" placeholder="食材名（例：小麦粉）" value={lot.ingredientName}
-                    onChange={e => setLots(prev => prev.map((l, idx) => idx === i ? { ...l, ingredientName: e.target.value } : l))}
-                    className="field-input flex-1" />
-                  <input type="text" placeholder="ロット番号" value={lot.lotNumber}
-                    onChange={e => setLots(prev => prev.map((l, idx) => idx === i ? { ...l, lotNumber: e.target.value } : l))}
-                    className="field-input flex-1" />
-                  <button type="button" onClick={() => setLots(prev => prev.filter((_, idx) => idx !== i))}
-                    className="p-2 text-stone-400 hover:text-red-500 flex-shrink-0">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-              <button type="button" onClick={() => setLots(prev => [...prev, { ingredientName: '', lotNumber: '' }])}
-                className="btn-secondary w-full text-sm">
-                ＋ ロットを追加
-              </button>
-              <p className="text-xs text-stone-400">
-                ここで入力した内容は「ラベルを生成」時にこの製造バッチの記録として保存されます（プレビューでは保存されません）。
-                <a href="/dashboard/lots" className="text-brand-600 hover:underline ml-1">過去のロットを検索 →</a>
-              </p>
-            </div>
-          )}
-
-          <div className="flex gap-3 pt-2">
-            <button onClick={handlePreview} disabled={loading || !recipeId}
-              className="flex-1 flex items-center justify-center gap-2 py-3 border-2 border-brand-500 text-brand-600 hover:bg-brand-50 rounded-xl font-medium transition-all">
-              <Eye className="w-5 h-5" />1枚プレビュー
-            </button>
-            <button onClick={handleGenerate} disabled={loading || !recipeId}
-              className="btn-primary flex-1 flex items-center justify-center gap-2 py-3">
-              {loading ? <><Loader2 className="w-5 h-5 animate-spin" />処理中...</> :
-                <><RefreshCw className="w-5 h-5" />ラベルを生成</>}
-            </button>
           </div>
         </div>
 
-        {/* ============ プレビュー ============ */}
-        <div className="lg:col-span-3 space-y-4">
+        {/* ============ プレビュー（設定パネルの下に全幅で表示） ============ */}
+        {/* 操作ボタン（1枚プレビュー／ラベルを生成／印刷する）は、以前は左側の設定パネルの
+            一番下にあり、プレビュー結果から離れていて分かりにくかったため、
+            プレビュー表示のすぐ上にまとめて配置している。 */}
+        <div className="space-y-4">
           <div className="card min-h-64">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
               <h2 className="section-title mb-0 flex items-center gap-2">
                 <Eye className="w-5 h-5 text-brand-500" />
                 プレビュー
               </h2>
-              {generated && (
-                <button onClick={handlePrint}
-                  className="btn-primary flex items-center gap-2 text-sm">
-                  <Printer className="w-4 h-4" />
-                  印刷する
+              <div className="flex items-center gap-2 flex-wrap">
+                <button onClick={handlePreview} disabled={loading || !recipeId}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 border-2 border-brand-500 text-brand-600 hover:bg-brand-50 rounded-xl text-sm font-medium transition-all disabled:opacity-50">
+                  <Eye className="w-4 h-4" />1枚プレビュー
                 </button>
-              )}
+                <button onClick={handleGenerate} disabled={loading || !recipeId}
+                  className="btn-primary flex items-center justify-center gap-1.5 px-3 py-2 text-sm disabled:opacity-50">
+                  {loading ? <><Loader2 className="w-4 h-4 animate-spin" />処理中...</> :
+                    <><RefreshCw className="w-4 h-4" />ラベルを生成</>}
+                </button>
+                {generated && (
+                  <button onClick={handlePrint}
+                    title={printReady ? undefined : '「1枚プレビュー」の内容は確認用です。印刷する前に「ラベルを生成」を押してください'}
+                    className={`btn-primary flex items-center gap-1.5 px-3 py-2 text-sm ${printReady ? '' : 'opacity-50'}`}>
+                    <Printer className="w-4 h-4" />
+                    印刷する
+                  </button>
+                )}
+              </div>
             </div>
 
             {warnings.length > 0 && (
@@ -1156,7 +1193,7 @@ export default function LabelsPage() {
             ) : (
               <div className="flex flex-col items-center justify-center h-48 text-stone-400">
                 <Printer className="w-12 h-12 mb-3 opacity-30" />
-                <p className="text-sm">左のパネルで設定してラベルを生成してください</p>
+                <p className="text-sm">上のパネルで設定してラベルを生成してください</p>
               </div>
             )}
           </div>

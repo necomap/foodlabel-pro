@@ -221,6 +221,14 @@ export interface LabelConfig {
   labelHeightAuto?: boolean;
   isPrecut?:       boolean;
   cutMarginMm?:    number;
+  // ラベルプリンタの印字不可能領域（プリンタードライバー側の余白設定・物理的な印字ヘッド位置など）に
+  // よって端が欠けて印刷されるのを避けるための、ラベル内側の余白（パディング）。未指定時は
+  // lib/label.tsのデフォルト値（上1.5mm・左右下2mm）を使う。ブラウザ側の@page margin:0とは別物で、
+  // あくまで「ラベル自体の枠内で、どれだけ内側に寄せて印刷するか」を指定するもの。
+  labelPaddingTopMm?:    number;
+  labelPaddingBottomMm?: number;
+  labelPaddingLeftMm?:   number;
+  labelPaddingRightMm?:  number;
   // A4プリンタ
   a4Cols?:         number;
   a4Rows?:         number;

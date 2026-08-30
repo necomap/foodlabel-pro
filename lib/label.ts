@@ -148,6 +148,32 @@ export function generateLabelContent(
 }
 
 /**
+ * b-PAC（brother QL-820NWB）不定長ラベル印刷用：製造者情報ブロックのプレーンテキストを組み立てる。
+ * generateLabelHtml内の「製造者情報」ブロック（製造者名＋代表者名／郵便番号＋電話／住所／メール。
+ * 郵便番号と電話は縦幅節約のため同じ行にまとめている）と同じ情報・同じ並び順にすること。
+ * ただしこちらはHTMLではなくb-PACのテキストオブジェクトへ
+ * そのまま流し込むプレーンテキストなので、<br>ではなく改行文字(\n)で区切り、HTMLエスケープは行わない。
+ * ロゴ・QRコードは今回のb-PAC印刷では固定画像オブジェクトのまま変更しない方針のため、ここには含めない
+ * （引き継ぎ文書4章・「HP URL行は除外でOK」の合意通り）。
+ */
+export function buildManufacturerBlockText(content: LabelContent): string {
+  const lines: string[] = [];
+
+  lines.push(
+    content.representative
+      ? `製造者：${content.manufacturerName}　${content.representative}`
+      : `製造者：${content.manufacturerName}`
+  );
+
+  const postalAndPhone = [content.postalCode ?? '', content.phone ? `TEL ${content.phone}` : ''].filter(Boolean).join('　');
+  if (postalAndPhone) lines.push(postalAndPhone);
+  if (content.address) lines.push(content.address);
+  if (content.email) lines.push(content.email);
+
+  return lines.join('\n');
+}
+
+/**
  * ラベルHTMLを生成する（印刷用）
  * @param content - ラベル内容
  * @param config - 印刷設定
@@ -393,6 +419,22 @@ export function generateLabelHtml(
   // 守らせるため、max-width指定は撤廃し、幅はこのbarcodeWidthMmだけで決める。
   const barcodeWidthMm = Math.min(Math.max(Math.round(width * 0.7 * 10) / 10, 25), 45);
 
+  // ラベルプリンタの印字不可能領域（プリンタードライバーの余白設定・物理的な印字ヘッド位置など）で
+  // 端が欠けて印刷されるのを防ぐための内側の余白。ブラウザ印刷（@page margin:0）はプリンタードライバー
+  // 側が申告する余白を上書きできないため、アプリ側でコンテンツを少し内側に寄せることで対処する。
+  // 上方向はプリンター側の「前余白」設定（多くの場合3mm前後が下限）と二重に効いて無駄に長くなり
+  // やすいため控えめな既定値、左右・下は現物合わせで欠けやすかったQR・バーコード周りを優先して
+  // やや広めの既定値にしている。実機で測って合わなければlabelPadding*Mmで調整する。
+  const labelPaddingTopMm    = Math.max((config as any).labelPaddingTopMm    ?? 1.2, 0);
+  const labelPaddingBottomMm = Math.max((config as any).labelPaddingBottomMm ?? 2,   0);
+  const labelPaddingLeftMm   = Math.max((config as any).labelPaddingLeftMm   ?? 2,   0);
+  const labelPaddingRightMm  = Math.max((config as any).labelPaddingRightMm  ?? 2,   0);
+  // A4シールは従来通り固定1.2mm（A4は用紙側のmarginTopMm等で別途位置調整済みのため、
+  // ここまで広い内側余白は不要。ラベルプリンタ・その他デバイスのみ上記の余白を使う）。
+  const labelInnerPadding = config.deviceType === 'A4_PRINTER'
+    ? '1.2mm'
+    : `${labelPaddingTopMm}mm ${labelPaddingRightMm}mm ${labelPaddingBottomMm}mm ${labelPaddingLeftMm}mm`;
+
   const escHtml = (s: string) =>
     s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -440,13 +482,10 @@ export function generateLabelHtml(
   <div style="margin-bottom:0.3mm;">
     <span style="font-weight:bold;">原材料名：</span>${escHtml(content.ingredientsText)}
   </div>
-  <!-- 内容量 -->
-  <div style="margin-bottom:0.3mm;">
-    <span style="font-weight:bold;">内容量：</span>${escHtml(content.contentAmount)}
-  </div>
-  <!-- 賞味期限 -->
-  <div style="margin-bottom:0.3mm;">
-    <span style="font-weight:bold;">${escHtml(content.expiryType)}：</span>${escHtml(content.expiryDate)}
+  <!-- 内容量・賞味期限/消費期限（縦幅節約のため同じ行にまとめる） -->
+  <div style="margin-bottom:0.3mm; display:flex; flex-wrap:wrap; column-gap:3mm;">
+    <span><span style="font-weight:bold;">内容量：</span>${escHtml(content.contentAmount)}</span>
+    <span><span style="font-weight:bold;">${escHtml(content.expiryType)}：</span>${escHtml(content.expiryDate)}</span>
   </div>
   <!-- 保存方法 -->
   <div style="margin-bottom:0.3mm;">
@@ -464,7 +503,11 @@ export function generateLabelHtml(
   </div>` : '';
 
   // 注意事項（コメント＋お客様へのお願い）
-  const noteHtml = (content.comment || content.qualityControl) ? `<div style="border:0.3mm solid #ccc; padding:0.5mm 1mm; margin-bottom:0.3mm;">
+  // 以前はborder+paddingで枠囲みにしていたが不要と判断し撤廃。枠の分の余白（padding上下計1mm）が
+  // なくなった分、コメントが1行だけ（品質管理事項が未設定）の場合でも、その下の製造者情報等が
+  // 自動的に詰まるようになる（固定の高さを確保していたわけではなく、枠と余白が視覚的に間延び
+  // して見えていただけなので、コード上は特別な「2行分の高さ確保」処理はしていなかった）。
+  const noteHtml = (content.comment || content.qualityControl) ? `<div style="margin-bottom:0.3mm;">
     ${content.comment ? `<div>${escHtml(content.comment)}</div>` : ''}
     ${content.qualityControl ? `<div>${escHtml(content.qualityControl)}</div>` : ''}
   </div>` : '';
@@ -488,7 +531,7 @@ export function generateLabelHtml(
   font-size:${fontSize}pt;
   font-family: ${resolveFontFamily(config.fontFamily)};
   line-height: 1.15;
-  padding: 1.2mm;
+  padding: ${labelInnerPadding};
   border: none;
   box-sizing: border-box;
   break-inside: avoid;
@@ -504,9 +547,8 @@ export function generateLabelHtml(
   <div style="margin-top:0.3mm; border-top:0.3mm solid #ccc; padding-top:0.3mm; display:flex; align-items:flex-start; justify-content:space-between; gap:1mm;">
     <div style="flex:1; word-break:break-all; overflow-wrap:break-word; line-height:1.15;">
     <span style="font-weight:bold;">製造者：</span>${escHtml(content.manufacturerName)}${content.representative ? '　' + escHtml(content.representative) : ''}
-    ${content.postalCode ? '<br>' + escHtml(content.postalCode) : ''}
+    ${(content.postalCode || content.phone) ? '<br>' + [content.postalCode ? escHtml(content.postalCode) : '', content.phone ? 'TEL ' + escHtml(content.phone) : ''].filter(Boolean).join('　') : ''}
     ${content.address ? '<br>' + escHtml(content.address) : ''}
-    ${content.phone ? '<br>TEL ' + escHtml(content.phone) : ''}
     ${content.email ? '<br>' + escHtml(content.email) : ''}
     </div>
     ${(content.logoUrl || content.qrUrl) ? `<div style="display:flex;flex-direction:row;align-items:center;gap:0.5mm;flex-shrink:0;">

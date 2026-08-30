@@ -41,6 +41,7 @@ model User {
   // 任意設定で、未設定ならダッシュボードのラベル印刷画面に「b-PAC印刷」ボタンを表示しない。
   bpacTemplatePath     String?            @db.VarChar(500)
   adminLogs            AdminLog[]
+  data_transfer_logs   data_transfer_logs[]
   ingredients          Ingredient[]
   ingredientPurchaseSettings IngredientPurchaseSetting[]
   label_print_logs     label_print_logs[]
@@ -451,6 +452,19 @@ model label_print_logs {
   users      User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([userId, createdAt], map: "idx_label_print_logs_user_date")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+// 2026-08新設: Excelインポート・エクスポートの月間回数カウント用（プレミアム/プロの差別化）。
+// label_print_logsと同じ構成。typeは'export'または'import'。
+model data_transfer_logs {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String
+  type      String   @db.VarChar(10)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  users     User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([userId, type, createdAt], map: "idx_data_transfer_logs_user_type_date")
 }
 
 enum UserPlan {

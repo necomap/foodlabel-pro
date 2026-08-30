@@ -30,6 +30,9 @@ export default function ImportExportPage() {
       if (data.success) {
         setResult(data.data);
         toast.success(`インポート完了: ${data.data?.imported ?? 0}件追加、${data.data?.skipped ?? 0}件スキップ`);
+      } else if (data.upgradeRequired) {
+        toast.error(data.error ?? 'この操作にはプランのアップグレードが必要です。');
+        window.location.href = '/dashboard/upgrade';
       } else {
         toast.error(data.error ?? 'インポートに失敗しました');
       }
@@ -44,11 +47,11 @@ export default function ImportExportPage() {
       if (!res.ok) {
         try {
           const errData = await res.json();
+          // 2026-08: 「プランが足りない」と「今月の回数上限に達した」で文言が異なるため、
+          // 固定文言ではなくサーバーが返すerrorメッセージをそのまま表示するように変更。
+          toast.error(errData.error ?? 'エクスポートに失敗しました');
           if (errData.upgradeRequired) {
-            toast.error('Excelエクスポートはプレミアムプランの機能です。アップグレードしてください。');
             window.location.href = '/dashboard/upgrade';
-          } else {
-            toast.error(errData.error ?? 'エクスポートに失敗しました');
           }
         } catch {
           toast.error('エクスポートに失敗しました');

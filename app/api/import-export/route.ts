@@ -5,7 +5,7 @@
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getPlanLimits } from '@/lib/plan-limits';
+import { getPlanLimits, getMonthlyDataTransferCount, logDataTransfer } from '@/lib/plan-limits';
 import { prisma } from '@/lib/db';
 import { parseExcelFile, exportRecipesToExcel, toFullWidth } from '@/lib/excel-import-export';
 import { detectAllergens } from '@/lib/allergen';
@@ -24,6 +24,31 @@ export async function POST(request: Request) {
   const overwrite  = formData.get('overwrite')  === 'true';
   const clearAll   = formData.get('clearAll')   === 'true';
 
+  // プラン制限チェック（インポート機能自体の利用可否・月間回数）
+  // 2026-08: 以前はここに判定が無く、フリープランでもインポートが使えてしまっていた
+  // （レシピ件数の上限だけが実質的な歯止めになっていた）。エクスポートと同様に
+  // プレミアムプラン以上限定＋月間回数制限を設ける。全削除より前に判定することで、
+  // 上限に達しているユーザーが「全データをクリアして上書き」を選んだ場合に
+  // データだけ消えてインポートは弾かれる、という事態を避ける。
+  const importLimits = getPlanLimits(session.user.plan ?? 'free');
+  if (!importLimits.canExport) {
+    return NextResponse.json({
+      success: false,
+      error: 'インポート機能はプレミアムプラン以上でご利用いただけます。',
+      upgradeRequired: true,
+    }, { status: 403 });
+  }
+  if (importLimits.maxImportsPerMonth !== Infinity) {
+    const monthlyImportCount = await getMonthlyDataTransferCount(session.user.id, 'import');
+    if (monthlyImportCount >= importLimits.maxImportsPerMonth) {
+      return NextResponse.json({
+        success: false,
+        error: `プレミアムプランのインポートは月${importLimits.maxImportsPerMonth}回までです（今月分はご利用済みです）。プロプランなら回数無制限でご利用いただけます。`,
+        upgradeRequired: true,
+      }, { status: 403 });
+    }
+  }
+
   // 全上書きの場合は先に全削除
   if (clearAll) {
     await prisma.$executeRaw`
@@ -32,7 +57,6 @@ export async function POST(request: Request) {
   }
 
 // プラン制限チェック（レシピ件数）
-  const importLimits = getPlanLimits(session.user.plan ?? 'free');
   let importLimit = Infinity;
   if (importLimits.maxRecipes !== Infinity) {
     if (clearAll) {
@@ -44,9 +68,14 @@ export async function POST(request: Request) {
       ` as any[];
       const currentCount = Number(recipeCountResult[0]?.count ?? 0);
       if (currentCount >= importLimits.maxRecipes) {
+        // 2026-08修正: このチェックはインポート機能自体がフリープランでは使えなくなった
+        // （上のcanExportチェックで先に弾かれる）ため、実質プレミアムプラン（上限100件）
+        // のユーザーしか到達しない。以前は常に「フリープランの上限」と表示していたが、
+        // 現在のプラン名と正しいアップグレード先（プロプラン）を表示するよう修正。
+        const planLabel = (session.user.plan ?? 'free') === 'premium' ? 'プレミアムプラン' : 'フリープラン';
         return NextResponse.json({
           success: false,
-          error: `フリープランのレシピ上限（${importLimits.maxRecipes}件）に達しています。プレミアムプランにアップグレードしてください。`,
+          error: `${planLabel}のレシピ上限（${importLimits.maxRecipes}件）に達しています。プロプランならレシピ登録数は無制限です。`,
           upgradeRequired: true,
         }, { status: 403 });
       }
@@ -287,6 +316,9 @@ export async function POST(request: Request) {
     }
   }
 
+  // インポート回数を記録（プレミアム/プロの月間回数カウント用）
+  await logDataTransfer(session.user.id, 'import');
+
   return NextResponse.json({
     success:  true,
     data:     { imported, skipped, total: parsedRecipes.length, errors, warnings },
@@ -308,6 +340,17 @@ export async function GET(request: Request) {
       error: 'Excelエクスポートはプレミアムプランの機能です。',
       upgradeRequired: true,
     }, { status: 403 });
+  }
+  // 2026-08: プロプランとの差別化のため、プレミアムは月間回数の上限を設ける
+  if (limits.maxExportsPerMonth !== Infinity) {
+    const monthlyExportCount = await getMonthlyDataTransferCount(session.user.id, 'export');
+    if (monthlyExportCount >= limits.maxExportsPerMonth) {
+      return NextResponse.json({
+        success: false,
+        error: `プレミアムプランのエクスポートは月${limits.maxExportsPerMonth}回までです（今月分はご利用済みです）。プロプランなら回数無制限でご利用いただけます。`,
+        upgradeRequired: true,
+      }, { status: 403 });
+    }
   }
 
   const { searchParams } = new URL(request.url);
@@ -390,6 +433,9 @@ export async function GET(request: Request) {
     includeCost,
     categoryFilter,
   });
+
+  // エクスポート回数を記録（プレミアム/プロの月間回数カウント用）
+  await logDataTransfer(session.user.id, 'export');
 
   return new Response(Buffer.from(excelBuffer), {
     headers: {

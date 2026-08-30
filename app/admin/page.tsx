@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { INGREDIENT_REJECTION_REASONS } from '@/lib/ingredient-rejection-reasons';
+import UpdateNotesManager from './_update-notes-manager';
 
 interface Stats {
   totalUsers: number; premiumUsers: number; proUsers: number;
@@ -125,6 +126,9 @@ export default function AdminPage() {
           })}
         </div>
       )}
+
+      {/* 更新情報（お知らせ）管理 */}
+      <UpdateNotesManager />
 
       {/* 成分表マスタ更新 */}
       <div className="card">

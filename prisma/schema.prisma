@@ -421,6 +421,22 @@ model AdminLog {
   @@map("admin_logs")
 }
 
+// 2026-08 更新情報（お知らせ）機能。ユーザー数が増えてきたため、仕様変更・新機能・不具合修正などを
+// ある程度まとめてダッシュボードの「更新情報」ページに掲示できるようにする。
+// publishedAtがnullの間は下書きで管理画面にのみ表示され、ユーザー向け一覧（/api/update-notes）には
+// 出ない。一度公開したあと下書きに戻す→再公開すると、publishedAtは再公開時刻に更新される。
+model UpdateNote {
+  id          String    @id @default(uuid())
+  title       String    @db.VarChar(200)
+  body        String
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([publishedAt])
+  @@map("update_notes")
+}
+
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model label_print_logs {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid

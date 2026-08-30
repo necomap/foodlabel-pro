@@ -53,8 +53,13 @@ export async function printFoodLabel(templatePath: string, content: LabelContent
 
   let bpac: any;
   try {
-    // Next.jsのビルド時解決を避け、ブラウザのネイティブdynamic importとしてpublic/bpac.jsを読み込む
-    bpac = await import(/* webpackIgnore: true */ '/bpac.js');
+    // Next.jsのビルド時解決を避け、ブラウザのネイティブdynamic importとしてpublic/bpac.jsを読み込む。
+    // 2026-08修正: webpackIgnoreコメントはwebpack（バンドル）には効くが、next buildの型チェック
+    // （tsc）には効かず、import()の引数が文字列リテラルだと「Cannot find module '/bpac.js'」で
+    // ビルドが落ちていた。パスを変数に切り出す（リテラルでなくす）ことで、TypeScriptがこの
+    // dynamic importの型解決自体をスキップするようにし、ビルドエラーを回避する。
+    const bpacJsPath = '/bpac.js';
+    bpac = await import(/* webpackIgnore: true */ bpacJsPath);
   } catch {
     return { success: false, error: 'bpac.jsの読み込みに失敗しました（public/bpac.js が配置されているか確認してください）' };
   }

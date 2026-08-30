@@ -144,7 +144,7 @@ function ProfileTab() {
       <div>
         <label className="field-label">テンプレートファイル（.lbx）のパス</label>
         <input type="text" value={profile.bpacTemplatePath} onChange={e=>setProfile(p=>({...p,bpacTemplatePath:e.target.value}))} className="field-input font-mono text-sm"
-          placeholder={'例: F:\\★My Labels\\食品表示ラベル62mm.lbx'} />
+          placeholder={'例: F:\\My Labels\\食品表示ラベル62mm.lbx'} />
         <p className="field-hint">このPC上の絶対パスです。他のPCでb-PAC印刷を使う場合は、そのPC側でこの設定を入力し直してください。</p>
       </div>
 

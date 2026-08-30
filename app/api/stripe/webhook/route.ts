@@ -117,6 +117,49 @@ export async function POST(request: Request) {
         }
         break;
       }
+
+      // 2026-08新設: 返金対応。
+      // 重要: Stripeでは「返金（refund）」と「サブスクリプションの解約」は別々の操作。
+      // ダッシュボードで返金ボタンを押しただけではサブスクリプションはactiveのまま残り、
+      // customer.subscription.deleted/updatedは飛ばないため、それまでのcaseだけでは
+      // 「返金したのに契約期間の終わりまでプレミアム/プロが使えてしまう」状態になっていた
+      // （このコメントを書くきっかけになった実際の不具合報告）。
+      // 全額返金の場合のみ、Stripe側のサブスクリプションもこちらから明示的に解約し、
+      // ユーザーのplanも即座にfreeへ戻す。部分返金（一部だけの返金対応など）では
+      // 契約を維持したいケースもあるため、自動解約はしない。
+      // 注意: Stripeダッシュボードのwebhookエンドポイント設定で、購読イベントに
+      // 「charge.refunded」を追加していないとこのcaseには届かないので、追加が必要。
+      case 'charge.refunded': {
+        const charge = event.data.object as Stripe.Charge;
+        const isFullRefund = charge.amount_refunded >= charge.amount;
+        if (!isFullRefund) break;
+
+        const invoiceId = typeof charge.invoice === 'string' ? charge.invoice : charge.invoice?.id;
+        if (!invoiceId) break; // サブスクリプションの請求に紐づかない返金（該当なし）は何もしない
+
+        const invoice = await stripe.invoices.retrieve(invoiceId);
+        const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
+        if (!subscriptionId) break;
+
+        // Stripe側のサブスクリプションを解約（返金だけでは解約されないため、こちらから明示的に）。
+        // 既に何らかの理由で解約済みの場合はエラーになるが、その場合は無視して続行してよい
+        // （下のDB更新はどのみち実行し、User.planをfreeに戻す）。
+        try {
+          await stripe.subscriptions.cancel(subscriptionId);
+        } catch (e) {
+          console.warn('返金に伴うサブスクリプション解約に失敗（既に解約済みの可能性）:', e);
+        }
+
+        const existingForRefund = await prisma.subscription.findUnique({ where: { stripeSubscriptionId: subscriptionId } });
+        if (existingForRefund) {
+          await prisma.subscription.update({
+            where: { stripeSubscriptionId: subscriptionId },
+            data: { status: 'canceled', plan: 'free' },
+          });
+          await prisma.user.update({ where: { id: existingForRefund.userId }, data: { plan: 'free' } });
+        }
+        break;
+      }
     }
     return NextResponse.json({ received: true });
   } catch (err) {

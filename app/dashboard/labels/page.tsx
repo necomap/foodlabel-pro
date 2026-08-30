@@ -5,9 +5,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Printer, RefreshCw, Settings, AlertTriangle, ChevronLeft, ChevronDown, Eye, Loader2, CheckCircle2, Info, Bookmark, Save, Trash2, Lock, History } from 'lucide-react';
+import { Printer, RefreshCw, Settings, AlertTriangle, ChevronLeft, ChevronDown, Eye, Loader2, CheckCircle2, Info, Bookmark, Save, Trash2, Lock, History, Usb } from 'lucide-react';
 import toast from 'react-hot-toast';
-import type { LabelTemplateConfig } from '@/types';
+import type { LabelTemplateConfig, LabelContent } from '@/types';
+import { printFoodLabel } from '@/lib/bpac-print';
 
 interface RecipeOption { id: string; name: string; variationName?: string | null; shelfLifeDays: number | null; shelfLifeType: string; contentAmount: string | null; }
 interface ShopOption   { id: string; shopName: string; isDefault: boolean; }
@@ -83,6 +84,13 @@ export default function LabelsPage() {
   const [zoom, setZoom] = useState(100);
   const [printStats, setPrintStats] = useState<{used: number; limit: number; resetDate: string; isPremium: boolean; todayCount: number; canUseLotTracking?: boolean} | null>(null);
 
+  // b-PAC連携（Windows＋Brother QL-820NWB限定・任意）。設定画面でテンプレートパスが
+  // 入力されている場合のみ「b-PAC印刷」ボタンを表示する。labelContentは「ラベルを生成」で
+  // 得た構造化データ（HTMLではなくbpac.jsに差し込む用）で、printReadyがtrueの間だけ使う。
+  const [bpacTemplatePath, setBpacTemplatePath] = useState('');
+  const [labelContent, setLabelContent] = useState<LabelContent | null>(null);
+  const [bpacPrinting, setBpacPrinting] = useState(false);
+
   // ロット番号トレーサビリティ（Proプラン限定・任意入力）
   const [lots, setLots] = useState<Array<{ ingredientName: string; lotNumber: string }>>([]);
 
@@ -141,6 +149,12 @@ export default function LabelsPage() {
   const [showBarcode,     setShowBarcode]     = useState(true);
   const [barcodeHeightMm, setBarcodeHeightMm] = useState(7);
   const [showBarcodeText, setShowBarcodeText] = useState(true);
+  // ラベル内側の余白（ラベルプリンタのみ・実機での欠け具合に応じて調整する用）。
+  // 未調整の場合はサーバー側の既定値（上1.2mm・左右下各2mm）がそのまま使われる。
+  const [labelPaddingTopMm,    setLabelPaddingTopMm]    = useState(3);
+  const [labelPaddingBottomMm, setLabelPaddingBottomMm] = useState(2);
+  const [labelPaddingLeftMm,   setLabelPaddingLeftMm]   = useState(2);
+  const [labelPaddingRightMm,  setLabelPaddingRightMm]  = useState(2);
   // 識別マーク（リサイクルマーク）：選択中のマーク一覧・マークごとの役割名・マーク自体のサイズ（バーコードとは別設定）
   const [recycleMarks,        setRecycleMarks]        = useState<string[]>([]);
   const [recycleMarkRoles,    setRecycleMarkRoles]    = useState<Record<string,string>>({});
@@ -250,6 +264,10 @@ export default function LabelsPage() {
     if (getL('showBarcodeText') !== null) setShowBarcodeText(getL('showBarcodeText') !== 'false');
     if (getL('packageWidthMm') !== null)  setPackageWidthMm(getL('packageWidthMm')!);
     if (getL('packageHeightMm') !== null) setPackageHeightMm(getL('packageHeightMm')!);
+    if (getL('labelPaddingTopMm'))    setLabelPaddingTopMm(Number(getL('labelPaddingTopMm')));
+    if (getL('labelPaddingBottomMm')) setLabelPaddingBottomMm(Number(getL('labelPaddingBottomMm')));
+    if (getL('labelPaddingLeftMm'))   setLabelPaddingLeftMm(Number(getL('labelPaddingLeftMm')));
+    if (getL('labelPaddingRightMm'))  setLabelPaddingRightMm(Number(getL('labelPaddingRightMm')));
   }, [searchParams]);
 
   useEffect(() => {
@@ -263,6 +281,12 @@ export default function LabelsPage() {
     fetch('/api/label-templates')
       .then(r => r.json())
       .then(d => { if (d.success) { setCanUseTemplates(d.data.canUse); setLabelTemplates(d.data.templates); } })
+      .catch(() => {});
+
+    // b-PACテンプレートパス（設定画面で入力されていれば「b-PAC印刷」ボタンを出す）
+    fetch('/api/user/profile')
+      .then(r => r.json())
+      .then(d => { if (d.success && d.data?.bpacTemplatePath) setBpacTemplatePath(d.data.bpacTemplatePath); })
       .catch(() => {});
 
     // レシピ一覧を取得
@@ -449,6 +473,10 @@ export default function LabelsPage() {
           labelWidthMm:  parseFloat(labelW),
           labelHeightMm: parseFloat(labelH),
           labelHeightAuto,
+          labelPaddingTopMm,
+          labelPaddingBottomMm,
+          labelPaddingLeftMm,
+          labelPaddingRightMm,
         } : {
           a4Cols:       parseInt(a4Cols),
           a4Rows:       parseInt(a4Rows),
@@ -491,6 +519,7 @@ export default function LabelsPage() {
         setWarnings(data.data.warnings ?? []);
         setGenerated(true);
         setPrintReady(false); // プレビューHTMLには警告バッジが焼き込まれる可能性があるため、そのままの印刷は許可しない
+        setLabelContent(null); // b-PAC印刷もプレビュー由来のデータでは行わせない（下のhandleGenerateでのみセットする）
         if (data.data.warnings?.length > 0) toast.error(`${data.data.warnings.length}件の警告があります（内容を確認してください）`);
         else toast.success('プレビューを生成しました（印刷枚数にカウントされません）');
       } else {
@@ -527,6 +556,10 @@ export default function LabelsPage() {
           labelWidthMm:  parseFloat(labelW),
           labelHeightMm: parseFloat(labelH),
           labelHeightAuto,
+          labelPaddingTopMm,
+          labelPaddingBottomMm,
+          labelPaddingLeftMm,
+          labelPaddingRightMm,
         } : {
           a4Cols:       parseInt(a4Cols),
           a4Rows:       parseInt(a4Rows),
@@ -570,6 +603,7 @@ export default function LabelsPage() {
         setWarnings(data.data.warnings ?? []);
         setGenerated(true);
         setPrintReady(true); // isPreview:falseで生成した、警告バッジの入らない印刷用HTML
+        setLabelContent(data.data.content ?? null); // b-PAC印刷用の構造化データ（HTMLではなくオブジェクト単位で差し込む）
         if (data.data.warnings?.length > 0) toast.error(`${data.data.warnings.length}件の警告があります`);
         else toast.success('ラベルを生成しました');
       } else {
@@ -590,6 +624,24 @@ export default function LabelsPage() {
     win.document.write(previewHtml);
     win.document.close();
     win.onload = () => { win.focus(); win.print(); };
+  };
+
+  // b-PAC経由の不定長印刷（Windows＋Brother QL-820NWB限定・任意設定）。
+  // ブラウザ印刷（handlePrint、HTML）とは別系統で、構造化データ（labelContent）をP-touch Editor
+  // テンプレートのオブジェクトへ直接差し込んで印刷する（詳細はlib/bpac-print.ts参照）。
+  const handleBpacPrint = async () => {
+    if (!printReady || !labelContent) {
+      toast.error('先に「ラベルを生成」を押してください');
+      return;
+    }
+    setBpacPrinting(true);
+    try {
+      const result = await printFoodLabel(bpacTemplatePath, labelContent);
+      if (result.success) toast.success('b-PACで印刷しました');
+      else toast.error(result.error ?? 'b-PAC印刷に失敗しました');
+    } finally {
+      setBpacPrinting(false);
+    }
   };
 
   return (
@@ -1060,6 +1112,39 @@ export default function LabelsPage() {
                     このチェックとは関係ありません。ブラウザの印刷ダイアログの用紙サイズ選択より、ドライバ側の設定が優先されることがあります。
                   </p>
                 )}
+                <div className="pt-2 border-t border-stone-200">
+                  <label className="field-label">内側の余白調整（実機の欠け具合に合わせて調整）</label>
+                  <p className="text-xs text-stone-400 mb-2">
+                    プリンタードライバー側の余白設定と合わせて二重にならないよう、少し控えめな初期値にしています。
+                    上端が欠ける／余白が広すぎる等ある場合は、実際に印刷しながらここで調整してください。
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-stone-500">↑ 上余白: {labelPaddingTopMm}mm</label>
+                      <input type="range" min="0" max="8" step="0.1" value={labelPaddingTopMm}
+                        onChange={e => { setLabelPaddingTopMm(Number(e.target.value)); localStorage.setItem('label_labelPaddingTopMm', e.target.value); }}
+                        className="w-full accent-brand-500" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-stone-500">↓ 下余白: {labelPaddingBottomMm}mm</label>
+                      <input type="range" min="0" max="8" step="0.1" value={labelPaddingBottomMm}
+                        onChange={e => { setLabelPaddingBottomMm(Number(e.target.value)); localStorage.setItem('label_labelPaddingBottomMm', e.target.value); }}
+                        className="w-full accent-brand-500" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-stone-500">← 左余白: {labelPaddingLeftMm}mm</label>
+                      <input type="range" min="0" max="8" step="0.1" value={labelPaddingLeftMm}
+                        onChange={e => { setLabelPaddingLeftMm(Number(e.target.value)); localStorage.setItem('label_labelPaddingLeftMm', e.target.value); }}
+                        className="w-full accent-brand-500" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-stone-500">→ 右余白: {labelPaddingRightMm}mm</label>
+                      <input type="range" min="0" max="8" step="0.1" value={labelPaddingRightMm}
+                        onChange={e => { setLabelPaddingRightMm(Number(e.target.value)); localStorage.setItem('label_labelPaddingRightMm', e.target.value); }}
+                        className="w-full accent-brand-500" />
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="space-y-3">
@@ -1155,6 +1240,17 @@ export default function LabelsPage() {
                     className={`btn-primary flex items-center gap-1.5 px-3 py-2 text-sm ${printReady ? '' : 'opacity-50'}`}>
                     <Printer className="w-4 h-4" />
                     印刷する
+                  </button>
+                )}
+                {/* b-PAC印刷（Windows＋Brother QL-820NWB限定）。設定画面でテンプレートパスを
+                    入力したユーザーにのみ表示する任意機能。ラベルプリンタ選択時のみ意味があるため
+                    deviceType === 'LABEL_PRINTER' でも絞り込む。 */}
+                {generated && bpacTemplatePath && deviceType === 'LABEL_PRINTER' && (
+                  <button onClick={handleBpacPrint} disabled={bpacPrinting}
+                    title={printReady ? 'b-PAC経由でBrotherプリンターに不定長印刷します' : '印刷する前に「ラベルを生成」を押してください'}
+                    className={`btn-secondary flex items-center gap-1.5 px-3 py-2 text-sm disabled:opacity-50 ${printReady ? '' : 'opacity-50'}`}>
+                    {bpacPrinting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Usb className="w-4 h-4" />}
+                    b-PAC印刷
                   </button>
                 )}
               </div>

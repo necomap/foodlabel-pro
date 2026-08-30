@@ -36,6 +36,10 @@ model User {
   electricityUnitPrice Decimal?           @db.Decimal(6, 2)  // 電力量単価（円/kWh）
   ovenPowerKw          Decimal?           @db.Decimal(5, 2)  // オーブンの消費電力（kW）
   ovenSteamExtraKw     Decimal?           @db.Decimal(5, 2)  // スチームON時に上乗せする消費電力（kW・任意）
+  // 2026-08 b-PAC連携（brother QL-820NWB不定長ラベル印刷）用。ユーザーのPC上にあるP-touch Editor
+  // テンプレート（.lbx）ファイルの絶対パス。Windows＋Brother b-PAC Extension導入済みユーザーのみ使う
+  // 任意設定で、未設定ならダッシュボードのラベル印刷画面に「b-PAC印刷」ボタンを表示しない。
+  bpacTemplatePath     String?            @db.VarChar(500)
   adminLogs            AdminLog[]
   ingredients          Ingredient[]
   ingredientPurchaseSettings IngredientPurchaseSetting[]

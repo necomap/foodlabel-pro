@@ -174,6 +174,15 @@ export function buildManufacturerBlockText(content: LabelContent): string {
 }
 
 /**
+ * b-PAC不定長ラベル印刷用：注意事項ブロック（コメント＋品質管理事項）のプレーンテキストを組み立てる。
+ * generateLabelHtml内のnoteHtml（コメントを1行目、品質管理事項を2行目。どちらも未設定ならその行は
+ * 出さない）と同じ内容・同じ並び順にすること。テンプレート側のオブジェクト名は`comment`。
+ */
+export function buildCommentBlockText(content: LabelContent): string {
+  return [content.comment, content.qualityControl].filter(Boolean).join('\n');
+}
+
+/**
  * ラベルHTMLを生成する（印刷用）
  * @param content - ラベル内容
  * @param config - 印刷設定
@@ -422,10 +431,12 @@ export function generateLabelHtml(
   // ラベルプリンタの印字不可能領域（プリンタードライバーの余白設定・物理的な印字ヘッド位置など）で
   // 端が欠けて印刷されるのを防ぐための内側の余白。ブラウザ印刷（@page margin:0）はプリンタードライバー
   // 側が申告する余白を上書きできないため、アプリ側でコンテンツを少し内側に寄せることで対処する。
-  // 上方向はプリンター側の「前余白」設定（多くの場合3mm前後が下限）と二重に効いて無駄に長くなり
-  // やすいため控えめな既定値、左右・下は現物合わせで欠けやすかったQR・バーコード周りを優先して
-  // やや広めの既定値にしている。実機で測って合わなければlabelPadding*Mmで調整する。
-  const labelPaddingTopMm    = Math.max((config as any).labelPaddingTopMm    ?? 1.2, 0);
+  // 実機（Brother QL-820NWB＋P-touch系ドライバー）で測定した結果、上方向は3mmが実際の既定値
+  // として合っていた（当初は「プリンター側の前余白と二重に効く」想定で1.2mmに抑えていたが、
+  // 実測で上端の余白が足りなかったため3mmに変更）。左右・下は現物合わせで欠けやすかった
+  // QR・バーコード周りを優先してやや広めの既定値にしている。実機で測って合わなければ
+  // 設定画面の余白調整スライダー（labelPadding*Mm）で調整する。
+  const labelPaddingTopMm    = Math.max((config as any).labelPaddingTopMm    ?? 3,   0);
   const labelPaddingBottomMm = Math.max((config as any).labelPaddingBottomMm ?? 2,   0);
   const labelPaddingLeftMm   = Math.max((config as any).labelPaddingLeftMm   ?? 2,   0);
   const labelPaddingRightMm  = Math.max((config as any).labelPaddingRightMm  ?? 2,   0);
@@ -468,8 +479,12 @@ export function generateLabelHtml(
   }).join('');
   // 無定長ロール時は高さを固定しない（内容ぶんだけ伸びて、その長さでカットされる）。
   // それ以外（固定サイズのラベル・A4）は従来どおり min/max 両方を固定してoverflow:hiddenで収める。
+  // 以前はここに min-height: ${height}mm を設定していたが、heightは「目安の高さ」であり実際の
+  // 印刷長の下限ではないため、内容がその目安より短い場合に余分な空白（特にバーコード下）が
+  // 生まれてしまう不具合になっていた。無定長時は高さ指定を一切行わず、内容ぶんだけで自然に
+  // 収まるようにする。
   const labelHeightStyle = labelHeightAuto
-    ? `min-height: ${height}mm;`
+    ? ''
     : `min-height: ${height}mm;\n  max-height: ${height}mm;\n  overflow: hidden;`;
 
   // 名称〜保存方法（法令上必須の基本項目）

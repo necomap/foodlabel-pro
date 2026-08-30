@@ -13,6 +13,8 @@ export async function GET() {
       id: true, email: true, companyName: true, representative: true, postalCode: true, address: true, phone: true, plan: true,
       // 電気代目安計算の設定（全プラン共通）
       electricityUnitPrice: true, ovenPowerKw: true, ovenSteamExtraKw: true,
+      // b-PAC連携（Windows＋Brother QL-820NWB限定・任意）
+      bpacTemplatePath: true,
     },
   });
 
@@ -46,6 +48,8 @@ export async function PUT(request: Request) {
       electricityUnitPrice: body.electricityUnitPrice != null && body.electricityUnitPrice !== '' ? Number(body.electricityUnitPrice) : null,
       ovenPowerKw:           body.ovenPowerKw           != null && body.ovenPowerKw           !== '' ? Number(body.ovenPowerKw)           : null,
       ovenSteamExtraKw:      body.ovenSteamExtraKw      != null && body.ovenSteamExtraKw      !== '' ? Number(body.ovenSteamExtraKw)      : null,
+      // b-PAC連携テンプレートパス（Windows＋Brother QL-820NWB限定・任意）。同上の理由で明示的にnullを渡す。
+      bpacTemplatePath: body.bpacTemplatePath != null && body.bpacTemplatePath !== '' ? String(body.bpacTemplatePath).trim() : null,
     },
   });
 

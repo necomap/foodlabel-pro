@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { Loader2, Plus, Store, User, Tag, CheckCircle2, Trash2, AlertTriangle, Edit2, GripVertical, Zap } from 'lucide-react';
+import { Loader2, Plus, Store, User, Tag, CheckCircle2, Trash2, AlertTriangle, Edit2, GripVertical, Zap, Printer } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface Shop { id: string; shopName: string; companyName: string|null; representative: string|null; postalCode: string|null; address: string|null; phone: string|null; email: string|null; showPhone: boolean; showRepresentative: boolean; isDefault: boolean; qrUrl: string|null; logoUrl: string|null; logoHeightMm: number; qrSizeMm: number; }
@@ -38,7 +38,7 @@ function ProfileTab() {
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
-  const [profile, setProfile] = useState({ companyName:'', representative:'', postalCode:'', address:'', phone:'', electricityUnitPrice:'', ovenPowerKw:'', ovenSteamExtraKw:'' });
+  const [profile, setProfile] = useState({ companyName:'', representative:'', postalCode:'', address:'', phone:'', electricityUnitPrice:'', ovenPowerKw:'', ovenSteamExtraKw:'', bpacTemplatePath:'' });
   const isPremium = session?.user?.plan === 'premium' || session?.user?.plan === 'pro' || session?.user?.plan === 'admin';
   // 請求ポータル（解約・プラン変更）から ?billing_updated=1 付きで戻ってきた時だけ、
   // セッション（plan）をDBの最新値で明示的に再取得する。ログアウト→ログインし直さないと
@@ -72,6 +72,7 @@ function ProfileTab() {
           electricityUnitPrice: d.data.electricityUnitPrice != null ? String(d.data.electricityUnitPrice) : '',
           ovenPowerKw:           d.data.ovenPowerKw           != null ? String(d.data.ovenPowerKw)           : '',
           ovenSteamExtraKw:      d.data.ovenSteamExtraKw      != null ? String(d.data.ovenSteamExtraKw)      : '',
+          bpacTemplatePath:      d.data.bpacTemplatePath ?? '',
         });
       }
       setLoaded(true);
@@ -134,6 +135,17 @@ function ProfileTab() {
           <label className="field-label">スチームON時の追加消費電力（kW・任意）</label>
           <input type="number" step="0.1" min="0" value={profile.ovenSteamExtraKw} onChange={e=>setProfile(p=>({...p,ovenSteamExtraKw:e.target.value}))} className="field-input" placeholder="例: 0.5" />
         </div>
+      </div>
+
+      <h2 className="section-title flex items-center gap-2"><Printer className="w-4 h-4 text-stone-500" />b-PACラベル印刷の設定（任意）</h2>
+      <p className="text-sm text-stone-500 -mt-2">
+        Windows＋Brother b-PAC Extensionを導入済みの場合のみ使う設定です。P-touch Editorで作成したテンプレート（.lbx）ファイルのパスを入力すると、ラベル印刷画面に「b-PAC印刷」ボタンが表示されます。未入力の場合、このボタンは表示されません。
+      </p>
+      <div>
+        <label className="field-label">テンプレートファイル（.lbx）のパス</label>
+        <input type="text" value={profile.bpacTemplatePath} onChange={e=>setProfile(p=>({...p,bpacTemplatePath:e.target.value}))} className="field-input font-mono text-sm"
+          placeholder={'例: F:\\★My Labels\\食品表示ラベル62mm.lbx'} />
+        <p className="field-hint">このPC上の絶対パスです。他のPCでb-PAC印刷を使う場合は、そのPC側でこの設定を入力し直してください。</p>
       </div>
 
       <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center gap-2">

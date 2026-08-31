@@ -54,6 +54,14 @@ export default function RecipeDetailPage() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  // 材料の一般名（ラベル表示用）をこの画面から直接編集する（2026-08新設）。
+  // 以前はラベル印刷画面まで移動しないと一般名を設定できず手間だったため、
+  // レシピ保存直後のこの詳細画面でもその場で設定できるようにする。
+  // 一般名は食材マスタ側のフィールド（Ingredient.genericName）なので、
+  // ここで更新すると同じ食材を使う他のレシピにも反映される点はラベル印刷画面と同じ。
+  const [editingGenericFor, setEditingGenericFor] = useState<string | null>(null);
+  const [genericNameInput,  setGenericNameInput]  = useState('');
+  const [savingGeneric,     setSavingGeneric]     = useState(false);
   const [ecStyle, setEcStyle] = useState<EcTextStyle>('simple');
   // ラベル印刷がメインの使い方で、EC用テキスト生成は使う人・頻度とも限定的なため、
   // ページを占有しないよう初期状態は折りたたんでおく（クリックで開閉）
@@ -80,31 +88,55 @@ export default function RecipeDetailPage() {
     } catch { toast.error('コピーに失敗しました'); }
   };
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const res  = await fetch(`/api/recipes/${id}`);
-        const data = await res.json();
-        if (data.success) {
-          const r = data.data;
-          if (r.bakingConditions && typeof r.bakingConditions === 'string') {
-            try { r.bakingConditions = JSON.parse(r.bakingConditions); } catch { r.bakingConditions = []; }
-          }
-          if (!Array.isArray(r.bakingConditions)) r.bakingConditions = [];
-          if (Array.isArray(r.allergens)) {
-            r.allergens = { required: [], optional: [], all: r.allergens };
-          }
-          r.allergens = r.allergens ?? { required: [], optional: [], all: [] };
-          setRecipe(r);
-        } else {
-          toast.error('レシピが見つかりません');
-          router.push('/dashboard/recipes');
+  // silent=true の場合はページ全体のローディング表示を出さずに裏で再取得する
+  // （一般名の保存後など、その場の変化だけ見せたい場合に使う）
+  const fetchRecipe = async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      const res  = await fetch(`/api/recipes/${id}`);
+      const data = await res.json();
+      if (data.success) {
+        const r = data.data;
+        if (r.bakingConditions && typeof r.bakingConditions === 'string') {
+          try { r.bakingConditions = JSON.parse(r.bakingConditions); } catch { r.bakingConditions = []; }
         }
-      } catch { toast.error('取得に失敗しました'); }
-      finally  { setLoading(false); }
-    })();
-  }, [id, router]);
+        if (!Array.isArray(r.bakingConditions)) r.bakingConditions = [];
+        if (Array.isArray(r.allergens)) {
+          r.allergens = { required: [], optional: [], all: r.allergens };
+        }
+        r.allergens = r.allergens ?? { required: [], optional: [], all: [] };
+        setRecipe(r);
+      } else if (!silent) {
+        toast.error('レシピが見つかりません');
+        router.push('/dashboard/recipes');
+      }
+    } catch { if (!silent) toast.error('取得に失敗しました'); }
+    finally  { if (!silent) setLoading(false); }
+  };
+
+  useEffect(() => { fetchRecipe(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id, router]);
+
+  // 材料の一般名を保存する（食材マスタ側を更新するAPIなので、成功後は原材料名表示・
+  // コンプライアンスチェック等も含めてレシピ全体を静かに再取得し直す）
+  const saveGenericName = async (ingredientId: string) => {
+    setSavingGeneric(true);
+    try {
+      const res  = await fetch(`/api/ingredients/${ingredientId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ genericName: genericNameInput.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('一般名を更新しました（同じ食材を使う他のレシピにも反映されます）');
+        setEditingGenericFor(null);
+        await fetchRecipe(true);
+      } else {
+        toast.error(data.error ?? '更新に失敗しました');
+      }
+    } catch { toast.error('通信エラー'); }
+    finally { setSavingGeneric(false); }
+  };
 
   const handleCopy = async () => {
     try {
@@ -390,7 +422,7 @@ export default function RecipeDetailPage() {
             {recipe.ingredients.map(ing => (
               <tr key={ing.id}>
                 <td>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium">{ing.genericName || ing.ingredientName}</span>
                     {ing.genericName && ing.genericName !== ing.ingredientName && (
                       <span className="text-xs text-stone-400">（{ing.ingredientName}）</span>
@@ -402,6 +434,34 @@ export default function RecipeDetailPage() {
                       <span className="badge badge-brand text-xs">{ing.originCountry}</span>
                     )}
                   </div>
+                  {/* 一般名（ラベル表示用）をこの場で設定・編集する（2026-08新設）。
+                      ingredientIdが無い（食材マスタに紐づいていない自由入力の材料）場合は
+                      一般名の概念自体が無いため編集リンクを出さない */}
+                  {ing.ingredientId && (
+                    editingGenericFor === ing.ingredientId ? (
+                      <span className="flex items-center gap-1 mt-1">
+                        <input type="text" value={genericNameInput} onChange={e => setGenericNameInput(e.target.value)}
+                          placeholder="ラベル表示用の一般名（例:バター）" autoFocus
+                          className="field-input py-1 text-xs w-48" />
+                        <button type="button" disabled={savingGeneric} onClick={() => saveGenericName(ing.ingredientId as string)}
+                          className="text-xs text-brand-600 font-medium hover:underline disabled:opacity-50">
+                          {savingGeneric ? '保存中...' : '保存'}
+                        </button>
+                        <button type="button" onClick={() => setEditingGenericFor(null)}
+                          className="text-xs text-stone-400 hover:underline">
+                          キャンセル
+                        </button>
+                      </span>
+                    ) : (
+                      <button type="button"
+                        onClick={() => { setEditingGenericFor(ing.ingredientId as string); setGenericNameInput(ing.genericName ?? ''); }}
+                        className="mt-1 text-xs text-brand-600 hover:underline">
+                        {ing.genericName
+                          ? `表示名: ${ing.genericName}${ing.genericNameConfirmed === false ? '（要確認）' : ''} を編集`
+                          : '一般名を設定'}
+                      </button>
+                    )
+                  )}
                 </td>
                 <td className="text-right font-medium">{ing.amount}{ing.unit}</td>
                 <td className="text-right text-stone-500 hidden sm:table-cell">

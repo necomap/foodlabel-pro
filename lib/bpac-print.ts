@@ -26,7 +26,10 @@ function buildTextFields(content: LabelContent): Record<string, string> {
     contentAmount:    content.contentAmount,
     storageMethod:    content.storageMethod,
     categoryName:     content.categoryName ?? '',
-    nutritionLabel:   content.nutritionPerUnit.label,
+    // 2026-08修正: 「あたり」の文言はテンプレート側のキャプションに既に含まれているため
+    // 「1個あたりあたり」のように二重表示になっていた。末尾の「あたり」を取り除き、
+    // 「1個」のような数量部分のみを差し込むように変更。
+    nutritionLabel:   content.nutritionPerUnit.label.replace(/あたり$/, ''),
     // テンプレート側のキャプションに単位(kcal/g)が既に含まれているため、数値のみを差し込む
     nutritionEnergyKcal:   String(content.nutritionPerUnit.energyKcal),
     nutritionProtein:      String(content.nutritionPerUnit.protein),

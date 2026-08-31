@@ -15,28 +15,69 @@ export default function ImportExportPage() {
   const [clearAll,   setClearAll]   = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ImportResult|null>(null);
+  // 2026-08新設: 1回のAPI呼び出しでは最大80件までしか処理できないため、80件を超える
+  // ファイルはoffsetを進めながら自動的に複数回リクエストする（＝ボタンは1回押すだけでよい）。
+  // processed/totalは進捗表示用（大きいファイルだと数分〜数十分かかることがあるため）。
+  const [progress, setProgress] = useState<{processed:number; total:number}|null>(null);
   const [exportOpts, setExportOpts] = useState({ includeNutrition: true, includeSteps: true, includeCost: true });
+
+  // インポート中にタブを閉じる／移動すると、そこで処理が止まってしまう（それまでに
+  // 取り込まれた分はDBに残る＝再度同じファイルをインポートし直せば続きから進められるが、
+  // 誤操作を防ぐため一応警告を出す）。
+  useEffect(() => {
+    if (!loading) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [loading]);
 
   const handleImport = async () => {
     if (!file) { toast.error('ファイルを選択してください'); return; }
-    setLoading(true); setResult(null);
+    setLoading(true); setResult(null); setProgress(null);
+
+    // 2026-08新設: 80件を超えるファイルにも対応するため、offsetを進めながら
+    // サーバーが「done」を返すまで自動的に繰り返し呼び出す。1回目（offset=0）で
+    // clearAll・overwriteを指定し、2回目以降は同じ操作の続きとして扱われる
+    // （サーバー側で全削除や月間回数カウントが2回以上走らないようガードしている）。
+    let offset = 0;
+    const agg: ImportResult = { imported: 0, skipped: 0, total: 0, errors: [], warnings: [] };
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('overwrite', String(overwrite));
-      formData.append('clearAll', String(clearAll));
-      const res = await fetch('/api/import-export', { method: 'POST', body: formData });
-      const data = await res.json();
-      if (data.success) {
-        setResult(data.data);
-        toast.success(`インポート完了: ${data.data?.imported ?? 0}件追加、${data.data?.skipped ?? 0}件スキップ`);
-      } else if (data.upgradeRequired) {
-        toast.error(data.error ?? 'この操作にはプランのアップグレードが必要です。');
-        window.location.href = '/dashboard/upgrade';
-      } else {
-        toast.error(data.error ?? 'インポートに失敗しました');
+      while (true) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('overwrite', String(overwrite));
+        formData.append('clearAll', String(clearAll));
+        formData.append('offset', String(offset));
+        const res = await fetch('/api/import-export', { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (!data.success) {
+          if (data.upgradeRequired) {
+            toast.error(data.error ?? 'この操作にはプランのアップグレードが必要です。');
+            window.location.href = '/dashboard/upgrade';
+          } else {
+            toast.error(data.error ?? 'インポートに失敗しました');
+          }
+          // それまでのチャンクで取り込めた分は結果として残しておく
+          if (agg.total > 0 || agg.imported > 0) setResult({ ...agg });
+          return;
+        }
+
+        agg.imported += data.data.imported ?? 0;
+        agg.skipped  += data.data.skipped  ?? 0;
+        agg.total     = data.data.total ?? agg.total;
+        agg.errors    = [...agg.errors,   ...(data.data.errors   ?? [])];
+        agg.warnings  = [...agg.warnings, ...(data.data.warnings ?? [])];
+        setResult({ ...agg });
+        setProgress({ processed: data.data.processedSoFar ?? agg.total, total: data.data.total ?? agg.total });
+
+        if (data.data.done) {
+          toast.success(`インポート完了: ${agg.imported}件追加、${agg.skipped}件スキップ`);
+          break;
+        }
+        offset = data.data.nextOffset;
       }
-    } catch { toast.error('通信エラーが発生しました'); } finally { setLoading(false); }
+    } catch { toast.error('通信エラーが発生しました'); } finally { setLoading(false); setProgress(null); }
   };
 
   const handleExport = async () => {
@@ -89,7 +130,10 @@ export default function ImportExportPage() {
             <div onClick={() => fileRef.current?.click()} className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${file?'border-brand-400 bg-brand-50':'border-cream-300 hover:border-brand-300 hover:bg-cream-50'}`}>
               <FileSpreadsheet className={`w-10 h-10 mx-auto mb-3 ${file?'text-brand-500':'text-stone-300'}`} />
               {file ? (<div><p className="font-medium text-brand-700">{file.name}</p><p className="text-sm text-stone-500 mt-1">{(file.size/1024).toFixed(0)} KB</p></div>) : (<div><p className="font-medium text-stone-600">クリックしてファイルを選択</p><p className="text-sm text-stone-400 mt-1">.xlsx, .xlsm, .xls</p><p className="text-xs text-stone-400 mt-1">「DB」シートがある場合はDBシートを、ない場合は一番左のシートを読み込みます</p>
-                  <p className="text-xs text-amber-600 mt-1 font-medium">⚠️ 1回あたり最大80件まで。大量インポートはファイルを分割してください。</p></div>)}
+                  {/* 2026-08: 以前は「1回あたり80件まで、ファイルを分割してください」という注意書き
+                      だったが、80件を超えるファイルも自動的に分割してインポートするよう対応したため、
+                      分割が必要な旨の案内は不要になった。件数が多い場合の所要時間の目安のみ案内する。 */}
+                  <p className="text-xs text-stone-400 mt-1">件数が多い場合（100件超など）は取り込みに数分〜数十分かかることがあります。ボタンを押した後、完了までタブを閉じずにお待ちください。</p></div>)}
             </div>
             <input ref={fileRef} type="file" accept=".xlsx,.xlsm,.xls" className="hidden" onChange={e=>{setFile(e.target.files?.[0]??null);setResult(null);}} />
           </div>
@@ -108,8 +152,17 @@ export default function ImportExportPage() {
             </label>
           </div>
           <button onClick={handleImport} disabled={!file||loading} className="btn-primary flex items-center gap-2 disabled:opacity-50">
-            {loading?<><Loader2 className="w-4 h-4 animate-spin" />取り込み中...</>:<><Upload className="w-4 h-4" />インポート実行</>}
+            {loading
+              ? <><Loader2 className="w-4 h-4 animate-spin" />
+                  {progress ? `取り込み中... (${progress.processed}/${progress.total}件)` : '取り込み中...'}
+                </>
+              : <><Upload className="w-4 h-4" />インポート実行</>}
           </button>
+          {loading && progress && progress.total > 0 && (
+            <div className="w-full h-2 bg-cream-200 rounded-full overflow-hidden">
+              <div className="h-full bg-brand-500 transition-all" style={{ width: `${Math.min(100, Math.round(progress.processed / progress.total * 100))}%` }} />
+            </div>
+          )}
           {result && (
             <div className="card animate-fade-in space-y-4">
               <div className="flex items-center gap-2"><CheckCircle2 className="w-6 h-6 text-green-500" /><h3 className="font-semibold text-stone-800">インポート完了</h3></div>
@@ -118,6 +171,8 @@ export default function ImportExportPage() {
                 <div className="bg-yellow-50 rounded-xl p-4 text-center"><div className="text-2xl font-bold text-yellow-600">{result.skipped}</div><div className="text-xs text-yellow-700 mt-1">スキップ</div></div>
                 <div className="bg-red-50 rounded-xl p-4 text-center"><div className="text-2xl font-bold text-red-600">{result.errors.length}</div><div className="text-xs text-red-700 mt-1">エラー</div></div>
               </div>
+              <p className="text-xs text-stone-400 text-center -mt-2">ファイル内の全{result.total}件のうち{result.imported + result.skipped}件を処理しました</p>
+              {result.warnings.length > 0 && <div className="alert-info"><Info className="w-5 h-5 flex-shrink-0" /><div><p className="font-medium mb-1">お知らせ ({result.warnings.length}件)</p><ul className="text-sm space-y-0.5">{result.warnings.slice(0,5).map((w,i)=><li key={i}>行{w.row}: {w.message}</li>)}</ul></div></div>}
               {result.errors.length > 0 && <div className="alert-error"><AlertTriangle className="w-5 h-5 flex-shrink-0" /><div><p className="font-medium mb-1">エラー ({result.errors.length}件)</p><ul className="text-sm space-y-0.5">{result.errors.slice(0,5).map((e,i)=><li key={i}>行{e.row}: {e.message}</li>)}</ul></div></div>}
               {result.imported > 0 && <Link href="/dashboard/recipes" className="btn-secondary flex items-center gap-2 w-fit">レシピ一覧を確認 <ArrowRight className="w-4 h-4" /></Link>}
             </div>

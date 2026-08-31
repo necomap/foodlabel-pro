@@ -22,7 +22,18 @@ export async function POST(request: Request) {
   const formData   = await request.formData();
   const file       = formData.get('file') as File | null;
   const overwrite  = formData.get('overwrite')  === 'true';
-  const clearAll   = formData.get('clearAll')   === 'true';
+  const clearAllReq = formData.get('clearAll')   === 'true';
+  // 2026-08新設: 1回のAPI呼び出しでは最大80件までしか処理できない（下記MAX_PER_REQUEST参照）ため、
+  // 大量データは複数回のリクエストに分けて呼び出してもらう「続きから」方式に対応。
+  // offset=0が「1回目（＝この一連のインポート操作の開始）」を意味し、全削除・月間回数カウントは
+  // offset=0のときだけ行う（2回目以降で毎回全削除されたり、複数回分カウントされたりしないように）。
+  const offset      = Number(formData.get('offset')) || 0;
+  const isFirstChunk = offset === 0;
+  // 全削除は最初のチャンクでのみ実行する（クライアントの実装ミス・多重送信対策として
+  // isFirstChunkで二重にガードする＝2回目以降のチャンクでclearAll=trueが来ても無視する）
+  const clearAll   = isFirstChunk && clearAllReq;
+
+  const planLabel = (session.user.plan ?? 'free') === 'premium' ? 'プレミアムプラン' : 'フリープラン';
 
   // プラン制限チェック（インポート機能自体の利用可否・月間回数）
   // 2026-08: 以前はここに判定が無く、フリープランでもインポートが使えてしまっていた
@@ -38,7 +49,9 @@ export async function POST(request: Request) {
       upgradeRequired: true,
     }, { status: 403 });
   }
-  if (importLimits.maxImportsPerMonth !== Infinity) {
+  // 月間回数の判定・カウントは一連のインポート操作につき1回だけ（最初のチャンクでのみ）。
+  // 2回目以降のチャンクは「同じ1回のインポートの続き」なので、ここでは弾かない。
+  if (isFirstChunk && importLimits.maxImportsPerMonth !== Infinity) {
     const monthlyImportCount = await getMonthlyDataTransferCount(session.user.id, 'import');
     if (monthlyImportCount >= importLimits.maxImportsPerMonth) {
       return NextResponse.json({
@@ -49,7 +62,7 @@ export async function POST(request: Request) {
     }
   }
 
-  // 全上書きの場合は先に全削除
+  // 全上書きの場合は先に全削除（最初のチャンクでのみ）
   if (clearAll) {
     await prisma.$executeRaw`
       UPDATE recipes SET "isActive" = false WHERE "userId" = ${session.user.id}
@@ -72,7 +85,6 @@ export async function POST(request: Request) {
         // （上のcanExportチェックで先に弾かれる）ため、実質プレミアムプラン（上限100件）
         // のユーザーしか到達しない。以前は常に「フリープランの上限」と表示していたが、
         // 現在のプラン名と正しいアップグレード先（プロプラン）を表示するよう修正。
-        const planLabel = (session.user.plan ?? 'free') === 'premium' ? 'プレミアムプラン' : 'フリープラン';
         return NextResponse.json({
           success: false,
           error: `${planLabel}のレシピ上限（${importLimits.maxRecipes}件）に達しています。プロプランならレシピ登録数は無制限です。`,
@@ -94,14 +106,22 @@ export async function POST(request: Request) {
   }
 
   const buffer = await file.arrayBuffer();
-  const { recipes: parsedRecipes, errors, warnings } = parseExcelFile(buffer);
+  // 2026-08: 大量データの分割呼び出し対応のため、毎回同じファイル全体を再アップロード
+  // してもらい、サーバー側で都度パースしてoffset分だけスキップする方式にしている
+  // （ファイル自体をサーバー側に保持し続けるのは複数リクエストをまたぐため難しいので、
+  // パース処理そのものは軽い＝再実行しても問題ない、という前提に立っている）。
+  // parseExcelFile自体が返すerrors/warnings（行の値が読めない等、ファイル内容そのものの
+  // 問題）は再パースするたびに毎回同じ内容が返ってくるため、最初のチャンク（offset=0）の
+  // レスポンスにだけ含める（そうしないとチャンク数だけ同じ警告が重複してしまう）。
+  const { recipes: parsedRecipes, errors: parseErrors, warnings: parseWarnings } = parseExcelFile(buffer);
 
-  if (errors.length > 0 && parsedRecipes.length === 0) {
-    return NextResponse.json({ success: false, error: 'ファイルの読み込みに失敗しました', data: { errors } }, { status: 400 });
+  if (parseErrors.length > 0 && parsedRecipes.length === 0) {
+    return NextResponse.json({ success: false, error: 'ファイルの読み込みに失敗しました', data: { errors: parseErrors } }, { status: 400 });
   }
 
   let imported = 0;
   let skipped  = 0;
+  const importErrors: Array<{ row: number; message: string }> = [];
 
   // プラン制限分だけ処理
   // 事前に全食材・全カテゴリをキャッシュして高速化
@@ -129,15 +149,16 @@ export async function POST(request: Request) {
   // 大きめに残す形（80件なら理論値約240秒）で設定。件数が非常に多い食材を含むレシピが
   // 続くと超過する可能性は残るため、それでもタイムアウトする場合はさらに下げる。
   const MAX_PER_REQUEST = 80;
-  const effectiveLimit = Math.min(importLimit, MAX_PER_REQUEST);
-  const recipesToProcess = parsedRecipes.slice(0, effectiveLimit);
+  // 2026-08: offsetから続きを処理する。以前はここで「importLimit・MAX_PER_REQUESTを
+  // 超えた分」を無言で切り捨てていた（=80件を超えるファイルを1回のリクエストで送ると、
+  // 81件目以降は何の警告も無いままインポートされずに消えていた）。
+  // 現在はクライアント側が本APIをoffsetを進めながら繰り返し呼び出す前提のため、
+  // 「このチャンクで処理する件数」をremainingInFile・importLimit・MAX_PER_REQUESTの
+  // 最小値として求め、プラン上限で打ち切った場合だけ明示的に警告を出す。
+  const remainingInFile = parsedRecipes.length - offset;
+  const effectiveLimit = Math.max(0, Math.min(remainingInFile, importLimit, MAX_PER_REQUEST));
+  const recipesToProcess = parsedRecipes.slice(offset, offset + effectiveLimit);
   for (const pr of recipesToProcess) {
-    // プラン制限：インポート上限チェック
-    if (imported >= importLimit) {
-      skipped++;
-      warnings.push({ row: imported + skipped + 1, message: `フリープランの上限（${importLimit}件）に達したためスキップしました` });
-      break;
-    }
     try {
       const name = toFullWidth(pr.name).trim();
       if (!name) { skipped++; continue; }
@@ -312,16 +333,42 @@ export async function POST(request: Request) {
       imported++;
     } catch (err) {
       console.error(`Import error for ${pr.name}:`, err);
-      errors.push({ row: pr.no, message: `「${pr.name}」の取り込みに失敗しました` });
+      importErrors.push({ row: pr.no, message: `「${pr.name}」の取り込みに失敗しました` });
     }
   }
 
-  // インポート回数を記録（プレミアム/プロの月間回数カウント用）
-  await logDataTransfer(session.user.id, 'import');
+  // インポート回数を記録（プレミアム/プロの月間回数カウント用）。一連の分割インポート
+  // 操作につき1回だけカウントする（最初のチャンクでのみ）。
+  if (isFirstChunk) {
+    await logDataTransfer(session.user.id, 'import');
+  }
+
+  const nextOffset = offset + recipesToProcess.length;
+  // プラン上限（レシピ件数）で打ち切られ、かつファイル内にまだ未処理の行が残っている場合、
+  // このチャンク以降は続けても取り込めないため「打ち切り」として扱う。
+  const planLimitReached = importLimit <= remainingInFile && effectiveLimit === importLimit && nextOffset < parsedRecipes.length;
+  const done = nextOffset >= parsedRecipes.length || planLimitReached;
+
+  const chunkWarnings = isFirstChunk ? [...parseWarnings] : [];
+  if (planLimitReached) {
+    chunkWarnings.push({
+      row: nextOffset + 1,
+      message: `${planLabel}のレシピ上限（${importLimits.maxRecipes}件）に達したため、残り${parsedRecipes.length - nextOffset}件は取り込まれませんでした。プロプランならレシピ登録数は無制限です。`,
+    });
+  }
+  const chunkErrors = isFirstChunk ? [...parseErrors, ...importErrors] : importErrors;
 
   return NextResponse.json({
     success:  true,
-    data:     { imported, skipped, total: parsedRecipes.length, errors, warnings },
+    data:     {
+      imported, skipped,
+      total:          parsedRecipes.length,
+      processedSoFar: nextOffset,
+      nextOffset,
+      done,
+      errors:   chunkErrors,
+      warnings: chunkWarnings,
+    },
     message:  `${imported}件のレシピを取り込みました${skipped > 0 ? `（${skipped}件スキップ）` : ''}`,
   });
 }

@@ -159,10 +159,13 @@ export function generateLabelContent(
 export function buildManufacturerBlockText(content: LabelContent): string {
   const lines: string[] = [];
 
+  // 2026-08修正: 以前は「製造者：」という文言をここで差し込んでいたが、テンプレート側の
+  // キャプションに既に「製造者：」の文言が含まれているため「製造者：製造者：〇〇」のように
+  // 二重表示になっていた（賞味期限・栄養成分の単位と同種のバグ）。値のみを差し込むように変更。
   lines.push(
     content.representative
-      ? `製造者：${content.manufacturerName}　${content.representative}`
-      : `製造者：${content.manufacturerName}`
+      ? `${content.manufacturerName}　${content.representative}`
+      : content.manufacturerName
   );
 
   const postalAndPhone = [content.postalCode ?? '', content.phone ? `TEL ${content.phone}` : ''].filter(Boolean).join('　');

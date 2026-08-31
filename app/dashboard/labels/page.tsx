@@ -90,7 +90,6 @@ export default function LabelsPage() {
   const [bpacTemplatePath, setBpacTemplatePath] = useState('');
   const [labelContent, setLabelContent] = useState<LabelContent | null>(null);
   const [bpacPrinting, setBpacPrinting] = useState(false);
-
   // ロット番号トレーサビリティ（Proプラン限定・任意入力）
   const [lots, setLots] = useState<Array<{ ingredientName: string; lotNumber: string }>>([]);
 

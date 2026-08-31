@@ -129,35 +129,45 @@ export async function POST(request: Request) {
       // 契約を維持したいケースもあるため、自動解約はしない。
       // 注意: Stripeダッシュボードのwebhookエンドポイント設定で、購読イベントに
       // 「charge.refunded」を追加していないとこのcaseには届かないので、追加が必要。
+      //
+      // 2026-08修正: 導入時、返金されたcharge→invoice→subscriptionの順にIDを辿る実装に
+      // していたが、使用しているstripeパッケージ（v20.4.1）ではCharge型にinvoiceフィールドが
+      // 存在せず（Stripe側のAPI仕様変更でcharge.invoiceが廃止されたため）、ビルドが型エラーで
+      // 失敗した。invoiceを経由せず、charge.customer（Stripe顧客ID）から自社DBのUser→
+      // Subscriptionを直接引く方式に変更。こちらの方がAPI仕様変更の影響も受けにくい。
       case 'charge.refunded': {
         const charge = event.data.object as Stripe.Charge;
         const isFullRefund = charge.amount_refunded >= charge.amount;
         if (!isFullRefund) break;
 
-        const invoiceId = typeof charge.invoice === 'string' ? charge.invoice : charge.invoice?.id;
-        if (!invoiceId) break; // サブスクリプションの請求に紐づかない返金（該当なし）は何もしない
+        const stripeCustomerId = typeof charge.customer === 'string' ? charge.customer : charge.customer?.id;
+        if (!stripeCustomerId) break; // 顧客に紐づかない返金（該当なし）は何もしない
 
-        const invoice = await stripe.invoices.retrieve(invoiceId);
-        const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
-        if (!subscriptionId) break;
+        // このStripe顧客の、現在契約中（active/trialing/past_due）のサブスクリプションを
+        // 自社DB側から探す。同一顧客で過去に複数契約があっても、直近作成されたものを対象にする。
+        const activeSub = await prisma.subscription.findFirst({
+          where: {
+            status: { in: ['active', 'trialing', 'past_due'] },
+            user:   { stripeCustomerId },
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (!activeSub || !activeSub.stripeSubscriptionId) break;
 
         // Stripe側のサブスクリプションを解約（返金だけでは解約されないため、こちらから明示的に）。
         // 既に何らかの理由で解約済みの場合はエラーになるが、その場合は無視して続行してよい
         // （下のDB更新はどのみち実行し、User.planをfreeに戻す）。
         try {
-          await stripe.subscriptions.cancel(subscriptionId);
+          await stripe.subscriptions.cancel(activeSub.stripeSubscriptionId);
         } catch (e) {
           console.warn('返金に伴うサブスクリプション解約に失敗（既に解約済みの可能性）:', e);
         }
 
-        const existingForRefund = await prisma.subscription.findUnique({ where: { stripeSubscriptionId: subscriptionId } });
-        if (existingForRefund) {
-          await prisma.subscription.update({
-            where: { stripeSubscriptionId: subscriptionId },
-            data: { status: 'canceled', plan: 'free' },
-          });
-          await prisma.user.update({ where: { id: existingForRefund.userId }, data: { plan: 'free' } });
-        }
+        await prisma.subscription.update({
+          where: { stripeSubscriptionId: activeSub.stripeSubscriptionId },
+          data: { status: 'canceled', plan: 'free' },
+        });
+        await prisma.user.update({ where: { id: activeSub.userId }, data: { plan: 'free' } });
         break;
       }
     }

@@ -51,5 +51,11 @@
     "tailwindcss": "^3.4.4",
     "typescript": "^5.5.3",
     "xlsx": "^0.18.5"
+  },
+  "allowScripts": {
+    "@prisma/client@6.19.2": true,
+    "@prisma/engines@6.19.2": true,
+    "prisma@6.19.2": true,
+    "unrs-resolver@1.11.1": true
   }
 }

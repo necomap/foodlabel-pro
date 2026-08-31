@@ -20,6 +20,10 @@ export default function ImportExportPage() {
   // processed/totalは進捗表示用（大きいファイルだと数分〜数十分かかることがあるため）。
   const [progress, setProgress] = useState<{processed:number; total:number}|null>(null);
   const [exportOpts, setExportOpts] = useState({ includeNutrition: true, includeSteps: true, includeCost: true });
+  // 2026-08新設: エクスポート対象を表示レシピのみに絞るオプション。デフォルトはOFF＝
+  // 表示・非表示すべてのレシピをエクスポートする（非表示レシピは出力の先頭にまとめて
+  // 出力されるので、一括で表示/非表示を編集して再インポートする使い方を想定）。
+  const [exportVisibleOnly, setExportVisibleOnly] = useState(false);
 
   // インポート中にタブを閉じる／移動すると、そこで処理が止まってしまう（それまでに
   // 取り込まれた分はDBに残る＝再度同じファイルをインポートし直せば続きから進められるが、
@@ -83,7 +87,7 @@ export default function ImportExportPage() {
   const handleExport = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ nutrition: String(exportOpts.includeNutrition), steps: String(exportOpts.includeSteps), cost: String(exportOpts.includeCost) });
+      const params = new URLSearchParams({ nutrition: String(exportOpts.includeNutrition), steps: String(exportOpts.includeSteps), cost: String(exportOpts.includeCost), visibleOnly: String(exportVisibleOnly) });
       const res = await fetch(`/api/import-export?${params}`);
       if (!res.ok) {
         try {
@@ -141,7 +145,7 @@ export default function ImportExportPage() {
             <h3 className="font-semibold text-stone-700 mb-3">インポートオプション</h3>
             <label className="flex items-start gap-3 cursor-pointer">
               <input type="checkbox" checked={overwrite} onChange={e=>setOverwrite(e.target.checked)} className="mt-0.5 accent-brand-500" />
-              <div><span className="font-medium text-stone-700">同名レシピを上書きする</span><p className="text-sm text-stone-500 mt-0.5">OFFの場合、既存のレシピと同名のものはスキップされます</p></div>
+              <div><span className="font-medium text-stone-700">同名レシピを上書きする</span><p className="text-sm text-stone-500 mt-0.5">OFFの場合、既存のレシピと同名のものはスキップされます（非表示にしているレシピも同名チェックの対象です。上書き後も表示/非表示の状態は維持されます）</p></div>
             </label>
             <label className="flex items-start gap-3 cursor-pointer mt-3">
               <input type="checkbox" checked={clearAll} onChange={e=>{setClearAll(e.target.checked); if(e.target.checked) setOverwrite(true);}} className="mt-0.5 accent-red-500" />
@@ -182,7 +186,7 @@ export default function ImportExportPage() {
 
       {tab === 'export' && (
         <div className="space-y-4">
-          <div className="alert-info"><Info className="w-5 h-5 flex-shrink-0 mt-0.5" /><p>登録されているすべてのレシピをExcel形式（.xlsx）でエクスポートします。同じ形式でインポートも可能です。</p></div>
+          <div className="alert-info"><Info className="w-5 h-5 flex-shrink-0 mt-0.5" /><p>表示・非表示すべてのレシピをExcel形式（.xlsx）でエクスポートします（非表示レシピは上の行にまとめて出力されるので、一括で表示/非表示を編集して再インポートする用途にも使えます）。同じ形式でインポートも可能です。</p></div>
           <div className="card">
             <h3 className="font-semibold text-stone-700 mb-4">エクスポートする項目</h3>
             <div className="space-y-3">
@@ -192,6 +196,10 @@ export default function ImportExportPage() {
                   <div><span className="font-medium text-stone-700">{opt.label}</span><p className="text-sm text-stone-500 mt-0.5">{opt.desc}</p></div>
                 </label>
               ))}
+              <label className="flex items-start gap-3 cursor-pointer pt-2 mt-2 border-t border-stone-100">
+                <input type="checkbox" checked={exportVisibleOnly} onChange={e=>setExportVisibleOnly(e.target.checked)} className="mt-0.5 accent-brand-500" />
+                <div><span className="font-medium text-stone-700">表示レシピのみエクスポート</span><p className="text-sm text-stone-500 mt-0.5">OFFの場合、非表示レシピも（先頭にまとめて）出力します</p></div>
+              </label>
             </div>
           </div>
           <button onClick={handleExport} disabled={loading} className="btn-primary flex items-center gap-2">

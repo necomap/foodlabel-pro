@@ -73,10 +73,26 @@ export async function POST(request: Request) {
   }
 
   // 全上書きの場合は先に全削除（最初のチャンクでのみ）
+  // 2026-08修正: 以前は論理削除（非表示化）のみだった。「全データをクリアして上書き」は
+  // 名前の通り“クリア”のつもりでも実際には非表示レシピが増えるだけで、しかも下の
+  // 既存レシピ検索が表示中のレシピしか見ていなかったため、クリア直後は同名判定が
+  // 一切効かず、インポートした分がまるごと新規（表示）レシピとして作られてしまい、
+  // 「非表示レシピだけがどんどん積み上がる」不具合の主因になっていた。
+  // schema.prismaのLabel.recipeにonDelete: Cascadeを追加したことで安全に完全削除できる
+  // ようになったため、実際に物理削除するよう変更する。
+  // 念のため、本番でこのコードだけ先に反映され、対応するprisma db pushがまだ実行されて
+  // いない環境（Label側の外部キー制約がまだCascadeでない）だと物理削除が外部キー制約
+  // エラーになる可能性があるため、失敗時は従来の非表示化に自動フォールバックする
+  // （＝db push未実施でも即500エラーにはならないようにする安全策）。
   if (clearAll) {
-    await prisma.$executeRaw`
-      UPDATE recipes SET "isActive" = false WHERE "userId" = ${session.user.id}
-    `;
+    try {
+      await prisma.recipe.deleteMany({ where: { userId: session.user.id } });
+    } catch (e) {
+      console.error('clearAll: 物理削除に失敗したため非表示化にフォールバックします', e);
+      await prisma.$executeRaw`
+        UPDATE recipes SET "isActive" = false WHERE "userId" = ${session.user.id}
+      `;
+    }
   }
 
 // プラン制限チェック（レシピ件数）
@@ -147,11 +163,18 @@ export async function POST(request: Request) {
   });
   const categoryCache = new Map(allCategories.map(c => [c.name.trim(), c]));
 
+  // 2026-08修正: 以前はisActive:trueのみを対象にしていたため、非表示にしたレシピと
+  // 同名でインポートすると「既存として認識されず」新規レコードとして重複作成されてしまい、
+  // 非表示レシピがDBに残り続ける、という不具合があった。表示・非表示を問わず対象にすることで、
+  // 非表示にしていた（＝季節商品など、普段は使わないが消したくはないレシピ）ものも
+  // 正しく上書き対象として認識されるようにする。
   const existingRecipes = await prisma.recipe.findMany({
-    where: { userId: session.user.id, isActive: true },
-    select: { id: true, name: true },
+    where: { userId: session.user.id },
+    select: { id: true, name: true, isActive: true },
   });
-  const recipeCache = new Map(existingRecipes.map(r => [r.name.trim(), r]));
+  const recipeCache = new Map<string, { id: string; name: string; isActive: boolean }>(
+    existingRecipes.map(r => [r.name.trim(), r])
+  );
 
   // 1回あたりの処理上限（タイムアウト対策）。
   // 2026-08: vercel.jsonのmaxDurationを60秒→300秒に引き上げたのに合わせて20→80件に引き上げ。
@@ -182,11 +205,10 @@ export async function POST(request: Request) {
       const name = toFullWidth(pr.name).trim();
       if (!name) { skipped++; continue; }
 
-      // 既存レシピチェック（上書きしない場合はスキップ）
-      if (!overwrite) {
-        const exists = recipeCache.get(name);
-        if (exists) { skipped++; continue; }
-      }
+      // 既存レシピチェック（表示・非表示問わず同名があれば「既存」として扱う）。
+      // 上書きしない場合はスキップ、上書きする場合は後述の通りこのレシピを置き換える。
+      const exists = recipeCache.get(name);
+      if (exists && !overwrite) { skipped++; continue; }
 
       // カテゴリを探す or 作る
       let categoryId: string | undefined;
@@ -277,12 +299,23 @@ export async function POST(request: Request) {
       const totalCost = ingredientDetails.reduce((s, i) => s + (i.costTotal ?? 0), 0);
 
       // 上書きの場合は既存を論理削除
-      if (overwrite) {
+      // 2026-08修正: 以前は`isActive: true`の既存レシピしか論理削除の対象にしていなかった
+      // ため、非表示レシピと同名で上書きインポートしても非表示レシピはそのまま残り、
+      // 新しいレシピが別レコードとして重複作成されていた。idで直接指定することで、
+      // 表示・非表示どちらの既存レシピも正しく置き換え対象にする。
+      if (overwrite && exists) {
         await prisma.recipe.updateMany({
-          where: { userId: session.user.id, name, isActive: true },
+          where: { id: exists.id },
           data:  { isActive: false },
         });
       }
+
+      // 2026-08新設: 新しいレシピの表示/非表示状態は次の優先順位で決める。
+      // ① Excelの「FLG」列で明示的に「表示」「非表示」が指定されていればそれに従う
+      // ② 指定が無く、既存の同名レシピ（表示・非表示問わず）を上書きする場合はその状態を引き継ぐ
+      //    （非表示にしていた季節限定レシピ等が、更新のたびに勝手に表示状態へ戻らないようにする）
+      // ③ どちらでもない（新規レシピ）場合は表示状態で作成する
+      const newIsActive = pr.isActiveOverride ?? exists?.isActive ?? true;
 
       // レシピ作成
       await prisma.recipe.create({
@@ -290,6 +323,7 @@ export async function POST(request: Request) {
           userId:         session.user.id,
           categoryId,
           name,
+          isActive:       newIsActive,
           nameKana:       pr.nameKana || null,
           unitCount:      pr.unitCount,
           shelfLifeDays:  pr.shelfLifeDays || null,
@@ -428,11 +462,16 @@ export async function GET(request: Request) {
   const includeSteps     = searchParams.get('steps')     !== 'false';
   const includeCost      = searchParams.get('cost')      !== 'false';
   const categoryFilter   = searchParams.get('category')  ?? undefined;
+  // 2026-08新設: 「非表示レシピと表示レシピの行をまとめて一括編集し、そのまま再インポート
+  // したい」という要望に対応するため、デフォルトでは表示・非表示問わず全レシピを対象にする
+  // （以前はisActive:trueのみが対象で、非表示レシピはエクスポートに一切含まれていなかった）。
+  // 「表示レシピのみエクスポート」を選んだ場合のみ、従来通りisActive:trueだけに絞り込む。
+  const visibleOnly = searchParams.get('visibleOnly') === 'true';
 
   const recipes = await prisma.recipe.findMany({
     where: {
       userId:   session.user.id,
-      isActive: true,
+      ...(visibleOnly ? { isActive: true } : {}),
       ...(categoryFilter ? { categoryId: categoryFilter } : {}),
     },
     include: {
@@ -443,10 +482,13 @@ export async function GET(request: Request) {
       },
       steps: { orderBy: { stepNumber: 'asc' } },
     },
-    orderBy: [{ categoryId: 'asc' }, { name: 'asc' }],
+    // 非表示レシピを先頭にまとめることで、Excel上で「上から非表示◯行、表示◯行」のように
+    // 分かれて見え、一括編集しやすくなる（isActive: false(0) < true(1) なのでasc順で非表示が先）。
+    orderBy: [{ isActive: 'asc' }, { categoryId: 'asc' }, { name: 'asc' }],
   });
 
   const exportData = recipes.map(r => ({
+    isActive:       r.isActive,
     name:           r.name,
     nameKana:       r.nameKana,
     variationName:  r.variationName ?? null,

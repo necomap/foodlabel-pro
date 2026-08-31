@@ -58,6 +58,12 @@ interface ImportedRecipe {
     bottomHeat: number | null;
     timeMin:    number | null;
   }>;
+  // 2026-08新設: エクスポート時に「FLG」列（従来は常に空欄で未使用だった列）へ
+  // 表示/非表示の状態を書き出すようにし、インポート時にそれを読み戻せるようにした。
+  // 「表示」「非表示」のどちらでもない値（空欄＝旧形式のエクスポートファイルなど）の場合は
+  // undefinedとし、呼び出し側で「指定なし＝既存レシピの表示/非表示状態を維持する」
+  // という扱いにする（詳細はapp/api/import-export/route.tsのPOSTハンドラ参照）。
+  isActiveOverride?: boolean;
 }
 
 // ============================================================
@@ -115,6 +121,10 @@ export function parseExcelFile(buffer: ArrayBuffer): {
   // 列インデックスを特定
   const colIdx = {
     no:           findColIdx(headers, ['No', 'NO', 'no']),
+    // 2026-08新設: 表示/非表示の状態（「表示」「非表示」という文字列）を書き出す列。
+    // 従来「FLG」列は常に空欄でエクスポートされていた（用途未定の予約列）ため、
+    // これを再利用する形にした。既存の列位置は一切ズラしていない。
+    flg:          findColIdx(headers, ['FLG']),
     barcode:      findColIdx(headers, ['バーコード']),
     category:     findColIdx(headers, ['カテゴリ', 'category']),
     name:         findColIdx(headers, ['品名']),
@@ -252,6 +262,9 @@ export function parseExcelFile(buffer: ArrayBuffer): {
       const barcodeRaw = colIdx.barcode > -1 ? row[colIdx.barcode] : row[0];
       // 期限区分は「消費期限」の文字が含まれていればUSE_BY、それ以外（未指定含む）はBEST_BEFORE
       const shelfLifeTypeRaw = colIdx.shelfLifeType > -1 ? String(row[colIdx.shelfLifeType] ?? '') : '';
+      // FLG列（表示/非表示）。「表示」「非表示」以外（空欄・旧形式ファイル等）はundefined＝指定なし。
+      const flgRaw = colIdx.flg > -1 ? String(row[colIdx.flg] ?? '').trim() : '';
+      const isActiveOverride = flgRaw === '非表示' ? false : flgRaw === '表示' ? true : undefined;
 
       const recipe: ImportedRecipe = {
         no:              parseInt(String(row[0] ?? i)) || i,
@@ -285,6 +298,7 @@ export function parseExcelFile(buffer: ArrayBuffer): {
         ingredients,
         steps,
         bakingConditions,
+        isActiveOverride,
       };
 
       recipes.push(recipe);
@@ -306,6 +320,8 @@ export function parseExcelFile(buffer: ArrayBuffer): {
  */
 export function exportRecipesToExcel(
   recipes: Array<{
+    // 2026-08新設: 表示/非表示の状態をFLG列に書き出す（一括での表示/非表示編集をしやすくする目的）。
+    isActive:       boolean;
     name:           string;
     nameKana:       string | null;
     variationName:  string | null;
@@ -404,7 +420,9 @@ export function exportRecipesToExcel(
     const baseData = [
       recipe.barcode ?? '',
       recipe.categoryName ?? '',
-      '',
+      // 2026-08新設: 以前は常に空欄だった予約列（FLG）に表示/非表示の状態を書き出す。
+      // インポート時にこの列を読み戻して、表示/非表示の一括変更に使える。
+      recipe.isActive ? '表示' : '非表示',
       recipe.name,
       recipe.nameKana ?? '',
       recipe.variationName ?? '',

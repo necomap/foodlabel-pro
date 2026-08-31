@@ -77,6 +77,8 @@ export default function RecipesPage() {
   // 複数選択
   const [selected,   setSelected]   = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
+  // 非表示レシピの一括完全削除（2026-08新設）
+  const [deletingHidden, setDeletingHidden] = useState(false);
   const PERPAGE = 24;
   // 日本語IME変換中かどうか。変換確定前の中間テキストでAPIが呼ばれてしまい、
   // 無関係なレシピが一瞬表示される不具合を防ぐため、確定するまで検索を実行しない
@@ -147,6 +149,22 @@ export default function RecipesPage() {
     } catch { toast.error('通信エラー'); }
   };
 
+  // 非表示レシピの一括完全削除（2026-08新設）。
+  // 非表示にしただけで消したつもりのレシピが溜まり続けて分かりにくい、
+  // というユーザーの声を受けて追加。物理削除のため元に戻せない（確認ダイアログで警告）。
+  const handleDeleteAllHidden = async () => {
+    if (total === 0) return;
+    if (!confirm(`非表示レシピを${total}件、完全に削除します。この操作は元に戻せません。よろしいですか？`)) return;
+    if (!confirm('本当によろしいですか？削除すると復元できません。')) return;
+    setDeletingHidden(true);
+    try {
+      const res  = await fetch('/api/recipes/bulk-delete-hidden', { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) { toast.success(`${data.data?.deleted ?? ''}件の非表示レシピを削除しました`); fetchRecipes(); }
+      else toast.error(data.error ?? '削除に失敗しました');
+    } catch { toast.error('通信エラー'); } finally { setDeletingHidden(false); }
+  };
+
   const totalPages = Math.ceil(total / PERPAGE);
   const getCostColor = (r: number|null) => !r ? 'text-stone-400' : r < 0.3 ? 'text-green-600' : r < 0.4 ? 'text-yellow-600' : 'text-red-600';
 
@@ -183,6 +201,13 @@ export default function RecipesPage() {
                 <Plus className="w-4 h-4" />新規作成
               </Link>
             </>
+          )}
+          {showHidden && total > 0 && (
+            <button onClick={handleDeleteAllHidden} disabled={deletingHidden}
+              className="btn-secondary flex items-center gap-2 text-sm bg-red-50 border-red-200 text-red-700 hover:bg-red-100 disabled:opacity-50">
+              <AlertTriangle className="w-4 h-4" />
+              {deletingHidden ? '削除中...' : '非表示レシピを全て完全に削除'}
+            </button>
           )}
           <button onClick={() => { setShowHidden(!showHidden); setPage(1); setSelectMode(false); }}
             className={`btn-secondary flex items-center gap-2 text-sm ${showHidden ? 'bg-amber-100 border-amber-300 text-amber-700' : ''}`}>

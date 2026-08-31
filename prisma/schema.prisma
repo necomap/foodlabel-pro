@@ -377,7 +377,11 @@ model Label {
   // lotInfoの内容を小文字化・連結した検索用テキスト（部分一致検索を単純なcontainsで行うため）。
   lotSearchText   String?
   createdAt       DateTime        @default(now())
-  recipe          Recipe          @relation(fields: [recipeId], references: [id])
+  // 2026-08: 非表示レシピの一括完全削除機能のため追加。以前はrecipeへのonDelete指定が
+  // 無く、Labelレコードが存在するレシピをhard deleteしようとするとPrisma/DB側で
+  // 外部キー制約違反になっていた。レシピを完全削除する＝そのレシピで発行した
+  // ラベル印刷履歴も不要という判断でCascadeにする。
+  recipe          Recipe          @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   shop            Shop?           @relation(fields: [shopId], references: [id])
   user            User            @relation(fields: [userId], references: [id])
 

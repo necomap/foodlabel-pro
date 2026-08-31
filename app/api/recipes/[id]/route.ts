@@ -8,6 +8,7 @@ import { prisma } from '@/lib/db';
 import { getReadOnlyRecipeIds } from '@/lib/plan-limits';
 import { buildIngredientsLabel, collectRecipeAllergens, prepareIngredientsForLabel } from '@/lib/allergen';
 import { calcPerUnit, roundForDisplay, calcNutritionForAmount, resolveIngredientNutritionPer100g, calcCostRate } from '@/lib/nutrition';
+import { getGenericNameOverrides } from '@/lib/generic-name-overrides';
 import type { BakingStep } from '@/types';
 
 type Params = { params: { id: string } };
@@ -53,12 +54,18 @@ export async function GET(_req: Request, { params }: Params) {
   // ユーザーが並び替えた順番が重量順に戻って見えてしまう（保存されていないように見える）バグになる。
   const sortedIngredients = [...recipe.ingredients].sort((a, b) => a.displayOrder - b.displayOrder);
 
+  // 自分が所有していない共有食材（システム共有・他ユーザー共有）でも「自分専用の一般名」が
+  // 設定されていれば、食材マスタ本体のgenericNameより優先する（詳細はlib/generic-name-overrides.ts）。
+  const genericNameOverrides = await getGenericNameOverrides(session.user.id, sortedIngredients.map(ing => ing.ingredientId));
+  const resolveGenericName = (ing: typeof sortedIngredients[number]): string | null =>
+    (ing.ingredientId && genericNameOverrides.get(ing.ingredientId)) || (ing.ingredient as any)?.genericName || null;
+
   // アレルゲン集約（ラベル印刷時の判定〔app/api/labels/generate/route.ts〕と同じく、一般名優先で判定する）
   const allergenInfo = collectRecipeAllergens(
     sortedIngredients.map(ing => ({
       allergens:        ing.ingredient?.allergens ?? [],
       allergenOverride: ing.allergenOverride,
-      ingredientName:   (ing.ingredient as any)?.genericName || ing.ingredient?.name || ing.ingredientNameOverride || '',
+      ingredientName:   resolveGenericName(ing) || ing.ingredient?.name || ing.ingredientNameOverride || '',
       // 食材マスタに紐づいている材料は、マスタ側のallergensのみを信頼する（名前からの自動再判定はしない）
       hasIngredientLink: !!ing.ingredientId,
     }))
@@ -69,7 +76,7 @@ export async function GET(_req: Request, { params }: Params) {
   const ingredientsLabel = buildIngredientsLabel(
     prepareIngredientsForLabel(
       sortedIngredients.map(ing => ({
-        ingredientName: (ing.ingredient as any)?.genericName || ing.ingredient?.name || ing.ingredientNameOverride || '',
+        ingredientName: resolveGenericName(ing) || ing.ingredient?.name || ing.ingredientNameOverride || '',
         amount:         Number(ing.amount),
         unit:           ing.unit,
         displayOrder:   ing.displayOrder,
@@ -186,13 +193,16 @@ export async function GET(_req: Request, { params }: Params) {
             nutrition = calcNutritionForAmount(resolved.per100g, Number(ing.amount));
           }
         }
+        const hasPersonalGenericOverride = !!(ing.ingredientId && genericNameOverrides.has(ing.ingredientId));
         return {
           id:                     ing.id,
           ingredientId:           ing.ingredientId,
           ingredientName:         ing.ingredient?.name ?? ing.ingredientNameOverride ?? '',
           ingredientNameOverride: ing.ingredientNameOverride,
-          genericName:            (ing.ingredient as any)?.genericName ?? null,
-          genericNameConfirmed:   (ing.ingredient as any)?.genericNameConfirmed ?? null,
+          genericName:            resolveGenericName(ing),
+          // 自分専用の上書きは、自分で明示的に入力した値なので「要確認」扱いにはしない
+          genericNameConfirmed:   hasPersonalGenericOverride ? true : ((ing.ingredient as any)?.genericNameConfirmed ?? null),
+          genericNameIsPersonalOverride: hasPersonalGenericOverride,
           amount:                 Number(ing.amount),
           unit:                   ing.unit,
           displayOrder:           ing.displayOrder,

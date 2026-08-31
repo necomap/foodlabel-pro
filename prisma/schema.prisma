@@ -168,6 +168,12 @@ model IngredientPurchaseSetting {
   unitPrice     Decimal?   @db.Decimal(10, 4)
   storage       String?    @db.VarChar(20)
   supplier      String?    @db.VarChar(100)
+  // 2026-08新設: 自分が所有していない共有食材（システム共有＝userId nullの食材、または
+  // 他ユーザーが登録した共有食材）でも、ラベル表示用の一般名だけは「自分専用の表示名」として
+  // 個別に設定できるようにするための上書き値。食材マスタ本体のgenericNameは書き換えない
+  // （他のユーザーの表示には一切影響しない）。設定・解除は app/api/ingredients/[id]/route.ts の
+  // PUT（genericNameのみを含むリクエスト、かつ本体の編集権限が無い場合）で行う。
+  genericNameOverride String?    @db.VarChar(200)
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
   user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)

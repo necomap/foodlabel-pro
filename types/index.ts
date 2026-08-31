@@ -95,6 +95,9 @@ export interface RecipeIngredientDetail extends RecipeIngredientInput {
   ingredientName:         string;  // 解決済みの食材名（食材マスタの登録名）
   genericName?:           string | null;  // ラベル表示用の一般名（設定されていれば印字・一覧表示で優先）
   genericNameConfirmed?:  boolean | null;
+  // 2026-08新設: このgenericNameが「自分専用の表示名」（食材マスタ本体ではなく
+  // IngredientPurchaseSetting.genericNameOverride）由来かどうか。詳細はlib/generic-name-overrides.ts
+  genericNameIsPersonalOverride?: boolean;
   costTotal:              number | null;
   nutrition:              NutritionValues;
   nutritionUnconfirmed:   boolean;

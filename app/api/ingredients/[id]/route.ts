@@ -20,9 +20,34 @@ export async function PUT(request: Request, { params }: Params) {
   // （無断で他ユーザーの共有食材の内容を書き換えられてしまうのを防ぐため）。
   const isAdmin = (session.user as any).plan === 'admin';
   const canEdit = ing.userId === session.user.id || (isAdmin && ing.userId === null);
-  if (!canEdit) return NextResponse.json({ success: false, error: 'この食材を編集する権限がありません' }, { status: 403 });
 
   const body = await request.json();
+
+  // 2026-08新設: 編集権限が無い共有食材（システム共有・他ユーザー共有）でも、一般名だけは
+  // 「自分専用の表示名」として個別に保存できるようにする（IngredientPurchaseSetting側に
+  // 保存し、食材マスタ本体は書き換えない＝他のユーザーには一切影響しない）。
+  // 誤って他の項目まで書き換えられてしまわないよう、リクエストがgenericNameのみを
+  // 含む場合（app/dashboard/recipes/[id]/page.tsx・app/dashboard/labels/page.tsxの
+  // 一般名クイック編集）に限ってこの経路を通す。
+  if (!canEdit) {
+    const bodyKeys = Object.keys(body);
+    const isGenericNameOnlyEdit = bodyKeys.length === 1 && bodyKeys[0] === 'genericName';
+    if (!isGenericNameOnlyEdit) {
+      return NextResponse.json({ success: false, error: 'この食材を編集する権限がありません' }, { status: 403 });
+    }
+    const overrideValue = (typeof body.genericName === 'string' ? body.genericName.trim() : '') || null;
+    await prisma.ingredientPurchaseSetting.upsert({
+      where:  { userId_ingredientId: { userId: session.user.id, ingredientId: params.id } },
+      create: { userId: session.user.id, ingredientId: params.id, genericNameOverride: overrideValue },
+      update: { genericNameOverride: overrideValue },
+    });
+    return NextResponse.json({
+      success: true,
+      message: '一般名（自分専用の表示名）を更新しました',
+      data: { genericNameOverride: overrideValue, isPersonalOverride: true },
+    });
+  }
+
   const name = body.name ? toFullWidth(body.name).trim() : ing.name;
 
   // このAPIは (1) 食材マスタ編集モーダル（全項目を送る。空にした項目はnullで明示的に送られてくる）と

@@ -180,7 +180,14 @@ export default function LabelsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        toast.success('一般名を更新しました（同じ食材を使う他のレシピにも反映されます）');
+        // 2026-08: 自分が所有していない共有食材の場合、食材マスタ本体ではなく「自分専用の
+        // 表示名」として保存される（app/api/ingredients/[id]/route.ts参照）。他のユーザーには
+        // 影響しない旨が伝わるよう、通常の更新（食材マスタ本体の更新）とはトーストの文言を分ける。
+        toast.success(
+          data.data?.isPersonalOverride
+            ? '一般名（自分専用の表示名）を更新しました。他のご契約者様の表示には影響しません。'
+            : '一般名を更新しました（同じ食材を使う他のレシピにも反映されます）'
+        );
         setRecipeDetail((prev: any) => prev && ({
           ...prev,
           ingredients: prev.ingredients.map((i: any) =>

@@ -12,6 +12,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getPlanLimits } from '@/lib/plan-limits';
+import { getGenericNameOverrides } from '@/lib/generic-name-overrides';
 
 export async function GET() {
   const session = await auth();
@@ -39,20 +40,28 @@ export async function GET() {
     },
   });
 
+  // 自分が所有していない共有食材でも「自分専用の一般名」が設定されていれば優先する
+  // （詳細はlib/generic-name-overrides.ts）。全レシピ分の材料IDをまとめてから1回だけ取得する。
+  const allIngredientIds = recipes.flatMap(r => r.ingredients.map(ing => ing.ingredientId));
+  const genericNameOverrides = await getGenericNameOverrides(session.user.id, allIngredientIds);
+
   const data = recipes.map(r => ({
     id:           r.id,
     name:         r.name,
     unitCount:    r.unitCount,
     categoryName: r.category?.name ?? null,
     isActive:     r.isActive,
-    ingredients: r.ingredients.map(ing => ({
-      ingredientName:       ing.ingredient?.name || ing.ingredientNameOverride || '（材料名未設定）',
-      amount:               Number(ing.amount),
-      unit:                 ing.unit,
-      genericName:          ing.ingredient?.genericName ?? null,
-      genericNameConfirmed: ing.ingredient?.genericNameConfirmed ?? null,
-      processLabel:         ing.processLabel,
-    })),
+    ingredients: r.ingredients.map(ing => {
+      const override = ing.ingredientId ? genericNameOverrides.get(ing.ingredientId) : undefined;
+      return {
+        ingredientName:       ing.ingredient?.name || ing.ingredientNameOverride || '（材料名未設定）',
+        amount:               Number(ing.amount),
+        unit:                 ing.unit,
+        genericName:          override || ing.ingredient?.genericName || null,
+        genericNameConfirmed: override ? true : (ing.ingredient?.genericNameConfirmed ?? null),
+        processLabel:         ing.processLabel,
+      };
+    }),
     steps:           r.steps.map(s => s.instruction),
     bakingConditions: r.bakingConditions,
     totalWeightG:    r.totalWeightG != null ? Number(r.totalWeightG) : null,

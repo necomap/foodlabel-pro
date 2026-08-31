@@ -10,6 +10,7 @@ import { prisma } from '@/lib/db';
 import { generateLabelContent, generateLabelHtml, getDefaultDisplaySettings } from '@/lib/label';
 import { buildIngredientsLabel, collectRecipeAllergens, prepareIngredientsForLabel } from '@/lib/allergen';
 import { calcPerUnit, roundForDisplay, calcNutritionForAmount, resolveIngredientNutritionPer100g } from '@/lib/nutrition';
+import { getGenericNameOverrides } from '@/lib/generic-name-overrides';
 import type { RecipeDetail, LabelConfig, BakingStep } from '@/types';
 
 const labelConfigSchema = z.object({
@@ -269,11 +270,18 @@ export async function POST(request: Request) {
     return a.displayOrder - b.displayOrder;
   });
 
+  // 自分が所有していない共有食材でも「自分専用の一般名」が設定されていれば優先する
+  // （詳細はlib/generic-name-overrides.ts）。実際に印字される内容に反映させる必要があるため、
+  // レシピ詳細API（app/api/recipes/[id]/route.ts）と同じロジックをここでも適用する。
+  const genericNameOverrides = await getGenericNameOverrides(session.user.id, sortedIngredients.map(ing => ing.ingredientId));
+  const resolveGenericName = (ing: typeof sortedIngredients[number]): string | null =>
+    (ing.ingredientId && genericNameOverrides.get(ing.ingredientId)) || ing.ingredient?.genericName || null;
+
   const allergenInfo = collectRecipeAllergens(
     sortedIngredients.map(ing => ({
       allergens:        ing.ingredient?.allergens ?? [],
       allergenOverride: ing.allergenOverride,
-      ingredientName:   ing.ingredient?.genericName || ing.ingredient?.name || ing.ingredientNameOverride || '',
+      ingredientName:   resolveGenericName(ing) || ing.ingredient?.name || ing.ingredientNameOverride || '',
       // 食材マスタに紐づいている材料は、マスタ側のallergensのみを信頼する（名前からの自動再判定はしない）
       hasIngredientLink: !!ing.ingredientId,
     }))
@@ -315,7 +323,7 @@ export async function POST(request: Request) {
     ingredientsLabel: buildIngredientsLabel(
       prepareIngredientsForLabel(
         sortedIngredients.map(i => ({
-          ingredientName: i.ingredient?.genericName || i.ingredient?.name || i.ingredientNameOverride || '',
+          ingredientName: resolveGenericName(i) || i.ingredient?.name || i.ingredientNameOverride || '',
           amount: Number(i.amount),
           // レシピ側で個別に原産地を指定していなければ、食材マスタ側の原産地（デフォルト）を使う。
           // これが無いと、食材マスタで原産地を後から入力・修正しても、既存のレシピ（材料が
@@ -354,7 +362,7 @@ export async function POST(request: Request) {
       return {
         id:                     ing.id,
         ingredientId:           ing.ingredientId ?? undefined,
-        ingredientName:         ing.ingredient?.genericName || ing.ingredient?.name || ing.ingredientNameOverride || '',
+        ingredientName:         resolveGenericName(ing) || ing.ingredient?.name || ing.ingredientNameOverride || '',
         ingredientNameOverride: ing.ingredientNameOverride ?? undefined,
         amount:                 Number(ing.amount),
         unit:                   ing.unit,

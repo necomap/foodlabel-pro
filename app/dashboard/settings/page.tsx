@@ -104,10 +104,35 @@ function ProfileTab() {
           </button>
         ) : (
           <a href="/dashboard/upgrade" className="text-brand-600 text-sm font-medium hover:underline inline-flex items-center gap-1">
-            プレミアムにアップグレード →
+            スタンダードにアップグレード →
           </a>
         )}
       </div>
+
+      {/* 2026-08新設: バックアップ・保健所提出用の導線をまとめて設置。
+          Excelエクスポートは既存機能（全レシピ対応済み）をそのままバックアップ用途に案内し、
+          全レシピ一括印刷は保健所への立入検査時などの事業者控え用（Pro限定）。 */}
+      <h2 className="section-title">データのバックアップ・保健所提出</h2>
+      <div className="bg-cream-50 rounded-xl p-4 text-sm space-y-3">
+        <div>
+          <div className="font-medium text-stone-700">Excelでバックアップ</div>
+          <p className="text-stone-500 mt-0.5">全レシピのデータをExcelファイルとして保存できます。定期的なバックアップにご利用ください。</p>
+          <a href="/dashboard/import?tab=export" className="text-brand-600 font-medium hover:underline inline-flex items-center gap-1 mt-1">
+            エクスポート画面へ →
+          </a>
+        </div>
+        <div className="pt-3 border-t border-cream-200">
+          <div className="font-medium text-stone-700 flex items-center gap-1.5">
+            全レシピを保健所提出用に印刷
+            <span className="badge bg-brand-100 text-brand-700 text-[10px]">Pro</span>
+          </div>
+          <p className="text-stone-500 mt-0.5">非表示レシピを含む全レシピを、原材料・アレルゲン等がわかる形で一括印刷できます。立入検査時の事業者控えなどにご利用ください。</p>
+          <a href="/dashboard/recipes/print?all=1" className="text-brand-600 font-medium hover:underline inline-flex items-center gap-1 mt-1">
+            印刷画面へ →
+          </a>
+        </div>
+      </div>
+
       <h2 className="section-title">基本情報（ラベル製造者欄）</h2>
       <p className="text-sm text-stone-500 -mt-2">ラベルの製造者欄に印字される情報です</p>
       <div className="grid sm:grid-cols-2 gap-4">

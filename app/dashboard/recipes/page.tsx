@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Plus, Search, Filter, AlertTriangle, ChevronRight, Flame, Tag, TrendingUp, RefreshCw, Package, Printer, EyeOff, Eye, CheckSquare, Square } from 'lucide-react';
+import { Plus, Search, Filter, AlertTriangle, ChevronRight, Flame, Tag, TrendingUp, RefreshCw, Package, Printer, EyeOff, Eye, CheckSquare, Square, ClipboardList } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface RecipeSummary {
@@ -41,7 +41,9 @@ function readQueryParam(key: string, fallback: string): string {
 
 export default function RecipesPage() {
   const router = useRouter();
-  const { update: updateSession } = useSession();
+  const { data: session, update: updateSession } = useSession();
+  const plan = (session?.user as any)?.plan ?? 'free';
+  const isProOrAdmin = plan === 'pro' || plan === 'admin';
   // Stripe決済完了後（success_url=/dashboard/recipes?upgraded=1）に戻ってきた時だけ、
   // セッション（plan）をDBの最新値で明示的に再取得する。ログアウト→ログインし直さないと
   // 画面上・ナビの表示が変わらない不具合の対策（lib/auth.ts のjwtコールバック参照）。
@@ -49,7 +51,10 @@ export default function RecipesPage() {
   useEffect(() => {
     if (readQueryParam('upgraded', '') === '1') {
       updateSession();
-      toast.success('プレミアムプランへのお支払いが完了しました。ありがとうございます！');
+      // 2026-08: 以前は「プレミアムプランへの」固定文言だったが、プロプラン新設後もこの
+      // 成功時トーストはプラン種別を問わず同じ処理を通るため、プロ加入者にも「プレミアム」と
+      // 表示される不整合があった。プラン名を含めない文言に変更して解消。
+      toast.success('お支払いが完了しました。ありがとうございます！');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -79,6 +84,8 @@ export default function RecipesPage() {
   const [selectMode, setSelectMode] = useState(false);
   // 非表示レシピの一括完全削除（2026-08新設）
   const [deletingHidden, setDeletingHidden] = useState(false);
+  // レシピの一括非表示（2026-08新設・Pro限定）
+  const [bulkHiding, setBulkHiding] = useState(false);
   const PERPAGE = 24;
   // 日本語IME変換中かどうか。変換確定前の中間テキストでAPIが呼ばれてしまい、
   // 無関係なレシピが一瞬表示される不具合を防ぐため、確定するまで検索を実行しない
@@ -137,16 +144,82 @@ export default function RecipesPage() {
     router.push(`/dashboard/recipes/print?ids=${ids}`);
   };
 
-  // レシピ非表示/再表示
+  // 非表示にしたレシピを元に戻す（個別の非表示ボタン・一括非表示のどちらから
+  // 非表示にした場合でも共通で使う。誤操作の取り消し用なのでプラン制限はかけない）
+  const restoreRecipes = async (ids: string[]) => {
+    try {
+      const res  = await fetch('/api/recipes/bulk-hide', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+      const data = await res.json();
+      if (data.success) { toast.success('元に戻しました'); fetchRecipes(); }
+      else toast.error(data.error ?? '元に戻せませんでした');
+    } catch { toast.error('通信エラー'); }
+  };
+
+  // 「元に戻す」ボタン付きのトースト（数秒操作しなければそのまま非表示状態が確定する）
+  const showUndoToast = (message: string, ids: string[]) => {
+    toast.custom((t) => (
+      <div
+        className={`flex items-center gap-3 bg-stone-800 text-white text-sm rounded-xl shadow-warm px-4 py-3 transition-opacity ${t.visible ? 'opacity-100' : 'opacity-0'}`}
+      >
+        <span>{message}</span>
+        <button
+          onClick={() => { toast.dismiss(t.id); restoreRecipes(ids); }}
+          className="text-amber-300 font-bold hover:underline flex-shrink-0"
+        >
+          元に戻す
+        </button>
+      </div>
+    ), { duration: 6000 });
+  };
+
+  // レシピ非表示/再表示（カード上の個別ボタン）
+  // 2026-08: 非表示にする操作は毎回確認ダイアログが出るのが手間という声を受け、
+  // 非表示にする方向は確認なしで即実行し、代わりに誤操作対策として「元に戻す」
+  // トーストを出す方式に変更。再表示（非表示レシピ一覧からの復元）は従来通り確認あり。
   const handleToggleActive = async (id: string, currentlyActive: boolean) => {
-    const action = currentlyActive ? '非表示' : '再表示';
-    if (!confirm(`このレシピを${action}にしますか？`)) return;
+    if (!currentlyActive) {
+      if (!confirm('このレシピを再表示にしますか？')) return;
+      try {
+        const res  = await fetch(`/api/recipes/${id}/toggle-active`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) { toast.success('再表示にしました'); fetchRecipes(); }
+        else toast.error(data.error ?? '失敗しました');
+      } catch { toast.error('通信エラー'); }
+      return;
+    }
     try {
       const res  = await fetch(`/api/recipes/${id}/toggle-active`, { method: 'POST' });
       const data = await res.json();
-      if (data.success) { toast.success(`${action}にしました`); fetchRecipes(); }
+      if (data.success) { fetchRecipes(); showUndoToast('非表示にしました', [id]); }
       else toast.error(data.error ?? '失敗しました');
     } catch { toast.error('通信エラー'); }
+  };
+
+  // レシピの一括非表示（2026-08新設・Pro限定）
+  const handleBulkHide = async () => {
+    if (selected.size === 0) { toast.error('非表示にするレシピを選択してください'); return; }
+    const ids = Array.from(selected);
+    setBulkHiding(true);
+    try {
+      const res  = await fetch('/api/recipes/bulk-hide', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const hiddenIds: string[] = data.data?.hiddenIds ?? [];
+        clearSelection();
+        fetchRecipes();
+        if (hiddenIds.length > 0) showUndoToast(`${hiddenIds.length}件のレシピを非表示にしました`, hiddenIds);
+      } else {
+        toast.error(data.error ?? '非表示にできませんでした');
+      }
+    } catch { toast.error('通信エラー'); } finally { setBulkHiding(false); }
   };
 
   // 非表示レシピの一括完全削除（2026-08新設）。
@@ -183,15 +256,39 @@ export default function RecipesPage() {
           {!showHidden && (
             <>
               {!selectMode ? (
-                <button onClick={() => setSelectMode(true)} className="btn-secondary flex items-center gap-2 text-sm">
-                  <Printer className="w-4 h-4" />レシピを印刷
-                </button>
+                <>
+                  <button onClick={() => setSelectMode(true)} className="btn-secondary flex items-center gap-2 text-sm">
+                    <Printer className="w-4 h-4" />レシピを印刷
+                  </button>
+                  {/* 2026-08新設: レシピをチェックボックスで選択して一括非表示にする
+                      （Pro限定機能。レシピ件数が多いプロプランのユーザー向け） */}
+                  {isProOrAdmin && (
+                    <button onClick={() => setSelectMode(true)} className="btn-secondary flex items-center gap-2 text-sm">
+                      <EyeOff className="w-4 h-4" />選択して非表示にする
+                    </button>
+                  )}
+                  {/* 2026-08新設: 非表示レシピも含めた全レシピを一括で保健所提出用に印刷する
+                      （Pro限定機能。プランを問わずボタン自体は表示し、非対象プランの場合は
+                      遷移先の印刷画面側でアップグレード案内を表示する） */}
+                  <Link href="/dashboard/recipes/print?all=1" className="btn-secondary flex items-center gap-2 text-sm">
+                    <ClipboardList className="w-4 h-4" />
+                    全レシピを保健所提出用に印刷
+                    <span className="badge bg-brand-100 text-brand-700 text-[10px]">Pro</span>
+                  </Link>
+                </>
               ) : (
                 <>
                   <button onClick={handlePrintSelected} disabled={selected.size === 0}
                     className="btn-primary flex items-center gap-2 text-sm disabled:opacity-50">
                     <Printer className="w-4 h-4" />{selected.size > 0 ? `${selected.size}件を印刷` : '印刷するレシピを選択'}
                   </button>
+                  {isProOrAdmin && (
+                    <button onClick={handleBulkHide} disabled={selected.size === 0 || bulkHiding}
+                      className="btn-secondary flex items-center gap-2 text-sm bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100 disabled:opacity-50">
+                      <EyeOff className="w-4 h-4" />
+                      {bulkHiding ? '処理中...' : selected.size > 0 ? `${selected.size}件を非表示にする` : '非表示にするレシピを選択'}
+                    </button>
+                  )}
                   <button onClick={clearSelection} className="btn-secondary text-sm">
                     キャンセル
                   </button>

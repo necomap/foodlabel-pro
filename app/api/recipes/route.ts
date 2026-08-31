@@ -155,8 +155,8 @@ export async function POST(request: Request) {
       // 2026-08 プロプラン新設: プレミアムユーザーが100件の上限に達した場合は「プロ」への
       // アップグレードを案内する（フリープランのまま案内すると、既にプレミアムの人には
       // 意味が通らないため、現在のプランに応じて文言を出し分ける）。
-      const planLabel  = currentPlan === 'premium' ? 'プレミアムプラン' : 'フリープラン';
-      const nextPlanLabel = currentPlan === 'premium' ? 'プロプラン' : 'プレミアムプラン';
+      const planLabel  = currentPlan === 'premium' ? 'スタンダードプラン' : 'フリープラン';
+      const nextPlanLabel = currentPlan === 'premium' ? 'プロプラン' : 'スタンダードプラン';
       return NextResponse.json({
         success: false,
         error: `${planLabel}のレシピ上限（${limits.maxRecipes}件）に達しました。${nextPlanLabel}にアップグレードしてください。`,

@@ -6,7 +6,7 @@ import { signOut } from 'next-auth/react';
 import {
   Cookie, BookOpen, Tag, ShoppingBasket, Settings,
   LogOut, Menu, X, ChevronRight, ArrowLeftRight, HelpCircle, Shield, Crown,
-Star, Search, Megaphone,
+Star, Search, Megaphone, BarChart3,
 } from 'lucide-react';
 
 const navItems = [
@@ -25,6 +25,9 @@ const navItems = [
 // 使えない機能が枠を占有してしまう）。Pro/管理者にはレシピ管理の次に表示する。
 const LOTS_NAV_ITEM = { href: '/dashboard/lots', label: 'ロット検索', icon: Search, color: 'text-rose-600' };
 
+// 材料消費量レポート（2026-08新設・Proプラン限定機能）。ロット検索と同じ理由でPro/管理者のみ表示。
+const CONSUMPTION_NAV_ITEM = { href: '/dashboard/consumption', label: '消費量レポート', icon: BarChart3, color: 'text-indigo-600' };
+
 interface Props {
   isAdmin:   boolean;
   plan:      string;
@@ -41,9 +44,13 @@ export default function DashboardNav({ isAdmin, plan, userName, userEmail }: Pro
   const isProOrAdmin = plan === 'pro' || isAdmin;
   const showUpgradeBanner = !isProOrAdmin;
 
-  // Pro/管理者のときだけ「レシピ管理」の次に「ロット検索」を挿入する
+  // Pro/管理者のときだけ、「レシピ管理」の次に「ロット検索」、「インポート/エクスポート」の
+  // 次に「消費量レポート」を挿入する。モバイルボトムナビは先頭5件しか表示されないため、
+  // 消費量レポートは意図的に5番目（インポート/エクスポートの直後）より後ろに配置し、
+  // 既存のボトムナビの並び（レシピ管理・ロット検索・ラベル印刷・食材マスタ・インポート/エクスポート）
+  // を変えないようにしている。
   const items = isProOrAdmin
-    ? [navItems[0], LOTS_NAV_ITEM, ...navItems.slice(1)]
+    ? [navItems[0], LOTS_NAV_ITEM, ...navItems.slice(1, 4), CONSUMPTION_NAV_ITEM, ...navItems.slice(4)]
     : navItems;
   const upgradeBannerTitle = plan === 'premium' ? 'Proにアップグレード' : 'プランをアップグレード';
   const upgradeBannerDesc  = plan === 'premium' ? '月額6,980円・レシピ無制限' : '月額980円〜・レシピ100件まで';

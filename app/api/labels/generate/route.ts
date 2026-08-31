@@ -105,7 +105,7 @@ export async function POST(request: Request) {
     if (monthlyCount + requestedCount > limits.maxLabelPrints) {
       return NextResponse.json({
         success: false,
-        error: `フリープランの月間印刷上限（${limits.maxLabelPrints}枚）に達しました。プレミアムプランにアップグレードしてください。`,
+        error: `フリープランの月間印刷上限（${limits.maxLabelPrints}枚）に達しました。スタンダードプランにアップグレードしてください。`,
         upgradeRequired: true,
       }, { status: 403 });
     }

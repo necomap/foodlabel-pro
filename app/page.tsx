@@ -105,17 +105,20 @@ export default function RootPage() {
           </div>
           <div className="card space-y-4 border-2 border-amber-400">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-stone-800">プレミアムプラン</h3>
+              <h3 className="font-bold text-stone-800">スタンダードプラン</h3>
               <span className="badge bg-amber-100 text-amber-700 text-xs">おすすめ</span>
             </div>
             <div className="text-3xl font-bold text-stone-800">¥980<span className="text-sm font-normal text-stone-500">/月</span></div>
             <ul className="space-y-2 text-sm text-stone-600">
-              {['レシピ無制限', 'ラベル印刷無制限', '店舗無制限', 'Excelエクスポート', '広告なし', '優先サポート'].map(f => (
+              {/* 2026-08: 以前は「レシピ無制限・店舗無制限」だったが、プロプラン新設に伴い
+                  スタンダード（旧プレミアム）はレシピ最大100件・店舗最大3件に変更済み
+                  （lib/plan-limits.ts参照）。ランディングページの表記が追従していなかったため修正。 */}
+              {['レシピ最大100件', 'ラベル印刷無制限', '店舗最大3件', 'Excelインポート・エクスポート(月5回)', '広告なし', '優先サポート'].map(f => (
                 <li key={f} className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-amber-500" />{f}</li>
               ))}
             </ul>
             <Link href="/auth/register" className="w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-colors block text-center text-sm">
-              プレミアムで始める
+              スタンダードで始める
             </Link>
           </div>
         </div>

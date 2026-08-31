@@ -1,11 +1,15 @@
 'use client';
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Printer, Loader2, AlertTriangle, X } from 'lucide-react';
+import { ArrowLeft, Printer, Loader2, AlertTriangle, X, Lock } from 'lucide-react';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 
 interface RecipeForPrint {
   id: string; name: string; unitCount: number; categoryName: string|null;
+  // 2026-08新設: 「全レシピ一括印刷（保健所提出用）」モードでのみ使う。非表示レシピも
+  // 対象に含めるため、印刷プレビュー上でどれが現在非表示かを判別できるようにする。
+  isActive?: boolean;
   ingredients: Array<{
     ingredientName: string; amount: number; unit: string;
     genericName: string|null; genericNameConfirmed: boolean|null;
@@ -53,12 +57,18 @@ function PrintContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const ids = searchParams.get('ids')?.split(',').filter(Boolean) ?? [];
+  // 2026-08新設: ?all=1 で「全レシピ一括印刷（保健所提出用・Pro限定）」モードになる。
+  // このモードでは ids は使わず、専用API（非表示レシピ含む全件を1回で取得）を呼ぶ。
+  const allMode = searchParams.get('all') === '1';
   const [recipes, setRecipes] = useState<RecipeForPrint[]>([]);
   const [loading, setLoading] = useState(true);
   const [cols,    setCols]    = useState<1|2>(1);
+  // allModeでプラン制限に引っかかった場合はfalseになる（通常モードでは常にtrue）
+  const [canUse,  setCanUse]  = useState(true);
 
-  // 表示名：自分用（食材名そのまま）／提出用（一般名）
-  const [nameMode, setNameMode] = useState<'raw'|'generic'>('raw');
+  // 表示名：自分用（食材名そのまま）／提出用（一般名）。全レシピ一括印刷は保健所提出が
+  // 主目的のため、あらかじめ一般名表示をデフォルトにしておく。
+  const [nameMode, setNameMode] = useState<'raw'|'generic'>(allMode ? 'generic' : 'raw');
 
   // 倍率（少量仕込み・倍量仕込み用の複数列表示）。×1（基準）は常に表示。
   const [scalePresets, setScalePresets] = useState([
@@ -105,10 +115,24 @@ function PrintContent() {
   }, [nameMode, recipes]);
 
   useEffect(() => {
-    if (ids.length === 0) { router.push('/dashboard/recipes'); return; }
+    if (!allMode && ids.length === 0) { router.push('/dashboard/recipes'); return; }
     (async () => {
       setLoading(true);
       try {
+        // 2026-08新設: allModeは専用APIを1回呼ぶだけで済む（非表示含む全件を一括取得）。
+        // 通常モードは従来通り、選択されたidsごとに個別取得する。
+        if (allMode) {
+          const res  = await fetch('/api/recipes/print-all');
+          const data = await res.json();
+          if (!data.success) { toast.error(data.error ?? '取得に失敗しました'); setCanUse(false); return; }
+          if (!data.data.canUse) { setCanUse(false); return; }
+          const valid = (data.data.recipes as any[]).map(d => {
+            if (!Array.isArray(d.bakingConditions)) d.bakingConditions = [];
+            return d;
+          });
+          setRecipes(valid);
+          return;
+        }
         const results = await Promise.all(
           ids.map(id => fetch(`/api/recipes/${id}`).then(r => r.json()))
         );
@@ -154,7 +178,7 @@ function PrintContent() {
 <div class="grid">
 ${recipes.map(r => `
   <div class="recipe-card">
-    <div class="recipe-name">${r.name}</div>
+    <div class="recipe-name">${r.name}${r.isActive === false ? ' <span style="font-size:8pt;font-weight:normal;color:#999;">（非表示）</span>' : ''}</div>
     <div style="font-size:9pt;color:#888;margin-bottom:2mm;">${[r.categoryName, `${r.unitCount}個分`, r.totalWeightG ? `全重量${r.totalWeightG}g` : null].filter(Boolean).join(' / ')}${nameMode==='generic' ? ' / 一般名表示（提出用）' : ''}</div>
     <div class="section-title">材料</div>
     <table>
@@ -195,6 +219,28 @@ ${recipes.map(r => `
     );
   }
 
+  if (!canUse) {
+    return (
+      <div className="max-w-3xl space-y-5 animate-fade-in">
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.back()} className="btn-ghost p-2">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <h1 className="text-xl font-bold text-stone-800 font-display">全レシピ一括印刷</h1>
+        </div>
+        <div className="card flex items-center justify-between gap-3 bg-cream-50">
+          <div className="flex items-center gap-2 text-sm text-stone-500">
+            <Lock className="w-4 h-4 flex-shrink-0" />
+            全レシピの一括印刷（保健所提出用）はProプラン限定機能です
+          </div>
+          <Link href="/dashboard/upgrade" className="text-brand-600 text-sm font-medium hover:underline whitespace-nowrap">
+            詳しく見る →
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl space-y-5 animate-fade-in">
       <div className="flex items-center gap-3">
@@ -202,8 +248,12 @@ ${recipes.map(r => `
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <h1 className="text-xl font-bold text-stone-800 font-display">レシピ印刷</h1>
-          <p className="text-stone-500 text-sm">{recipes.length}件のレシピを印刷します</p>
+          <h1 className="text-xl font-bold text-stone-800 font-display">
+            {allMode ? '全レシピ一括印刷（保健所提出用）' : 'レシピ印刷'}
+          </h1>
+          <p className="text-stone-500 text-sm">
+            {allMode ? `非表示レシピを含む全${recipes.length}件を印刷します` : `${recipes.length}件のレシピを印刷します`}
+          </p>
         </div>
       </div>
 
@@ -296,7 +346,10 @@ ${recipes.map(r => `
       <div className={`grid ${cols === 2 ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
         {recipes.map(recipe => (
           <div key={recipe.id} className="card border-2 border-stone-200">
-            <div className="font-bold text-stone-800 text-lg border-b border-cream-200 pb-2 mb-3">{recipe.name}</div>
+            <div className="font-bold text-stone-800 text-lg border-b border-cream-200 pb-2 mb-3">
+              {recipe.name}
+              {recipe.isActive === false && <span className="text-xs font-normal text-stone-400 ml-2">（非表示）</span>}
+            </div>
             <div className="text-xs text-stone-400 mb-2">
               {[recipe.categoryName, `${recipe.unitCount}個分`, recipe.totalWeightG ? `全重量${recipe.totalWeightG}g` : null].filter(Boolean).join(' / ')}
             </div>

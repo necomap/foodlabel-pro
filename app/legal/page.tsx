@@ -10,7 +10,7 @@ export default function LegalPage() {
     { label: '電話番号',       value: 'メールにてお問い合わせください\n（開示請求には遅滞なく対応します）' },
     { label: 'メールアドレス', value: 'info.lucke@gmail.com' },
     { label: 'サービス名',     value: 'FoodLabel Pro' },
-    { label: '販売価格',       value: 'フリープラン：無料\nプレミアムプラン：月額980円（税込）' },
+    { label: '販売価格',       value: 'フリープラン：無料\nスタンダードプラン：月額980円（税込）\nプロプラン：月額6,980円（税込）' },
     { label: '支払方法',       value: 'クレジットカード（Visa・Mastercard・American Express・JCB）' },
     { label: '支払時期',       value: '毎月自動更新（登録日を基準に1ヶ月ごと）' },
     { label: 'サービス提供時期', value: '決済完了後、即時利用可能' },
@@ -23,7 +23,7 @@ export default function LegalPage() {
       <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-sm p-8 space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-stone-800">特定商取引法に基づく表記</h1>
-          <p className="text-stone-500 text-sm mt-1">最終更新日：2026年3月23日</p>
+          <p className="text-stone-500 text-sm mt-1">最終更新日：2026年8月31日</p>
         </div>
 
         <div className="divide-y divide-cream-200">

@@ -43,7 +43,7 @@ export async function POST(request: Request) {
   // isFirstChunkで二重にガードする＝2回目以降のチャンクでclearAll=trueが来ても無視する）
   const clearAll   = isFirstChunk && clearAllReq;
 
-  const planLabel = (session.user.plan ?? 'free') === 'premium' ? 'プレミアムプラン' : 'フリープラン';
+  const planLabel = (session.user.plan ?? 'free') === 'premium' ? 'スタンダードプラン' : 'フリープラン';
 
   // プラン制限チェック（インポート機能自体の利用可否・月間回数）
   // 2026-08: 以前はここに判定が無く、フリープランでもインポートが使えてしまっていた
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
   if (!importLimits.canExport) {
     return NextResponse.json({
       success: false,
-      error: 'インポート機能はプレミアムプラン以上でご利用いただけます。',
+      error: 'インポート機能はスタンダードプラン以上でご利用いただけます。',
       upgradeRequired: true,
     }, { status: 403 });
   }
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     if (monthlyImportCount >= importLimits.maxImportsPerMonth) {
       return NextResponse.json({
         success: false,
-        error: `プレミアムプランのインポートは月${importLimits.maxImportsPerMonth}回までです（今月分はご利用済みです）。プロプランなら回数無制限でご利用いただけます。`,
+        error: `スタンダードプランのインポートは月${importLimits.maxImportsPerMonth}回までです（今月分はご利用済みです）。プロプランなら回数無制限でご利用いただけます。`,
         upgradeRequired: true,
       }, { status: 403 });
     }
@@ -441,7 +441,7 @@ export async function GET(request: Request) {
   if (!limits.canExport) {
     return NextResponse.json({
       success: false,
-      error: 'Excelエクスポートはプレミアムプランの機能です。',
+      error: 'Excelエクスポートはスタンダードプランの機能です。',
       upgradeRequired: true,
     }, { status: 403 });
   }
@@ -451,7 +451,7 @@ export async function GET(request: Request) {
     if (monthlyExportCount >= limits.maxExportsPerMonth) {
       return NextResponse.json({
         success: false,
-        error: `プレミアムプランのエクスポートは月${limits.maxExportsPerMonth}回までです（今月分はご利用済みです）。プロプランなら回数無制限でご利用いただけます。`,
+        error: `スタンダードプランのエクスポートは月${limits.maxExportsPerMonth}回までです（今月分はご利用済みです）。プロプランなら回数無制限でご利用いただけます。`,
         upgradeRequired: true,
       }, { status: 403 });
     }

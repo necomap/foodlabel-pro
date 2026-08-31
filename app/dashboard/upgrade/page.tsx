@@ -33,6 +33,8 @@ const PRO_FEATURES = [
   '複数ラベルデザインテンプレート保存（新機能）',
   'ロット番号トレース検索（新機能）',
   'ECページ用テキスト自動生成（新機能）',
+  '全レシピ一括印刷（保健所提出用・新機能）',
+  '材料消費量レポート（新機能）',
   'アレルゲン自動判定',
   '栄養成分計算',
   '優先サポート',
@@ -97,7 +99,7 @@ export default function UpgradePage() {
         <h1 className="text-2xl font-bold text-stone-800 font-display flex items-center gap-2">
           <Crown className="w-6 h-6 text-amber-500" />プランを選択
         </h1>
-        <p className="text-stone-500 text-sm mt-0.5">FoodLabel Proのプレミアム・プロ機能をお試しください</p>
+        <p className="text-stone-500 text-sm mt-0.5">FoodLabel Proのスタンダード・プロ機能をお試しください</p>
       </div>
 
       <div className="grid sm:grid-cols-3 gap-6">
@@ -119,57 +121,7 @@ export default function UpgradePage() {
           </ul>
         </div>
 
-        {/* プレミアムプラン */}
-        <div className={`card space-y-4 border-2 ${isPremium ? 'border-amber-400 bg-amber-50/20' : 'border-amber-400'}`}>
-          <div>
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-stone-800 flex items-center gap-1">
-                <Star className="w-5 h-5 text-amber-500" />プレミアム
-              </h2>
-              {isPremium && <span className="badge bg-amber-100 text-amber-700 text-xs">現在のプラン</span>}
-            </div>
-            {trialEligible && !hasPaidPlan ? (
-              <>
-                <div className="flex items-baseline gap-2 mt-2">
-                  <span className="badge bg-amber-100 text-amber-700 text-[10px] font-bold">初月お試し</span>
-                  <span className="text-3xl font-bold text-stone-800">¥500</span>
-                </div>
-                <p className="text-xs text-stone-500 mt-1">2ヶ月目以降は¥980/月（税込）・いつでも解約可能</p>
-              </>
-            ) : (
-              <>
-                <div className="text-3xl font-bold text-stone-800 mt-2">¥980<span className="text-sm font-normal text-stone-500">/月</span></div>
-                <p className="text-xs text-stone-500 mt-1">税込 ・ いつでも解約可能</p>
-              </>
-            )}
-          </div>
-          <ul className="space-y-2">
-            {PREMIUM_FEATURES.map(f => (
-              <li key={f} className="flex items-center gap-2 text-sm text-stone-700">
-                <Check className="w-4 h-4 text-amber-500 flex-shrink-0" />{f}
-              </li>
-            ))}
-          </ul>
-          {isPremium ? (
-            <button onClick={handlePortal} disabled={portalLoading}
-              className="btn-secondary w-full flex items-center justify-center gap-2">
-              {portalLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-              請求・解約の管理
-            </button>
-          ) : isPro || isAdmin ? (
-            <button disabled className="w-full py-3 px-4 bg-stone-100 text-stone-400 font-bold rounded-xl cursor-not-allowed">
-              プロプランをご利用中です
-            </button>
-          ) : (
-            <button onClick={() => handleUpgrade('premium')} disabled={loadingPlan !== null}
-              className="w-full py-3 px-4 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
-              {loadingPlan === 'premium' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Crown className="w-4 h-4" />}
-              {trialEligible ? '初月500円でお試し' : 'プレミアムにアップグレード'}
-            </button>
-          )}
-        </div>
-
-        {/* プロプラン */}
+        {/* プロプラン（2026-08: 一番の主力プランとして目立たせるため中央に配置） */}
         <div className={`card space-y-4 border-2 ${isPro ? 'border-brand-500 bg-brand-50/20' : 'border-brand-500'} relative`}>
           <div className="absolute -top-3 left-1/2 -translate-x-1/2">
             <span className="badge bg-brand-500 text-white text-xs px-3 py-1 shadow-warm">おすすめ</span>
@@ -215,13 +167,63 @@ export default function UpgradePage() {
             </button>
           )}
         </div>
+
+        {/* プレミアムプラン（表示名は「スタンダード」。内部キーはpremiumのまま） */}
+        <div className={`card space-y-4 border-2 ${isPremium ? 'border-amber-400 bg-amber-50/20' : 'border-amber-400'}`}>
+          <div>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-stone-800 flex items-center gap-1">
+                <Star className="w-5 h-5 text-amber-500" />スタンダード
+              </h2>
+              {isPremium && <span className="badge bg-amber-100 text-amber-700 text-xs">現在のプラン</span>}
+            </div>
+            {trialEligible && !hasPaidPlan ? (
+              <>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <span className="badge bg-amber-100 text-amber-700 text-[10px] font-bold">初月お試し</span>
+                  <span className="text-3xl font-bold text-stone-800">¥500</span>
+                </div>
+                <p className="text-xs text-stone-500 mt-1">2ヶ月目以降は¥980/月（税込）・いつでも解約可能</p>
+              </>
+            ) : (
+              <>
+                <div className="text-3xl font-bold text-stone-800 mt-2">¥980<span className="text-sm font-normal text-stone-500">/月</span></div>
+                <p className="text-xs text-stone-500 mt-1">税込 ・ いつでも解約可能</p>
+              </>
+            )}
+          </div>
+          <ul className="space-y-2">
+            {PREMIUM_FEATURES.map(f => (
+              <li key={f} className="flex items-center gap-2 text-sm text-stone-700">
+                <Check className="w-4 h-4 text-amber-500 flex-shrink-0" />{f}
+              </li>
+            ))}
+          </ul>
+          {isPremium ? (
+            <button onClick={handlePortal} disabled={portalLoading}
+              className="btn-secondary w-full flex items-center justify-center gap-2">
+              {portalLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+              請求・解約の管理
+            </button>
+          ) : isPro || isAdmin ? (
+            <button disabled className="w-full py-3 px-4 bg-stone-100 text-stone-400 font-bold rounded-xl cursor-not-allowed">
+              プロプランをご利用中です
+            </button>
+          ) : (
+            <button onClick={() => handleUpgrade('premium')} disabled={loadingPlan !== null}
+              className="w-full py-3 px-4 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
+              {loadingPlan === 'premium' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Crown className="w-4 h-4" />}
+              {trialEligible ? '初月500円でお試し' : 'スタンダードにアップグレード'}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="card bg-cream-50 text-sm text-stone-500 space-y-1">
         <p>・ クレジットカード決済（Stripe）</p>
         <p>・ 毎月自動更新・いつでも解約可能</p>
         <p>・ 解約後は当月末までご利用いただけます</p>
-        <p>・ プレミアムからプロへのアップグレードは「請求・解約の管理」から行えます</p>
+        <p>・ スタンダードからプロへのアップグレードは「請求・解約の管理」から行えます</p>
       </div>
     </div>
   );

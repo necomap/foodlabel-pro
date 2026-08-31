@@ -19,6 +19,13 @@ export const PLAN_LIMITS = {
     canUseLabelTemplates:  false,
     canUseLotTracking:     false,
     canUseEcText:          false,
+    // 2026-08新設: 全レシピ（非表示含む）を一括で保健所提出用に印刷する機能。
+    canUseBulkPrint:         false,
+    // 2026-08新設: 印刷枚数から期間内の材料消費量を逆算するレポート機能。
+    canUseConsumptionReport: false,
+    // 2026-08新設: レシピ一覧でチェックボックス選択→複数件まとめて非表示にする機能。
+    // レシピ件数が多いプロプランのユーザー向けの効率化機能として、Pro限定にする。
+    canUseBulkHide:          false,
   },
   premium: {
     // 2026-08時点: プロプラン新設に向けて、プレミアムのレシピ数・店舗数に上限を設定。
@@ -38,6 +45,9 @@ export const PLAN_LIMITS = {
     canUseLabelTemplates:  false,
     canUseLotTracking:     false,
     canUseEcText:          false,
+    canUseBulkPrint:         false,
+    canUseConsumptionReport: false,
+    canUseBulkHide:          false,
   },
   pro: {
     // 2026-08新設: プロプラン。レシピ・ラベル印刷は無制限、店舗数はプレミアムの3件から10件に拡張。
@@ -46,6 +56,8 @@ export const PLAN_LIMITS = {
     // ロット番号トレーサビリティ（Label.lotInfo）・
     // EC商品ページ用テキスト自動生成（lib/ec-text-generator.ts）を追加。
     // インポート・エクスポートもプレミアムと異なり回数無制限。
+    // 2026-08追加: 保健所提出用の全レシピ一括印刷（非表示含む）、印刷枚数から逆算する
+    // 期間指定の材料消費量レポートも追加。
     maxRecipes:    Infinity,
     maxLabelPrints: Infinity,
     maxShops:      10,
@@ -57,6 +69,9 @@ export const PLAN_LIMITS = {
     canUseLabelTemplates:  true,
     canUseLotTracking:     true,
     canUseEcText:          true,
+    canUseBulkPrint:         true,
+    canUseConsumptionReport: true,
+    canUseBulkHide:          true,
   },
   admin: {
     maxRecipes:    Infinity,
@@ -70,6 +85,9 @@ export const PLAN_LIMITS = {
     canUseLabelTemplates:  true,
     canUseLotTracking:     true,
     canUseEcText:          true,
+    canUseBulkPrint:         true,
+    canUseConsumptionReport: true,
+    canUseBulkHide:          true,
   },
 };
 

@@ -15,6 +15,16 @@ import { calcNutritionForAmount, sumNutrition } from '@/lib/nutrition';
 // POST /api/import-export/import - Excelインポート
 // ============================================================
 export async function POST(request: Request) {
+  // 2026-08新設: このリクエスト全体の実行時間を計測する。vercel.jsonのmaxDuration（300秒）に
+  // 対して安全マージンを残し、時間切れになりそうな場合は処理を打ち切って「正常なレスポンス」
+  // として途中経過を返す（下記SAFETY_MSの使用箇所を参照）。これが無いと、1件の処理に極端に
+  // 時間がかかる行（材料点数が非常に多い等）に当たった時、Vercel側の強制終了で接続が
+  // 切れてしまい、クライアントには「通信エラー」としか表示されず、しかも同じ行で
+  // 何度リトライしても同じ場所で毎回タイムアウトする、という事態になっていた
+  // （リトライのたびにoffset=0からやり直すため、既にインポート済みの分をスキップする時間を
+  // 差し引いても、問題の行に到達する頃には残り時間が足りない、という状況が再現し続ける）。
+  const requestStartTime = Date.now();
+
   const session = await auth();
   if (!session) return NextResponse.json({ success: false, error: '認証が必要です' }, { status: 401 });
 
@@ -158,7 +168,16 @@ export async function POST(request: Request) {
   const remainingInFile = parsedRecipes.length - offset;
   const effectiveLimit = Math.max(0, Math.min(remainingInFile, importLimit, MAX_PER_REQUEST));
   const recipesToProcess = parsedRecipes.slice(offset, offset + effectiveLimit);
+
+  // 2026-08新設: vercel.jsonのmaxDuration（300秒）に対する安全マージン。ここに達したら
+  // 「まだ80件処理し切っていなくても」正常なレスポンスとしてこのチャンクを打ち切り、
+  // 続きは次のリクエスト（新しい300秒の枠）に任せる。1件も進まないまま安全マージンに
+  // 達することは通常ないはずだが、念のため「最低1件は処理してから判定する」ようにしている。
+  const SAFETY_MS = 250_000; // 250秒（残り50秒は認証・パース・レスポンス組み立て等の余白）
+  let processedCount = 0;
   for (const pr of recipesToProcess) {
+    if (processedCount > 0 && Date.now() - requestStartTime > SAFETY_MS) break;
+    processedCount++;
     try {
       const name = toFullWidth(pr.name).trim();
       if (!name) { skipped++; continue; }
@@ -343,11 +362,15 @@ export async function POST(request: Request) {
     await logDataTransfer(session.user.id, 'import');
   }
 
-  const nextOffset = offset + recipesToProcess.length;
+  // 2026-08新設: 時間切れ安全マージンで打ち切った場合、このチャンクのスライス
+  // （recipesToProcess）を全部処理し終えていない＝まだこのスライスの続きが残っている。
+  const timeSafetyBreak = processedCount < recipesToProcess.length;
+  const nextOffset = offset + processedCount;
   // プラン上限（レシピ件数）で打ち切られ、かつファイル内にまだ未処理の行が残っている場合、
   // このチャンク以降は続けても取り込めないため「打ち切り」として扱う。
-  const planLimitReached = importLimit <= remainingInFile && effectiveLimit === importLimit && nextOffset < parsedRecipes.length;
-  const done = nextOffset >= parsedRecipes.length || planLimitReached;
+  // （時間切れ打ち切りの場合は、プラン上限に達したわけではないので対象外）
+  const planLimitReached = !timeSafetyBreak && importLimit <= remainingInFile && effectiveLimit === importLimit && nextOffset < parsedRecipes.length;
+  const done = !timeSafetyBreak && (nextOffset >= parsedRecipes.length || planLimitReached);
 
   const chunkWarnings = isFirstChunk ? [...parseWarnings] : [];
   if (planLimitReached) {

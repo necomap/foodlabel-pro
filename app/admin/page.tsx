@@ -6,22 +6,21 @@ import { useRouter } from 'next/navigation';
 import {
   Users, ShoppingBasket, FileText, Shield, Loader2,
   CheckCircle2, XCircle, RefreshCw, Upload, Database, Tag,
-  ChevronDown, ChevronUp, FlaskConical, AlertTriangle, TrendingDown, UserX, BarChart3,
+  ChevronDown, ChevronUp, FlaskConical, AlertTriangle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { INGREDIENT_REJECTION_REASONS } from '@/lib/ingredient-rejection-reasons';
 import UpdateNotesManager from './_update-notes-manager';
 
-interface CountSummary { max: number; min: number; avg: number; usersWithAtLeastOne: number; }
 interface Stats {
   totalUsers: number; premiumUsers: number; proUsers: number;
   totalRecipes: number; totalIngredients: number; pendingIngredients: number;
-  // 2026-08新設: ユーザー分析まわり（詳細はapp/api/admin/stats/route.tsのコメント参照）
-  userBreakdown: { freeUsers: number; premiumUsers: number; proUsers: number; adminUsers: number };
+  // 2026-08新設: ユーザー分析用（必須の運用指標ではなく、今後のアプデの参考用）
   registeredOnlyUsers: number;
   churnedUsers: number;
-  recipeStats: CountSummary;
-  ingredientStats: CountSummary;
+  trialOnlyUsers: number;
+  recipeCountStats:     { max: number; min: number; avg: number };
+  ingredientCountStats: { max: number; min: number; avg: number };
 }
 interface PendingIngredient {
   id: string; name: string; genericName: string|null; userId: string; userEmail?: string;
@@ -134,56 +133,45 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* 2026-08新設: ユーザー分析。今すぐ何かを判断するための数値というより、今後の
-          アップデートの参考にするための概況把握用（詳細な定義はapp/api/admin/stats/route.tsのコメント参照）。
-          「アクティブユーザー（直近ログイン等）」は現状DBに最終ログイン日時の記録が無く出せないため、
-          今回は未対応（対応する場合は別途ユーザーの最終ログイン日時を記録する仕組みが必要）。 */}
+      {/* 2026-08新設: ユーザー分析（必須の運用指標ではなく、今後のアプデの参考用）。
+          「アクティブユーザー」（ログインベースの稼働状況）はログイン履歴の記録が必要になるため
+          今回は対象外。代わりに「登録のみユーザー」（レシピ0件＝登録後に使い始めていない）を
+          出すことで、その裏返し（総ユーザー数－登録のみユーザー）で実質的な稼働ユーザー数の
+          目安が分かるようにしている。 */}
       {stats && (
-        <div className="card space-y-4">
+        <div className="card">
           <h2 className="section-title flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-blue-500" />ユーザー分析
+            <Users className="w-5 h-5 text-stone-400" />ユーザー分析（参考値）
           </h2>
-
-          <div>
-            <p className="text-xs font-medium text-stone-500 mb-2">ユーザー内訳（総{stats.totalUsers.toLocaleString()}人）</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {[
-                { label: 'フリー',                 value: stats.userBreakdown.freeUsers,    icon: Users,   color: 'text-stone-600',  bg: 'bg-stone-100' },
-                { label: 'プレミアム',              value: stats.userBreakdown.premiumUsers, icon: Shield,  color: 'text-brand-600',  bg: 'bg-brand-50'  },
-                { label: 'プロ',                    value: stats.userBreakdown.proUsers,     icon: Shield,  color: 'text-amber-600',  bg: 'bg-amber-50'  },
-                { label: '登録のみ（レシピ0件）',   value: stats.registeredOnlyUsers,        icon: UserX,   color: 'text-stone-500',  bg: 'bg-stone-100' },
-                { label: '解約済み（元有料）',      value: stats.churnedUsers,               icon: TrendingDown, color: 'text-red-500', bg: 'bg-red-50'  },
-              ].map(s => {
-                const Icon = s.icon;
-                return (
-                  <div key={s.label} className={`rounded-xl p-3 ${s.bg}`}>
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <Icon className={`w-3.5 h-3.5 ${s.color}`} />
-                      <span className="text-xs text-stone-500">{s.label}</span>
-                    </div>
-                    <div className={`text-xl font-bold ${s.color}`}>{s.value.toLocaleString()}</div>
-                  </div>
-                );
-              })}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
+            <div className="bg-stone-50 rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-stone-600">{stats.registeredOnlyUsers.toLocaleString()}</div>
+              <div className="text-xs text-stone-500 mt-1">登録のみ（レシピ0件）</div>
             </div>
-            <p className="text-xs text-stone-400 mt-1.5">「解約済み（元有料）」は今フリープランだが過去にプレミアム/プロの契約履歴があるユーザーの概算値です。お試しだけで終わったユーザーもここに含まれます。</p>
+            <div className="bg-red-50 rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-red-500">{stats.churnedUsers.toLocaleString()}</div>
+              <div className="text-xs text-stone-500 mt-1">解約済み（元有料）</div>
+            </div>
+            <div className="bg-orange-50 rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-orange-500">{stats.trialOnlyUsers.toLocaleString()}</div>
+              <div className="text-xs text-stone-500 mt-1">お試しのみ（未契約）</div>
+            </div>
           </div>
-
-          <div className="grid sm:grid-cols-2 gap-4 pt-1">
-            <div>
-              <p className="text-xs font-medium text-stone-500 mb-2">レシピ数（1件以上保有する{stats.recipeStats.usersWithAtLeastOne.toLocaleString()}人が対象）</p>
-              <div className="flex gap-3 text-center">
-                <div className="flex-1 bg-green-50 rounded-xl p-2.5"><div className="text-lg font-bold text-green-600">{stats.recipeStats.max}</div><div className="text-[10px] text-stone-500">最大</div></div>
-                <div className="flex-1 bg-green-50 rounded-xl p-2.5"><div className="text-lg font-bold text-green-600">{stats.recipeStats.min}</div><div className="text-[10px] text-stone-500">最小</div></div>
-                <div className="flex-1 bg-green-50 rounded-xl p-2.5"><div className="text-lg font-bold text-green-600">{stats.recipeStats.avg}</div><div className="text-[10px] text-stone-500">平均</div></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="border border-cream-300 rounded-xl p-4">
+              <p className="text-sm font-medium text-stone-700 mb-2">レシピ数（ユーザーごと）</p>
+              <div className="flex gap-4 text-sm text-stone-600">
+                <span>最大 <b className="text-stone-800">{stats.recipeCountStats.max}</b></span>
+                <span>最小 <b className="text-stone-800">{stats.recipeCountStats.min}</b></span>
+                <span>平均 <b className="text-stone-800">{stats.recipeCountStats.avg}</b></span>
               </div>
             </div>
-            <div>
-              <p className="text-xs font-medium text-stone-500 mb-2">食材マスタ数（1件以上保有する{stats.ingredientStats.usersWithAtLeastOne.toLocaleString()}人が対象）</p>
-              <div className="flex gap-3 text-center">
-                <div className="flex-1 bg-purple-50 rounded-xl p-2.5"><div className="text-lg font-bold text-purple-600">{stats.ingredientStats.max}</div><div className="text-[10px] text-stone-500">最大</div></div>
-                <div className="flex-1 bg-purple-50 rounded-xl p-2.5"><div className="text-lg font-bold text-purple-600">{stats.ingredientStats.min}</div><div className="text-[10px] text-stone-500">最小</div></div>
-                <div className="flex-1 bg-purple-50 rounded-xl p-2.5"><div className="text-lg font-bold text-purple-600">{stats.ingredientStats.avg}</div><div className="text-[10px] text-stone-500">平均</div></div>
+            <div className="border border-cream-300 rounded-xl p-4">
+              <p className="text-sm font-medium text-stone-700 mb-2">食材マスタ数（ユーザーごと）</p>
+              <div className="flex gap-4 text-sm text-stone-600">
+                <span>最大 <b className="text-stone-800">{stats.ingredientCountStats.max}</b></span>
+                <span>最小 <b className="text-stone-800">{stats.ingredientCountStats.min}</b></span>
+                <span>平均 <b className="text-stone-800">{stats.ingredientCountStats.avg}</b></span>
               </div>
             </div>
           </div>

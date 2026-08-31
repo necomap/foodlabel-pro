@@ -955,12 +955,23 @@ export default function IngredientsPage() {
         </div>
       )}
 
-      {/* ページネーション */}
+      {/* ページネーション（2026-08: レシピ一覧と同様、ページ番号を直接指定して移動できるように） */}
       {Math.ceil(total/30) > 1 && (
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex items-center justify-center gap-2 flex-wrap">
           <button onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page===1} className="btn-secondary px-3 py-1.5 text-sm disabled:opacity-40">前へ</button>
-          <span className="text-sm text-stone-500">{page} / {Math.ceil(total/30)}</span>
+          <span className="text-sm text-stone-500">{page} / {Math.ceil(total/30)} ページ</span>
           <button onClick={()=>setPage(p=>Math.min(Math.ceil(total/30),p+1))} disabled={page>=Math.ceil(total/30)} className="btn-secondary px-3 py-1.5 text-sm disabled:opacity-40">次へ</button>
+          <form onSubmit={e => {
+            e.preventDefault();
+            const totalPages = Math.ceil(total/30);
+            const input = e.currentTarget.elements.namedItem('jumpPage') as HTMLInputElement;
+            const n = parseInt(input.value, 10);
+            if (n >= 1 && n <= totalPages) { setPage(n); input.value = ''; }
+          }} className="flex items-center gap-1.5 ml-2">
+            <input name="jumpPage" type="number" min={1} max={Math.ceil(total/30)} placeholder="ページ番号"
+              className="field-input w-24 py-1.5 text-sm" />
+            <button type="submit" className="btn-secondary px-3 py-1.5 text-sm">移動</button>
+          </form>
         </div>
       )}
 

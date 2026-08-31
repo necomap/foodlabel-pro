@@ -478,7 +478,7 @@ export default function RecipeForm() {
           <div>
             <label className="field-label">バリエーション名<span className="text-stone-400 text-xs ml-1">（任意・一覧での識別用）</span></label>
             <input type="text" value={variationName} onChange={e => setVariationName(e.target.value)}
-              className="field-input" placeholder="例: チョココーティング、冬季用" />
+              className="field-input" placeholder="例：ホール・カット・バニラ・抹茶" />
           </div>
           <div>
             <label className="field-label">カテゴリ</label>

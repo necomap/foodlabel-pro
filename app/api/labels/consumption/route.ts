@@ -74,7 +74,10 @@ export async function GET(request: Request) {
   const totals = new Map<string, { ingredientName: string; unit: string; amount: number }>();
   const recipeBreakdown: Array<{ recipeId: string; recipeName: string | null; printCount: number; recipeDeleted: boolean }> = [];
 
-  for (const [recipeId, printCount] of printCountByRecipe) {
+  // Map<string, number> はtsconfig.jsonのtarget（ES2015未満）ではfor...ofで直接
+  // イテレートできない（--downlevelIterationが必要になる）ため、forEachで回す。
+  // Map.forEachはコールバック引数の順序が(value, key)である点に注意（[key, value]ではない）。
+  printCountByRecipe.forEach((printCount, recipeId) => {
     const recipe = recipeById.get(recipeId);
     recipeBreakdown.push({
       recipeId,
@@ -84,7 +87,7 @@ export async function GET(request: Request) {
       // （非表示レシピを全て完全に削除／全データクリアして上書き、等で発生しうる）
       recipeDeleted: !recipe,
     });
-    if (!recipe || !recipe.unitCount || recipe.unitCount <= 0) continue;
+    if (!recipe || !recipe.unitCount || recipe.unitCount <= 0) return;
     for (const ing of recipe.ingredients) {
       const name = ing.ingredient?.name || ing.ingredientNameOverride || '（材料名未設定）';
       const key = `${name}__${ing.unit}`;
@@ -93,7 +96,7 @@ export async function GET(request: Request) {
       if (existing) existing.amount += consumed;
       else totals.set(key, { ingredientName: name, unit: ing.unit, amount: consumed });
     }
-  }
+  });
 
   const ingredients = Array.from(totals.values())
     .map(t => ({ ...t, amount: Math.round(t.amount * 100) / 100 }))

@@ -82,7 +82,7 @@ export default function LabelsPage() {
   // そのまま印刷されてしまう（品名がバッジに押し出されて欠ける等の不具合の原因になっていた）。
   const [printReady, setPrintReady] = useState(false);
   const [zoom, setZoom] = useState(100);
-  const [printStats, setPrintStats] = useState<{used: number; limit: number; resetDate: string; isPremium: boolean; todayCount: number; canUseLotTracking?: boolean} | null>(null);
+  const [printStats, setPrintStats] = useState<{used: number; limit: number; resetDate: string; isPremium: boolean; todayCount: number; canUseLotTracking?: boolean; canUseStockSync?: boolean; stockSyncConfigured?: boolean} | null>(null);
 
   // b-PAC連携（Windows＋Brother QL-820NWB限定・任意）。設定画面でテンプレートパスが
   // 入力されている場合のみ「b-PAC印刷」ボタンを表示する。labelContentは「ラベルを生成」で
@@ -103,6 +103,9 @@ export default function LabelsPage() {
   // 印刷設定 (初期値はデフォルト)
   const [mfgDate, setMfgDate] = useState('');  const [shelfOverride, setShelfOverride] = useState('');
   const [printCount,    setPrintCount]    = useState('1');
+  // 2026-09新設: 印刷時の在庫自動差し引き（Pro限定）。デフォルトON。再印刷・修正印刷で
+  // 二重に差し引かれるのを防ぐため、その回はOFFにしてもらう想定のチェックボックス。
+  const [deductStock,   setDeductStock]   = useState(true);
   const [fontSizePt,    setFontSizePt]    = useState('8');
   const [fontFamily,    setFontFamily]    = useState('noto-sans-jp');
   const [deviceType,    setDeviceType]    = useState<'LABEL_PRINTER'|'A4_PRINTER'>('LABEL_PRINTER');
@@ -226,6 +229,7 @@ export default function LabelsPage() {
     if (getL('shopId')) setShopId(getL('shopId')!);
     
     if (getL('printCount')) setPrintCount(getL('printCount')!);
+    setDeductStock(getB('deductStock', true));
     if (getL('fontSizePt')) setFontSizePt(getL('fontSizePt')!);
     if (getL('fontFamily')) setFontFamily(getL('fontFamily')!);
     if (getL('deviceType') === 'A4_PRINTER' || getL('deviceType') === 'LABEL_PRINTER') {
@@ -599,6 +603,8 @@ export default function LabelsPage() {
         packageHeightMm: packageHeightMm ? parseFloat(packageHeightMm) : undefined,
         // ロット番号トレーサビリティ（Pro限定・任意）。空欄の行は送らない
         lots: lots.filter(l => l.ingredientName.trim() && l.lotNumber.trim()),
+        // 印刷時の在庫自動差し引き（Pro限定）。プラン・連携未設定の場合はサーバー側で無視される。
+        deductStock,
       };
 
       const res  = await fetch('/api/labels/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -612,6 +618,12 @@ export default function LabelsPage() {
         setLabelContent(data.data.content ?? null); // b-PAC印刷用の構造化データ（HTMLではなくオブジェクト単位で差し込む）
         if (data.data.warnings?.length > 0) toast.error(`${data.data.warnings.length}件の警告があります`);
         else toast.success('ラベルを生成しました');
+        // 2026-09新設: 在庫自動差し引きの結果をトーストで案内（失敗してもラベル生成自体は成功のまま）。
+        const sync = data.data.stockSync;
+        if (sync?.attempted) {
+          if (sync.ok) toast.success(sync.target === 'haccp' ? 'HACCP経由で在庫を差し引きました' : '在庫アプリの在庫を差し引きました');
+          else toast.error(`在庫の差し引きに失敗しました: ${sync.error ?? '不明なエラー'}`);
+        }
       } else {
         toast.error(data.error ?? 'ラベル生成に失敗しました');
       }
@@ -822,6 +834,31 @@ export default function LabelsPage() {
               <input type="text" inputMode="numeric" pattern="[0-9]*" value={printCount} onChange={e => { setPrintCount(e.target.value); updateLabelStorage('printCount', e.target.value); }}
                 className="field-input" min="1" max="200" />
             </div>
+            {printStats?.canUseStockSync && printStats?.stockSyncConfigured && (
+              <div>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={deductStock}
+                    onChange={e => { setDeductStock(e.target.checked); localStorage.setItem('label_deductStock', String(e.target.checked)); }}
+                    className="accent-brand-500" />
+                  <span className="text-sm font-medium text-stone-700">在庫を差し引く</span>
+                </label>
+                <p className="field-hint">印刷した分だけ材料の在庫を自動で減らします。同じ内容を再印刷・修正印刷するときは、二重に差し引かれないようチェックを外してください。</p>
+              </div>
+            )}
+            {printStats?.canUseStockSync && !printStats?.stockSyncConfigured && (
+              <div>
+                <p className="text-xs text-stone-400">
+                  印刷時に在庫を自動で差し引くには、<a href="/dashboard/settings" className="text-brand-600 hover:underline">設定画面</a>で連携先（HACCPまたは在庫アプリ）を登録してください。
+                </p>
+              </div>
+            )}
+            {!printStats?.canUseStockSync && (
+              <div>
+                <p className="text-xs text-stone-400 flex items-center gap-1">
+                  印刷時の在庫自動差し引きは<span className="badge bg-brand-100 text-brand-700 text-[10px]">Pro</span>限定機能です。<a href="/dashboard/upgrade" className="text-brand-600 hover:underline">アップグレード →</a>
+                </p>
+              </div>
+            )}
           </div>
 
           {/* 表示設定 */}

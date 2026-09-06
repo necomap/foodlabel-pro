@@ -15,6 +15,8 @@ export async function GET() {
       electricityUnitPrice: true, ovenPowerKw: true, ovenSteamExtraKw: true,
       // b-PAC連携（Windows＋Brother QL-820NWB限定・任意）
       bpacTemplatePath: true,
+      // 2026-09新設: 3アプリ（HACCP・在庫アプリ）連携先（lib/stock-sync.ts参照）
+      inventoryUserId: true, haccpStoreCode: true,
     },
   });
 
@@ -50,6 +52,9 @@ export async function PUT(request: Request) {
       ovenSteamExtraKw:      body.ovenSteamExtraKw      != null && body.ovenSteamExtraKw      !== '' ? Number(body.ovenSteamExtraKw)      : null,
       // b-PAC連携テンプレートパス（Windows＋Brother QL-820NWB限定・任意）。同上の理由で明示的にnullを渡す。
       bpacTemplatePath: body.bpacTemplatePath != null && body.bpacTemplatePath !== '' ? String(body.bpacTemplatePath).trim() : null,
+      // 2026-09新設: 3アプリ連携先（在庫アプリのユーザーID／HACCPの店舗コード）。同上の理由で明示的にnullを渡す。
+      inventoryUserId: body.inventoryUserId != null && body.inventoryUserId !== '' ? String(body.inventoryUserId).trim() : null,
+      haccpStoreCode:  body.haccpStoreCode  != null && body.haccpStoreCode  !== '' ? String(body.haccpStoreCode).trim()  : null,
     },
   });
 

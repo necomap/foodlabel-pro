@@ -10,6 +10,16 @@ export async function GET() {
 
   const limits = getPlanLimits(session.user.plan ?? 'free');
 
+  // 2026-09新設: 印刷時の在庫自動差し引き（Pro限定）のUI表示制御用。プラン自体の
+  // 可否（canUseStockSync）に加え、連携先（HACCP or 在庫アプリ）が1つでも設定
+  // されているかも一緒に返す（未設定なら印刷画面でチェックボックスを出さず、
+  // 設定画面への案内を出すため）。
+  const userRow = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { haccpStoreCode: true, inventoryUserId: true },
+  });
+  const stockSyncConfigured = !!(userRow?.haccpStoreCode || userRow?.inventoryUserId);
+
   // 今日の印刷枚数を取得（プレミアム・フリー共通）
   const today = new Date();
   today.setHours(0,0,0,0);
@@ -33,7 +43,11 @@ export async function GET() {
     const monthUsed = Number(monthResult[0]?.total ?? 0);
     return NextResponse.json({
       success: true,
-      data: { used: monthUsed, limit: Infinity, resetDate: '-', isPremium: true, todayCount, canUseLotTracking: limits.canUseLotTracking },
+      data: {
+        used: monthUsed, limit: Infinity, resetDate: '-', isPremium: true, todayCount,
+        canUseLotTracking: limits.canUseLotTracking,
+        canUseStockSync: limits.canUseStockSync, stockSyncConfigured,
+      },
     });
   }
 
@@ -60,6 +74,8 @@ export async function GET() {
       isPremium: false,
       todayCount,
       canUseLotTracking: limits.canUseLotTracking,
+      canUseStockSync: limits.canUseStockSync,
+      stockSyncConfigured,
     },
   });
 }

@@ -26,6 +26,9 @@ export const PLAN_LIMITS = {
     // 2026-08新設: レシピ一覧でチェックボックス選択→複数件まとめて非表示にする機能。
     // レシピ件数が多いプロプランのユーザー向けの効率化機能として、Pro限定にする。
     canUseBulkHide:          false,
+    // 2026-09新設: ラベル印刷のたびに材料の在庫を自動で差し引く3アプリ連携機能
+    // （HACCP・在庫アプリ側）。canUseConsumptionReport等と同じくPro限定。
+    canUseStockSync:         false,
   },
   premium: {
     // 2026-08時点: プロプラン新設に向けて、プレミアムのレシピ数・店舗数に上限を設定。
@@ -48,6 +51,7 @@ export const PLAN_LIMITS = {
     canUseBulkPrint:         false,
     canUseConsumptionReport: false,
     canUseBulkHide:          false,
+    canUseStockSync:         false,
   },
   pro: {
     // 2026-08新設: プロプラン。レシピ・ラベル印刷は無制限、店舗数はプレミアムの3件から10件に拡張。
@@ -72,6 +76,7 @@ export const PLAN_LIMITS = {
     canUseBulkPrint:         true,
     canUseConsumptionReport: true,
     canUseBulkHide:          true,
+    canUseStockSync:         true,
   },
   admin: {
     maxRecipes:    Infinity,
@@ -88,6 +93,7 @@ export const PLAN_LIMITS = {
     canUseBulkPrint:         true,
     canUseConsumptionReport: true,
     canUseBulkHide:          true,
+    canUseStockSync:         true,
   },
 };
 

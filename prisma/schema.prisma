@@ -40,6 +40,20 @@ model User {
   // テンプレート（.lbx）ファイルの絶対パス。Windows＋Brother b-PAC Extension導入済みユーザーのみ使う
   // 任意設定で、未設定ならダッシュボードのラベル印刷画面に「b-PAC印刷」ボタンを表示しない。
   bpacTemplatePath     String?            @db.VarChar(500)
+  // 2026-09 在庫アプリ（Lucke Inventory）との連携用。在庫アプリの「製造・仕込」機能が
+  // このアカウントのレシピだけを取得できるようにするための認証キー（Bearerトークン）。
+  // 以前は在庫アプリがこのDBに直接接続し認証なしで全ユーザーのレシピを返していたため
+  // （重大なデータ漏えいリスク）、その代替として新設。発行・再発行は
+  // app/api/user/external-api-key/route.ts、検証はapp/api/external/recipes/route.ts。
+  // nullの間は連携APIが常に401を返す（未発行）。
+  externalApiKey       String?            @unique @db.VarChar(64)
+  // 2026-09新設: 3アプリ（HACCP・在庫アプリ）連携用。印刷時に材料の在庫を自動で
+  // 差し引く連携先を指定する。haccpStoreCodeが設定されていればそちらを優先し
+  // （HACCP経由。HACCPの製造記録にも自動で記録が残る）、未設定でinventoryUserIdのみ
+  // 設定されていれば在庫アプリを直接呼ぶ。両方未設定なら何もしない
+  // （詳細はlib/stock-sync.ts参照）。
+  inventoryUserId      String?            @db.VarChar(200)
+  haccpStoreCode       String?            @db.VarChar(50)
   adminLogs            AdminLog[]
   data_transfer_logs   data_transfer_logs[]
   ingredients          Ingredient[]

@@ -11,6 +11,7 @@ import { generateLabelContent, generateLabelHtml, getDefaultDisplaySettings } fr
 import { buildIngredientsLabel, collectRecipeAllergens, prepareIngredientsForLabel } from '@/lib/allergen';
 import { calcPerUnit, roundForDisplay, calcNutritionForAmount, resolveIngredientNutritionPer100g } from '@/lib/nutrition';
 import { getGenericNameOverrides } from '@/lib/generic-name-overrides';
+import { deductStockForPrint } from '@/lib/stock-sync';
 import type { RecipeDetail, LabelConfig, BakingStep } from '@/types';
 
 const labelConfigSchema = z.object({
@@ -81,6 +82,10 @@ const labelConfigSchema = z.object({
     ingredientName: z.string().max(200),
     lotNumber:      z.string().max(100),
   })).optional(),
+  // 2026-09新設: 印刷時の在庫自動差し引き（Pro限定）。印刷画面のチェックボックスで
+  // ON/OFFできる（デフォルトON。再印刷・修正印刷時にOFFにすれば二重差し引きを防げる）。
+  // Pro未満のプランから送られてきた場合はサーバー側で無視する（下記の実行部分参照）。
+  deductStock: z.boolean().optional().default(false),
 });
 
 export async function POST(request: Request) {
@@ -468,10 +473,37 @@ export async function POST(request: Request) {
     } catch (e) { console.warn('print log error:', e); }
   }
 
+  // 2026-09新設: 印刷時の在庫自動差し引き（Pro限定・チェックボックスON時のみ）。
+  // HACCP連携（haccpStoreCode）が設定されていればそちら経由、無ければ在庫アプリへ直接。
+  // ラベル印刷そのものを絶対に失敗させないよう必ずtry/catchし、結果はレスポンスの
+  // data.stockSyncとして返すのみに留める（失敗してもラベル印刷自体は成功として返す）。
+  let stockSyncResult: Awaited<ReturnType<typeof deductStockForPrint>> | null = null;
+  if (!body.isPreview && config.deductStock && limits.canUseStockSync) {
+    try {
+      const userRow = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { haccpStoreCode: true, inventoryUserId: true },
+      });
+      if (userRow) {
+        stockSyncResult = await deductStockForPrint(userRow, {
+          recipeName: recipe.name,
+          printCount: config.printCount,
+          unitCount: recipe.unitCount,
+          ingredients: recipe.ingredients.map((ing) => ({
+            name: ing.ingredient?.name || ing.ingredientNameOverride || '（材料名未設定）',
+            amount: Number(ing.amount),
+            unit: ing.unit,
+          })),
+        });
+      }
+    } catch (e) { console.warn('stock sync error:', e); }
+  }
+
   return NextResponse.json({
     success: true,
     data: {
       html, content, warnings,
+      stockSync: stockSyncResult,
       _debug: {
         shopAddress: shopInfo.address,
         shopPhone: shopInfo.phone,

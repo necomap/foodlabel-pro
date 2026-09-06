@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { Loader2, Plus, Store, User, Tag, CheckCircle2, Trash2, AlertTriangle, Edit2, GripVertical, Zap, Printer } from 'lucide-react';
+import { Loader2, Plus, Store, User, Tag, CheckCircle2, Trash2, AlertTriangle, Edit2, GripVertical, Zap, Printer, KeyRound } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface Shop { id: string; shopName: string; companyName: string|null; representative: string|null; postalCode: string|null; address: string|null; phone: string|null; email: string|null; showPhone: boolean; showRepresentative: boolean; isDefault: boolean; qrUrl: string|null; logoUrl: string|null; logoHeightMm: number; qrSizeMm: number; }
@@ -38,7 +38,9 @@ function ProfileTab() {
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
-  const [profile, setProfile] = useState({ companyName:'', representative:'', postalCode:'', address:'', phone:'', electricityUnitPrice:'', ovenPowerKw:'', ovenSteamExtraKw:'', bpacTemplatePath:'' });
+  const [profile, setProfile] = useState({ companyName:'', representative:'', postalCode:'', address:'', phone:'', electricityUnitPrice:'', ovenPowerKw:'', ovenSteamExtraKw:'', bpacTemplatePath:'', inventoryUserId:'', haccpStoreCode:'' });
+  const [apiKey, setApiKey] = useState<string|null>(null);
+  const [apiKeyLoading, setApiKeyLoading] = useState(false);
   const isPremium = session?.user?.plan === 'premium' || session?.user?.plan === 'pro' || session?.user?.plan === 'admin';
   // 請求ポータル（解約・プラン変更）から ?billing_updated=1 付きで戻ってきた時だけ、
   // セッション（plan）をDBの最新値で明示的に再取得する。ログアウト→ログインし直さないと
@@ -73,11 +75,29 @@ function ProfileTab() {
           ovenPowerKw:           d.data.ovenPowerKw           != null ? String(d.data.ovenPowerKw)           : '',
           ovenSteamExtraKw:      d.data.ovenSteamExtraKw      != null ? String(d.data.ovenSteamExtraKw)      : '',
           bpacTemplatePath:      d.data.bpacTemplatePath ?? '',
+          inventoryUserId:       d.data.inventoryUserId ?? '',
+          haccpStoreCode:        d.data.haccpStoreCode ?? '',
         });
       }
       setLoaded(true);
     }).catch(()=>setLoaded(true));
   }, []);
+  // 2026-09新設: 在庫アプリ連携用APIキーの現在値を取得
+  useEffect(() => {
+    fetch('/api/user/external-api-key').then(r=>r.json()).then(d => {
+      if (d.success) setApiKey(d.data.externalApiKey);
+    }).catch(()=>{});
+  }, []);
+  const handleGenerateApiKey = async () => {
+    if (apiKey && !confirm('再発行すると古いキーは使えなくなります。在庫アプリ側の設定も更新する必要があります。よろしいですか？')) return;
+    setApiKeyLoading(true);
+    try {
+      const res = await fetch('/api/user/external-api-key', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) { setApiKey(data.data.externalApiKey); toast.success('APIキーを発行しました'); }
+      else toast.error(data.error ?? '発行に失敗しました');
+    } catch { toast.error('通信エラー'); } finally { setApiKeyLoading(false); }
+  };
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -171,6 +191,46 @@ function ProfileTab() {
         <input type="text" value={profile.bpacTemplatePath} onChange={e=>setProfile(p=>({...p,bpacTemplatePath:e.target.value}))} className="field-input font-mono text-sm"
           placeholder={'例: F:\\My Labels\\食品表示ラベル62mm.lbx'} />
         <p className="field-hint">このPC上の絶対パスです。他のPCでb-PAC印刷を使う場合は、そのPC側でこの設定を入力し直してください。</p>
+      </div>
+
+      <h2 className="section-title flex items-center gap-2"><KeyRound className="w-4 h-4 text-stone-500" />在庫アプリ（Lucke Inventory）連携用APIキー</h2>
+      <p className="text-sm text-stone-500 -mt-2">
+        在庫アプリの「製造・仕込」機能から、このアカウントのレシピだけを安全に取得できるようにするためのキーです。発行したキーは在庫アプリの設定画面に貼り付けてご利用ください。
+      </p>
+      <div className="bg-cream-50 rounded-xl p-4 text-sm space-y-3">
+        {apiKey ? (
+          <div className="flex items-center gap-2">
+            <code className="flex-1 font-mono text-xs bg-white border border-cream-300 rounded px-2 py-1.5 break-all">{apiKey}</code>
+            <button type="button" onClick={() => { navigator.clipboard.writeText(apiKey); toast.success('コピーしました'); }} className="btn-secondary text-xs px-3 py-1.5 whitespace-nowrap">
+              コピー
+            </button>
+          </div>
+        ) : (
+          <p className="text-stone-400">まだ発行されていません。</p>
+        )}
+        <button type="button" onClick={handleGenerateApiKey} disabled={apiKeyLoading} className="btn-secondary text-sm flex items-center gap-2">
+          {apiKeyLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
+          {apiKey ? 'キーを再発行する' : 'APIキーを発行する'}
+        </button>
+        {apiKey && <p className="text-xs text-amber-600">再発行すると古いキーは即座に使えなくなります。在庫アプリ側の設定も忘れずに更新してください。</p>}
+      </div>
+
+      <h2 className="section-title flex items-center gap-2">
+        <Zap className="w-4 h-4 text-brand-500" />印刷時の在庫自動差し引き
+        <span className="badge bg-brand-100 text-brand-700 text-[10px]">Pro</span>
+      </h2>
+      <p className="text-sm text-stone-500 -mt-2">
+        ラベルを印刷すると、材料の在庫を自動で差し引く連携です（プロプラン限定）。下のHACCP連携用店舗コードを入力した場合はHACCP経由で差し引かれ、HACCPの製造記録にも自動で記録が残ります。HACCPと連携していない場合は、在庫アプリ連携用ユーザーIDを入力すると在庫アプリへ直接差し引かれます。両方入力した場合はHACCP経由が優先されます。実際に差し引くかどうかは、ラベル印刷画面のチェックボックスで印刷のたびに選べます。
+      </p>
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div>
+          <label className="field-label">HACCP連携用店舗コード</label>
+          <input type="text" value={profile.haccpStoreCode} onChange={e=>setProfile(p=>({...p,haccpStoreCode:e.target.value}))} className="field-input" placeholder="HACCPの管理者設定画面に表示されている店舗コード" />
+        </div>
+        <div>
+          <label className="field-label">在庫アプリ連携用ユーザーID（HACCP未連携時のみ使用）</label>
+          <input type="text" value={profile.inventoryUserId} onChange={e=>setProfile(p=>({...p,inventoryUserId:e.target.value}))} className="field-input" placeholder="在庫アプリの設定画面に表示されている「HACCP連携用ユーザーID」" />
+        </div>
       </div>
 
       <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center gap-2">

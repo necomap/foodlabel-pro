@@ -1,6 +1,7 @@
 // app/page.tsx - ランディングページ
 import Link from 'next/link';
-import { Cookie, CheckCircle2, Star, Shield, Printer, ShoppingBasket } from 'lucide-react';
+import { Cookie, CheckCircle2, Star, Shield, Printer, ShoppingBasket, Rocket } from 'lucide-react';
+import ObfuscatedEmail from '@/components/ObfuscatedEmail';
 
 export const metadata = { title: 'FoodLabel Pro - 製菓・製パン店向け食品表示ラベル管理システム' };
 
@@ -90,9 +91,9 @@ export default function RootPage() {
       </section>
 
       {/* 料金 */}
-      <section className="px-4 py-12 max-w-3xl mx-auto">
+      <section className="px-4 py-12 max-w-5xl mx-auto">
         <h2 className="text-2xl font-bold text-center text-stone-800 font-display mb-8">シンプルな料金プラン</h2>
-        <div className="grid sm:grid-cols-2 gap-6">
+        <div className="grid sm:grid-cols-3 gap-6">
           <div className="card space-y-4">
             <h3 className="font-bold text-stone-800">フリープラン</h3>
             <div className="text-3xl font-bold text-stone-800">¥0<span className="text-sm font-normal text-stone-500">/月</span></div>
@@ -121,12 +122,30 @@ export default function RootPage() {
               スタンダードで始める
             </Link>
           </div>
+          <div className="card space-y-4 border-2 border-brand-500 relative">
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+              <span className="badge bg-brand-500 text-white text-xs px-3 py-1 shadow-warm">本格運用向け</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Rocket className="w-4 h-4 text-brand-600" />
+              <h3 className="font-bold text-stone-800">プロプラン</h3>
+            </div>
+            <div className="text-3xl font-bold text-stone-800">¥6,980<span className="text-sm font-normal text-stone-500">/月</span></div>
+            <ul className="space-y-2 text-sm text-stone-600">
+              {['レシピ・ラベル印刷とも無制限', '店舗最大10件', 'Excelインポート・エクスポート回数無制限', '表示法令コンプライアンスチェック', '複数ラベルデザインテンプレート保存', 'ロット番号トレース検索', 'ECページ用テキスト自動生成', '広告なし・優先サポート'].map(f => (
+                <li key={f} className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-brand-500" />{f}</li>
+              ))}
+            </ul>
+            <Link href="/auth/register" className="w-full py-2.5 px-4 bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-xl transition-colors block text-center text-sm">
+              プロで始める
+            </Link>
+          </div>
         </div>
       </section>
 
       {/* フッター */}
       <footer className="text-center py-8 text-xs text-stone-400 space-y-2">
-      <p>お問い合わせ：info.lucke@gmail.com</p>
+      <p>お問い合わせ：<ObfuscatedEmail b64="aW5mby5sdWNrZUBnbWFpbC5jb20=" className="text-brand-600 hover:underline" /></p>
       <p>返金ポリシー：解約後は当月末まで利用可能。原則返金不可。</p>
       <p>サービス提供：決済完了後すぐにご利用いただけます。</p>
         <p>© 2026 FoodLabel Pro（Bummeln）</p>

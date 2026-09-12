@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Cookie, Shield, Printer, ShoppingBasket, Star, CheckCircle2, Users } from 'lucide-react';
+import ObfuscatedEmail from '@/components/ObfuscatedEmail';
 
 export const metadata = {
   title: 'FoodLabel Proについて | 食品表示ラベル管理システム',
@@ -91,7 +92,7 @@ export default function AboutPage() {
           <div className="text-sm text-stone-600 space-y-2">
             <p><span className="font-medium">運営者：</span>Bummeln（個人事業主）</p>
             <p><span className="font-medium">所在地：</span>愛知県名古屋市瑞穂区竹田町</p>
-            <p><span className="font-medium">お問い合わせ：</span><a href="mailto:info.lucke@gmail.com" className="text-brand-600 hover:underline">info.lucke@gmail.com</a></p>
+            <p><span className="font-medium">お問い合わせ：</span><ObfuscatedEmail b64="aW5mby5sdWNrZUBnbWFpbC5jb20=" className="text-brand-600 hover:underline" /></p>
             <p className="text-stone-400 text-xs mt-2">
               FoodLabel Proは、食品販売事業者の食品表示業務の効率化を支援するために開発されたSaaSサービスです。
               食品表示法・健康増進法等の関連法規に基づく表示の最終確認は、事業者様ご自身の責任において行っていただきますようお願いいたします。

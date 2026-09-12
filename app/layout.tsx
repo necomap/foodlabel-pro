@@ -2,6 +2,7 @@
 import { Noto_Sans_JP } from 'next/font/google';
 import './globals.css';
 import { Toaster } from 'react-hot-toast';
+import { Analytics } from '@vercel/analytics/next';
 import { Providers } from './providers';
 
 const notoSansJP = Noto_Sans_JP({
@@ -49,6 +50,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           {children}
         </Providers>
+        {/* 2026-09: 厳密なアクセス解析ではなく「軽い閲覧数の目安」用にVercel Analyticsを追加。
+            Cookieを使わない方式なので、同意バナー等の追加対応は不要。
+            計測結果はVercelダッシュボードの「Analytics」タブで確認できる
+            （プロジェクト設定でWeb Analyticsの有効化が必要な場合あり）。 */}
+        <Analytics />
         <Toaster
           position="top-right"
           toastOptions={{

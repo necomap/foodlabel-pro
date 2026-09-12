@@ -17,6 +17,7 @@ interface Stats {
   totalRecipes: number; totalIngredients: number; pendingIngredients: number;
   // 2026-08新設: ユーザー分析用（必須の運用指標ではなく、今後のアプデの参考用）
   registeredOnlyUsers: number;
+  usingUsers: number;
   churnedUsers: number;
   trialOnlyUsers: number;
   recipeCountStats:     { max: number; min: number; avg: number };
@@ -132,22 +133,39 @@ export default function AdminPage() {
           })}
         </div>
       )}
+      {stats && (
+        <p className="text-xs text-stone-400">
+          {/* 2026-09: 管理者アカウント・検証用テストアカウントは実データではないため全集計から除外済み */}
+          ※ 上記は管理者・検証用テストアカウントを除いた集計です
+        </p>
+      )}
 
       {/* 2026-08新設: ユーザー分析（必須の運用指標ではなく、今後のアプデの参考用）。
           「アクティブユーザー」（ログインベースの稼働状況）はログイン履歴の記録が必要になるため
           今回は対象外。代わりに「登録のみユーザー」（レシピ0件＝登録後に使い始めていない）を
-          出すことで、その裏返し（総ユーザー数－登録のみユーザー）で実質的な稼働ユーザー数の
-          目安が分かるようにしている。 */}
+          出すことで、その裏返し（総ユーザー数－登録のみユーザー＝利用中ユーザー）で実質的な
+          稼働ユーザー数の目安が分かるようにしている。
+          2026-09: 「利用中」を毎回暗算しなくて済むよう、APIが計算した値をそのまま表示するタイルを追加。
+          なお「解約済み・お試しのみ」は現在フリープランのユーザーのうち、過去にStripeの契約履歴が
+          あるものだけを対象にした内訳であり、「登録のみ／利用中」（レシピ有無での分類）とは別の
+          切り口なので、足し合わせても総ユーザー数にはならない点に注意。 */}
       {stats && (
         <div className="card">
           <h2 className="section-title flex items-center gap-2">
             <Users className="w-5 h-5 text-stone-400" />ユーザー分析（参考値）
           </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="bg-brand-50 rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-brand-600">{stats.usingUsers.toLocaleString()}</div>
+              <div className="text-xs text-stone-500 mt-1">利用中（レシピ1件以上）</div>
+            </div>
             <div className="bg-stone-50 rounded-xl p-4 text-center">
               <div className="text-2xl font-bold text-stone-600">{stats.registeredOnlyUsers.toLocaleString()}</div>
               <div className="text-xs text-stone-500 mt-1">登録のみ（レシピ0件）</div>
             </div>
+          </div>
+          <p className="text-xs text-stone-400 -mt-2 mb-4">↑ 上記2つの合計＝総ユーザー数。以下2つは「現在フリープランのユーザー」のうち過去に契約履歴がある人だけの内訳（別の切り口の集計）です。</p>
+          <div className="grid grid-cols-2 gap-4 mb-4">
             <div className="bg-red-50 rounded-xl p-4 text-center">
               <div className="text-2xl font-bold text-red-500">{stats.churnedUsers.toLocaleString()}</div>
               <div className="text-xs text-stone-500 mt-1">解約済み（元有料）</div>

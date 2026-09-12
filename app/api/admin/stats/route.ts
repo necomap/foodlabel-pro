@@ -3,19 +3,37 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
+// 2026-09: 管理者アカウント自身・検証用テストアカウントは実際の利用者ではないため、
+// 全ての集計から除外する（大量のダミーレシピ・食材が混ざって集計の意味が薄れていたための対応）。
+const EXCLUDED_STATS_EMAILS = ['putin3martin3@gmail.com', 'bp.bummeln@gmail.com'];
+
 export async function GET() {
   const session = await auth();
   if (session?.user?.plan !== 'admin') return NextResponse.json({ success: false, error: '権限がありません' }, { status: 403 });
 
+  const excludedUsers = await prisma.user.findMany({
+    where: { email: { in: EXCLUDED_STATS_EMAILS } },
+    select: { id: true },
+  });
+  const excludedIds = excludedUsers.map(u => u.id);
+
   // 2026-08 プロプラン新設: 有料プランがpremium/proの2種類になったため、それぞれ個別に集計する
   // （以前はpremiumのみカウントしており、proユーザーが集計から漏れる状態だった）。
   const [totalUsers, premiumUsers, proUsers, totalRecipes, totalIngredients, pendingIngredients] = await Promise.all([
-    prisma.user.count({ where: { isActive: true } }),
-    prisma.user.count({ where: { plan: 'premium', isActive: true } }),
-    prisma.user.count({ where: { plan: 'pro', isActive: true } }),
-    prisma.recipe.count({ where: { isActive: true } }),
-    prisma.ingredient.count({ where: { isActive: true } }),
-    prisma.ingredient.count({ where: { isPublic: true, isApproved: false } }),
+    prisma.user.count({ where: { isActive: true, id: { notIn: excludedIds } } }),
+    prisma.user.count({ where: { plan: 'premium', isActive: true, id: { notIn: excludedIds } } }),
+    prisma.user.count({ where: { plan: 'pro', isActive: true, id: { notIn: excludedIds } } }),
+    prisma.recipe.count({ where: { isActive: true, userId: { notIn: excludedIds } } }),
+    // ingredientsはuserIdがnull（共有マスタ）のレコードも対象に含めたいため、
+    // 「userId not in excludedIds」だけでなく「userIdがnull」もOR条件で明示的に含める
+    // （SQLのNOT INはNULLと組み合わせると常に不一致扱いになり、共有マスタが集計から
+    // 消えてしまう落とし穴があるため）。
+    prisma.ingredient.count({
+      where: { isActive: true, OR: [{ userId: null }, { userId: { notIn: excludedIds } }] },
+    }),
+    prisma.ingredient.count({
+      where: { isPublic: true, isApproved: false, OR: [{ userId: null }, { userId: { notIn: excludedIds } }] },
+    }),
   ]);
 
   // ============================================================
@@ -29,14 +47,14 @@ export async function GET() {
 
   const [recipeCountsByUser, ingredientCountsByUser, allActiveUsers, freeUsersWithSubHistory] = await Promise.all([
     // ユーザーごとのレシピ件数（非表示・論理削除は除く）
-    prisma.recipe.groupBy({ by: ['userId'], where: { isActive: true }, _count: { _all: true } }),
+    prisma.recipe.groupBy({ by: ['userId'], where: { isActive: true, userId: { notIn: excludedIds } }, _count: { _all: true } }),
     // ユーザーごとの食材マスタ件数（userIdがnull＝共有マスタなどは対象外）
-    prisma.ingredient.groupBy({ by: ['userId'], where: { isActive: true, userId: { not: null } }, _count: { _all: true } }),
-    prisma.user.findMany({ where: { isActive: true }, select: { id: true } }),
+    prisma.ingredient.groupBy({ by: ['userId'], where: { isActive: true, userId: { not: null, notIn: excludedIds } }, _count: { _all: true } }),
+    prisma.user.findMany({ where: { isActive: true, id: { notIn: excludedIds } }, select: { id: true } }),
     // 現在フリープランだが、過去に何らかの有料プラン契約（Subscriptionレコード）があるユーザー。
     // 「解約済み（元有料）」と「お試しのみ（一度も本契約に至らなかった）」の判定に使う。
     prisma.user.findMany({
-      where: { isActive: true, plan: 'free', subscriptions: { some: {} } },
+      where: { isActive: true, plan: 'free', id: { notIn: excludedIds }, subscriptions: { some: {} } },
       select: { id: true, subscriptions: { select: { status: true, plan: true } } },
     }),
   ]);
@@ -46,6 +64,9 @@ export async function GET() {
   const usersWithRecipeIds    = new Set(recipeCountsByUser.map(r => r.userId));
   // 登録のみユーザー（レシピを1件も作っていない）＝全アクティブユーザー－レシピを持つユーザー
   const registeredOnlyUsers = allActiveUsers.filter(u => !usersWithRecipeIds.has(u.id)).length;
+  // 利用中ユーザー（レシピを1件以上作ったことがある）＝全ユーザー－登録のみユーザー の裏返しを
+  // 画面側で毎回暗算しなくて済むよう、ここで計算して明示的に返す（2026-09追加）。
+  const usingUsers = totalUsers - registeredOnlyUsers;
 
   // 「解約済み（元有料）」＝ status:active/past_due の契約履歴がある（＝実際に課金されたことがある）
   // 「お試しのみ」＝ 契約履歴はあるが一度もactive/past_dueになっていない（トライアル中にキャンセル等）
@@ -71,6 +92,7 @@ export async function GET() {
     data: {
       totalUsers, premiumUsers, proUsers, totalRecipes, totalIngredients, pendingIngredients,
       registeredOnlyUsers,
+      usingUsers,
       churnedUsers,
       trialOnlyUsers,
       recipeCountStats:     summarize(recipeCountValues),

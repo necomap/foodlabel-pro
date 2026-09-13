@@ -18,6 +18,7 @@ import type { RecipeDetail } from '@/types';
 import { checkRecipeCompliance, type ComplianceIssue } from '@/lib/compliance-check';
 import { generateEcText, EC_TEXT_STYLES, type EcTextStyle } from '@/lib/ec-text-generator';
 import { calcElectricityCostEstimate, type ElectricityCostSettings } from '@/lib/electricity-cost';
+import { getPlanLimits } from '@/lib/plan-limits';
 
 // アレルゲン表示
 function AllergenChip({ name, required }: { name: string; required: boolean }) {
@@ -47,8 +48,13 @@ export default function RecipeDetailPage() {
   const router = useRouter();
   const id = params.id as string;
   const { data: session } = useSession();
-  const canUseComplianceCheck = session?.user?.plan === 'pro' || session?.user?.plan === 'admin';
-  const canUseEcText = session?.user?.plan === 'pro' || session?.user?.plan === 'admin';
+  // 2026-09修正: 以前はここで`session?.user?.plan === 'pro' || 'admin'`と直書きしており、
+  // lib/plan-limits.tsのPLAN_LIMITSと別管理になっていた（プラン条件を変更する際に
+  // このページだけ直し忘れるとズレるリスクがあった）。getPlanLimits()を単一の
+  // 判定基準として使うよう統一する。
+  const planLimits = getPlanLimits(session?.user?.plan ?? 'free');
+  const canUseComplianceCheck = planLimits.canUseComplianceCheck;
+  const canUseEcText = planLimits.canUseEcText;
 
   const [recipe,  setRecipe]  = useState<RecipeDetail | null>(null);
   const [loading, setLoading] = useState(true);

@@ -5,7 +5,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { getReadOnlyRecipeIds } from '@/lib/plan-limits';
+import { getReadOnlyRecipeIds } from '@/lib/plan-limits-server';
 import { buildIngredientsLabel, collectRecipeAllergens, prepareIngredientsForLabel } from '@/lib/allergen';
 import { calcPerUnit, roundForDisplay, calcNutritionForAmount, resolveIngredientNutritionPer100g, calcCostRate } from '@/lib/nutrition';
 import { getGenericNameOverrides } from '@/lib/generic-name-overrides';

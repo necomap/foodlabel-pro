@@ -7,7 +7,8 @@ import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { calcNutritionForAmount, sumNutrition, calcPerUnit, calcCostRate } from '@/lib/nutrition';
-import { getPlanLimits, getReadOnlyRecipeIds } from '@/lib/plan-limits';
+import { getPlanLimits } from '@/lib/plan-limits';
+import { getReadOnlyRecipeIds } from '@/lib/plan-limits-server';
 import { detectAllergens } from '@/lib/allergen';
 import type { NutritionValues } from '@/types';
 

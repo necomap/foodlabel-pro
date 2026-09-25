@@ -620,13 +620,32 @@ export default function RecipeForm() {
                   <div className="flex-1 h-px bg-cream-200" />
                 </div>
               )}
-            <div className="group flex gap-2 items-start">
-              <div className="pt-2.5 text-stone-300 cursor-grab active:cursor-grabbing"
-                draggable
-                onDragStart={() => setDragIdx(idx)}
-                onDragEnd={() => setDragIdx(null)}
-                title="ドラッグして材料の順番を入れ替え">
-                <GripVertical className="w-4 h-4" />
+            {/* 2026-09修正: 添加物・ラベル非表示・工程・原価単価の各項目が幅の狭い画面では
+                hidden sm:*で完全に非表示（＝スマホからは入力不可能）になっていたのを、
+                flex-wrapで折り返して常に操作できるように修正（詳細は各項目のコメント参照）。 */}
+            <div className="group flex flex-wrap gap-2 items-start">
+              {/* 2026-09修正: ドラッグ&ドロップ（HTML5 draggable）はタッチ操作に対応しておらず、
+                  スマートフォンでは材料の並び替えが一切できなかった（PCのマウス操作でのみ動作）。
+                  タップで使える上下移動ボタンを追加し、スマホでも並び替えできるようにする。
+                  ドラッグ操作自体はPC向けに残す（幅に余裕があるsm以上でのみ表示）。 */}
+              <div className="pt-1 flex flex-col items-center gap-0.5">
+                <button type="button" onClick={() => moveIngredient(idx, idx - 1)} disabled={idx === 0}
+                  className="text-stone-300 hover:text-stone-500 disabled:opacity-20 disabled:cursor-not-allowed p-0.5"
+                  title="上に移動">
+                  <ChevronUp className="w-3.5 h-3.5" />
+                </button>
+                <div className="hidden sm:block text-stone-300 cursor-grab active:cursor-grabbing"
+                  draggable
+                  onDragStart={() => setDragIdx(idx)}
+                  onDragEnd={() => setDragIdx(null)}
+                  title="ドラッグして材料の順番を入れ替え">
+                  <GripVertical className="w-4 h-4" />
+                </div>
+                <button type="button" onClick={() => moveIngredient(idx, idx + 1)} disabled={idx === ingredients.length - 1}
+                  className="text-stone-300 hover:text-stone-500 disabled:opacity-20 disabled:cursor-not-allowed p-0.5"
+                  title="下に移動">
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
               </div>
               <div className="text-xs text-stone-400 pt-3 w-5 text-center">{idx + 1}</div>
 
@@ -661,7 +680,7 @@ export default function RecipeForm() {
               </select>
 
               {/* 添加物フラグ */}
-              <label className="flex items-center gap-1 text-xs text-stone-500 whitespace-nowrap cursor-pointer hidden sm:flex">
+              <label className="flex items-center gap-1 text-xs text-stone-500 whitespace-nowrap cursor-pointer">
                 <input type="checkbox"
                   checked={!!(ing as IngredientRow).isAdditive}
                   onChange={e => updateIngredient(ing.key, 'isAdditive', e.target.checked)}
@@ -708,11 +727,11 @@ export default function RecipeForm() {
 
               {/* ラベル非表示フラグ（今回だけ非表示） */}
               {(ing as IngredientRow).ingredientAlwaysHideFromLabel ? (
-                <span className="flex items-center gap-1 text-xs text-stone-400 whitespace-nowrap hidden sm:flex">
+                <span className="flex items-center gap-1 text-xs text-stone-400 whitespace-nowrap">
                   常に非表示（食材マスタ設定）
                 </span>
               ) : (
-                <label className="flex items-center gap-1 text-xs text-stone-500 whitespace-nowrap cursor-pointer hidden sm:flex">
+                <label className="flex items-center gap-1 text-xs text-stone-500 whitespace-nowrap cursor-pointer">
                   <input type="checkbox"
                     checked={!!(ing as IngredientRow).hideFromLabel}
                     onChange={e => updateIngredient(ing.key, 'hideFromLabel', e.target.checked)}
@@ -728,16 +747,18 @@ export default function RecipeForm() {
                 onChange={e => updateIngredient(ing.key, 'processLabel', e.target.value)}
                 placeholder="工程（任意）"
                 title="工程・用途（例：湯種／本ごね／仕上げ）。同じ工程名を続けて入力すると見出しでまとめて表示されます"
-                className="field-input text-xs py-1.5 w-24 hidden sm:block" />
+                className="field-input text-xs py-1.5 w-24" />
 
               {/* 原価単価 */}
               <input type="number" value={ing.costPrice}
                 onChange={e => updateIngredient(ing.key, 'costPrice', e.target.value)}
-                className="field-input w-20 text-sm py-2 hidden sm:block" placeholder="単価/g" step="0.001" />
+                className="field-input w-20 text-sm py-2" placeholder="単価/g" step="0.001" />
 
-              {/* 削除 */}
+              {/* 削除。2026-09修正: opacity-0 + group-hoverのみで表示していたため、
+                  ホバー状態を持たないタッチ操作（スマホ）では表示されず削除できなかった。
+                  スマホでは常に表示し、PC（sm以上）では従来通りホバー時のみ表示する。 */}
               <button type="button" onClick={() => removeIngredient(ing.key)}
-                className="mt-2 p-1.5 text-stone-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
+                className="mt-2 p-1.5 text-stone-300 hover:text-red-500 transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>

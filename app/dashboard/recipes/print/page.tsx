@@ -4,6 +4,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Printer, Loader2, AlertTriangle, X, Lock } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { printHtmlDocument } from '@/lib/print-html';
 
 interface RecipeForPrint {
   id: string; name: string; unitCount: number; categoryName: string|null;
@@ -204,11 +205,10 @@ ${recipes.map(r => `
 </body>
 </html>`;
 
-    const win = window.open('', '_blank');
-    if (!win) { toast.error('ポップアップがブロックされています。ブラウザの設定でポップアップを許可してください。'); return; }
-    win.document.write(html);
-    win.document.close();
-    setTimeout(() => { win.focus(); win.print(); }, 500);
+    // 2026-09修正: 以前はwindow.open('', '_blank')で別タブを開いて印刷していたが、
+    // スマートフォン（特にiOS Safari）では別タブへの読み込みが正しく完了せず印刷シートが
+    // 一切開かないという不具合があった。新しいタブを開かない方式（lib/print-html.ts）に変更。
+    printHtmlDocument(html);
   };
 
   if (loading) {

@@ -9,6 +9,7 @@ import { Printer, RefreshCw, Settings, AlertTriangle, ChevronLeft, ChevronDown, 
 import toast from 'react-hot-toast';
 import type { LabelTemplateConfig, LabelContent } from '@/types';
 import { printFoodLabel } from '@/lib/bpac-print';
+import { printHtmlDocument } from '@/lib/print-html';
 
 interface RecipeOption { id: string; name: string; variationName?: string | null; shelfLifeDays: number | null; shelfLifeType: string; contentAmount: string | null; }
 interface ShopOption   { id: string; shopName: string; isDefault: boolean; }
@@ -637,11 +638,10 @@ export default function LabelsPage() {
       toast.error('「1枚プレビュー」の内容は確認用です。印刷する前に「ラベルを生成」を押してください');
       return;
     }
-    const win = window.open('', '_blank');
-    if (!win) { toast.error('ポップアップがブロックされました'); return; }
-    win.document.write(previewHtml);
-    win.document.close();
-    win.onload = () => { win.focus(); win.print(); };
+    // 2026-09修正: 以前はwindow.open('', '_blank')で別タブを開いて印刷していたが、
+    // スマートフォン（特にiOS Safari）では別タブへの読み込みが正しく完了せず印刷シートが
+    // 一切開かないという不具合があった。新しいタブを開かない方式（lib/print-html.ts）に変更。
+    printHtmlDocument(previewHtml);
   };
 
   // b-PAC経由の不定長印刷（Windows＋Brother QL-820NWB限定・任意設定）。

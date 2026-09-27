@@ -5,7 +5,8 @@
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { getPlanLimits, getMonthlyDataTransferCount, logDataTransfer } from '@/lib/plan-limits';
+import { getPlanLimits } from '@/lib/plan-limits';
+import { getMonthlyDataTransferCount, logDataTransfer } from '@/lib/plan-limits-server';
 import { prisma } from '@/lib/db';
 import { parseExcelFile, exportRecipesToExcel, toFullWidth } from '@/lib/excel-import-export';
 import { detectAllergens } from '@/lib/allergen';

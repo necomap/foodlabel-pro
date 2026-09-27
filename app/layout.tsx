@@ -1,16 +1,13 @@
 ﻿import type { Metadata } from 'next';
-import { Noto_Sans_JP } from 'next/font/google';
 import './globals.css';
 import { Toaster } from 'react-hot-toast';
 import { Analytics } from '@vercel/analytics/next';
 import { Providers } from './providers';
 
-const notoSansJP = Noto_Sans_JP({
-  subsets:  ['latin'],
-  variable: '--font-noto-sans',
-  display:  'swap',
-  weight:   ['400', '500', '700'],
-});
+// 2026-09: next/font/google はビルド時にGoogle Fontsからフォントを取得するが、
+// Google側が拡張子なしのURL（/l/font?kit=...）を返すようになりビルドが失敗する既知問題があるため、
+// ブラウザ側で<link>読み込みする方式に変更。CSS変数名（--font-noto-sans）は従来どおり。
+const FONT_VARS = { '--font-noto-sans': "'Noto Sans JP', sans-serif" } as React.CSSProperties;
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://foodlabel.lucke.jp'),
@@ -41,9 +38,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ja" className={notoSansJP.variable}>
+    <html lang="ja" style={FONT_VARS}>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" />
         <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2277926623752174" crossOrigin="anonymous"></script>
 </head>
       <body className="font-sans bg-cream-100 text-stone-800 antialiased">

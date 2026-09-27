@@ -6,7 +6,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { calcNutritionForAmount, sumNutrition, calcPerUnit, calcCostRate } from '@/lib/nutrition';
+import { calcNutritionForAmount, sumNutrition, calcPerUnit, calcCostRate, toGrams, resolveIngredientNutritionPer100g } from '@/lib/nutrition';
 import { getPlanLimits } from '@/lib/plan-limits';
 import { getReadOnlyRecipeIds } from '@/lib/plan-limits-server';
 import { detectAllergens } from '@/lib/allergen';
@@ -192,34 +192,11 @@ export async function POST(request: Request) {
             include: { nutritionData: true },
           });
           if (ingRecord) {
-            // 栄養成分（手動入力 or 成分表から）
-            if (ingRecord.nutritionData) {
-              nutritionPer100g = {
-                energyKcal:     ingRecord.energyKcalManual    != null ? Number(ingRecord.energyKcalManual)    : (ingRecord.nutritionData.energyKcal     != null ? Number(ingRecord.nutritionData.energyKcal)     : null),
-                protein:        ingRecord.proteinManual       != null ? Number(ingRecord.proteinManual)       : (ingRecord.nutritionData.protein         != null ? Number(ingRecord.nutritionData.protein)        : null),
-                fat:            ingRecord.fatManual           != null ? Number(ingRecord.fatManual)           : (ingRecord.nutritionData.fat             != null ? Number(ingRecord.nutritionData.fat)            : null),
-                carbohydrate:   ingRecord.carbohydrateManual  != null ? Number(ingRecord.carbohydrateManual)  : (ingRecord.nutritionData.carbohydrate     != null ? Number(ingRecord.nutritionData.carbohydrate)   : null),
-                sodium:         ingRecord.sodiumManual        != null ? Number(ingRecord.sodiumManual)        : (ingRecord.nutritionData.sodium          != null ? Number(ingRecord.nutritionData.sodium)         : null),
-                saltEquivalent: ingRecord.saltEquivalentManual != null ? Number(ingRecord.saltEquivalentManual) : (ingRecord.nutritionData.saltEquivalent  != null ? Number(ingRecord.nutritionData.saltEquivalent) : null),
-                dietaryFiber:   ingRecord.dietaryFiberManual  != null ? Number(ingRecord.dietaryFiberManual)  : (ingRecord.nutritionData.dietaryFiber    != null ? Number(ingRecord.nutritionData.dietaryFiber)   : null),
-                sugar:          ingRecord.sugarManual         != null ? Number(ingRecord.sugarManual)         : (ingRecord.nutritionData.sugar           != null ? Number(ingRecord.nutritionData.sugar)          : null),
-                cholesterol:    ingRecord.cholesterolManual   != null ? Number(ingRecord.cholesterolManual)   : (ingRecord.nutritionData.cholesterol      != null ? Number(ingRecord.nutritionData.cholesterol)    : null),
-              };
-            } else {
-              // 手動入力のみ
-              nutritionPer100g = {
-                energyKcal:     ingRecord.energyKcalManual    != null ? Number(ingRecord.energyKcalManual)    : null,
-                protein:        ingRecord.proteinManual       != null ? Number(ingRecord.proteinManual)       : null,
-                fat:            ingRecord.fatManual           != null ? Number(ingRecord.fatManual)           : null,
-                carbohydrate:   ingRecord.carbohydrateManual  != null ? Number(ingRecord.carbohydrateManual)  : null,
-                sodium:         ingRecord.sodiumManual        != null ? Number(ingRecord.sodiumManual)        : null,
-                saltEquivalent: ingRecord.saltEquivalentManual != null ? Number(ingRecord.saltEquivalentManual) : null,
-                dietaryFiber:   ingRecord.dietaryFiberManual  != null ? Number(ingRecord.dietaryFiberManual)  : null,
-                sugar:          ingRecord.sugarManual         != null ? Number(ingRecord.sugarManual)         : null,
-                cholesterol:    ingRecord.cholesterolManual   != null ? Number(ingRecord.cholesterolManual)   : null,
-              };
-              nutritionUnconfirmed = Object.values(nutritionPer100g).every(v => v == null);
-            }
+            // 栄養成分（手動入力 or 成分表から）。判定ロジックはレシピ詳細・ラベル生成と共通化
+            // （以前は独自実装で、手入力が熱量以外だけのケース等で「未確認」判定が食い違っていた）
+            const resolved = resolveIngredientNutritionPer100g(ingRecord as any);
+            nutritionPer100g = resolved.per100g;
+            nutritionUnconfirmed = resolved.unconfirmed;
             if (!ing.allergenOverride?.length) {
               ingredientAllergens = ingRecord.allergens;
             }
@@ -235,13 +212,14 @@ export async function POST(request: Request) {
           }
         }
 
-        // gまたはml単位の場合に栄養成分を計算
-        const amountG = ['g', 'ml'].includes(ing.unit) ? ing.amount : 0;
+        // 重量に換算できる単位（g・kg・ml・cc・L）の場合のみ栄養成分を計算（lib/nutrition.ts toGrams）
+        const amountG = toGrams(ing.amount, ing.unit) ?? 0;
         const nutrition = amountG > 0
           ? calcNutritionForAmount(nutritionPer100g, amountG)
           : { energyKcal: null, protein: null, fat: null, carbohydrate: null, sodium: null, saltEquivalent: null, dietaryFiber: null, sugar: null, cholesterol: null };
 
-        const costTotal = unitPrice && amountG ? unitPrice * amountG : null;
+        // 原価＝単価×数量（編集画面・更新APIと同じ。以前はg/ml以外の単位だと原価0になっていた）
+        const costTotal = unitPrice && ing.amount ? Math.round(unitPrice * ing.amount * 100) / 100 : null;
 
         return {
           ...ing,
@@ -255,10 +233,10 @@ export async function POST(request: Request) {
     );
 
     // 最も重量が多い食材に isPrimary フラグ
-    const gIngredients = ingredientDetails.filter(i => i.unit === 'g' || i.unit === 'ml');
+    const gIngredients = ingredientDetails.filter(i => toGrams(i.amount, i.unit) != null);
     if (gIngredients.length > 0) {
       const maxIdx = ingredientDetails.indexOf(
-        gIngredients.reduce((a, b) => b.amount > a.amount ? b : a)
+        gIngredients.reduce((a, b) => (toGrams(b.amount, b.unit) ?? 0) > (toGrams(a.amount, a.unit) ?? 0) ? b : a)
       );
       ingredientDetails[maxIdx].isPrimary = true;
     }
@@ -271,8 +249,7 @@ export async function POST(request: Request) {
     const unitCost    = data.unitCount > 0 ? totalCost / data.unitCount : totalCost;
     const costRate    = data.salePrice ? calcCostRate(unitCost, data.salePrice) : null;
     const totalWeightG = ingredientDetails
-      .filter(i => i.unit === 'g' || i.unit === 'ml')
-      .reduce((s, i) => s + i.amount, 0);
+      .reduce((s, i) => s + (toGrams(i.amount, i.unit) ?? 0), 0);
     const wasteAmountG = data.wasteAmountG ?? 0;
     const wasteRatio = (totalWeightG > 0 && wasteAmountG > 0)
       ? Math.round((wasteAmountG / totalWeightG) * 100 * 100) / 100

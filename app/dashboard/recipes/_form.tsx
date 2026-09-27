@@ -4,6 +4,7 @@
 // ============================================================
 'use client';
 
+import { toGrams } from '@/lib/nutrition';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -344,10 +345,12 @@ export default function RecipeForm() {
     }));
   };
 
-  // 材料合計重量（単位がgのものだけを合算）・廃棄率のリアルタイム計算
+  // 材料合計重量・廃棄率のリアルタイム計算。重量換算はサーバー側（保存・ラベル）と同じtoGramsを使う
+  // （以前は画面はgのみ・サーバーはg+mlで合算しており、画面の廃棄率と保存値が食い違っていた）
   const ingredientTotalWeightG = ingredients.reduce((sum, i) => {
     const amt = parseFloat(i.amount);
-    return (i.unit === 'g' && amt > 0) ? sum + amt : sum;
+    const g = amt > 0 ? toGrams(amt, i.unit) : null;
+    return g != null ? sum + g : sum;
   }, 0);
   const wastePercent = (ingredientTotalWeightG > 0 && parseFloat(wasteAmountG) > 0)
     ? (parseFloat(wasteAmountG) / ingredientTotalWeightG) * 100
@@ -782,8 +785,8 @@ export default function RecipeForm() {
             </p>
             {(() => {
               const primary = [...ingredients]
-                .filter(i => i.name && (i.unit === 'g' || i.unit === 'ml'))
-                .sort((a, b) => (parseFloat(b.amount)||0) - (parseFloat(a.amount)||0))[0];
+                .filter(i => i.name && toGrams(parseFloat(i.amount) || 0, i.unit) != null)
+                .sort((a, b) => (toGrams(parseFloat(b.amount)||0, b.unit) ?? 0) - (toGrams(parseFloat(a.amount)||0, a.unit) ?? 0))[0];
               return primary ? (
                 <div>
                   <div className="flex items-center gap-2">

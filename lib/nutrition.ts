@@ -194,6 +194,77 @@ export function resolveIngredientNutritionPer100g(rec: {
 }
 
 /**
+ * 材料の分量をグラム換算する（栄養計算・合計重量・原材料の重量順ソートで共通に使う）。
+ * - g → そのまま / kg → ×1000
+ * - ml・cc → 1g/mlとみなしてそのまま / L → ×1000（比重は考慮しない概算）
+ * - 個・枚・本・袋・缶・% など重量に換算できない単位 → null（栄養計算の対象外）
+ *
+ * 2026-09-27: 以前は画面・API・ラベル生成で単位の扱いがバラバラだった
+ * （新規作成APIはg/mlのみ計算、更新APIは「個」でも数字をそのままグラム扱い、
+ *  編集画面の合計重量はgのみ、など）ため、ここに一本化した。
+ */
+export function toGrams(amount: number, unit: string | null | undefined): number | null {
+  const a = Number(amount);
+  if (!isFinite(a)) return null;
+  switch ((unit ?? 'g').trim()) {
+    case 'g': case 'ml': case 'cc': return a;
+    case 'kg': case 'L': case 'l':  return a * 1000;
+    default: return null;
+  }
+}
+
+const EMPTY_NUTRITION: NutritionValues = {
+  energyKcal: null, protein: null, fat: null, carbohydrate: null, sodium: null,
+  saltEquivalent: null, dietaryFiber: null, sugar: null, cholesterol: null,
+};
+
+/**
+ * レシピの材料明細（DBのRecipeIngredient＋食材マスタ）から、
+ * 食材マスタの「最新の」栄養成分でレシピ全体の栄養成分合計を計算し直す。
+ *
+ * 2026-09-27: レシピ詳細・ラベル印刷の栄養成分は「最後にレシピを保存した時点の合計値」を
+ * そのまま使っていたため、食材マスタ側で栄養成分を直すと「未確認」警告は消えるのに
+ * ラベルの数値は古いまま（その材料が0扱いのまま）という食い違いがあった。
+ * 食材マスタに紐づく材料は最新値から再計算し、紐づいていない材料は保存時の値を使う。
+ */
+export function computeLiveRecipeNutrition(ingredients: Array<{
+  ingredientId?: string | null;
+  ingredient?: Parameters<typeof resolveIngredientNutritionPer100g>[0];
+  amount: unknown;
+  unit: string;
+  energyKcal?: unknown; protein?: unknown; fat?: unknown; carbohydrate?: unknown; sodium?: unknown;
+  saltEquivalent?: unknown; dietaryFiber?: unknown; sugar?: unknown; cholesterol?: unknown;
+}>): {
+  total: NutritionValues;
+  perIngredient: Array<{ nutrition: NutritionValues; unconfirmed: boolean; notWeighable: boolean }>;
+} {
+  const n = (v: unknown) => (v != null ? Number(v as any) : null);
+  const perIngredient = ingredients.map(ing => {
+    const grams = toGrams(Number(ing.amount), ing.unit);
+    if (ing.ingredientId && ing.ingredient) {
+      const resolved = resolveIngredientNutritionPer100g(ing.ingredient);
+      if (resolved.unconfirmed) return { nutrition: EMPTY_NUTRITION, unconfirmed: true, notWeighable: grams == null };
+      return {
+        nutrition: grams != null && grams > 0 ? calcNutritionForAmount(resolved.per100g, grams) : EMPTY_NUTRITION,
+        unconfirmed: false,
+        notWeighable: grams == null,
+      };
+    }
+    // 自由入力の材料：保存時点の値（食材マスタが無いので再計算できない）
+    return {
+      nutrition: {
+        energyKcal: n(ing.energyKcal), protein: n(ing.protein), fat: n(ing.fat), carbohydrate: n(ing.carbohydrate),
+        sodium: n(ing.sodium), saltEquivalent: n(ing.saltEquivalent), dietaryFiber: n(ing.dietaryFiber),
+        sugar: n(ing.sugar), cholesterol: n(ing.cholesterol),
+      },
+      unconfirmed: true,
+      notWeighable: grams == null,
+    };
+  });
+  return { total: sumNutrition(perIngredient), perIngredient };
+}
+
+/**
  * 原価率を計算する
  * @param cost - 原価（円）
  * @param salePrice - 販売価格（円）

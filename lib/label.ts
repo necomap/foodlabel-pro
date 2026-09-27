@@ -43,7 +43,11 @@ export function generateLabelContent(
   // アレルゲン集約
   const allergenInfo = collectRecipeAllergens(
     recipe.ingredients.map(ing => ({
-      allergens:        ing.allergenOverride?.length ? [] : (ing as any).allergens ?? [],
+      // 2026-09-27修正: 以前は「allergenOverrideがあれば空配列／無ければ(ing as any).allergens」としていたが、
+      // 呼び出し元（app/api/labels/generate）はallergensを渡しておらず、食材マスタに紐づく材料では
+      // hasIngredientLink=trueのためこの値だけが使われる → 印刷ラベルのアレルゲン表記が丸ごと抜けていた。
+      // マスタ紐づけ材料は食材マスタ側のアレルゲン（masterAllergens）を必ず使う。
+      allergens:        ing.masterAllergens ?? (ing as any).allergens ?? [],
       allergenOverride: ing.allergenOverride ?? [],
       ingredientName:   ing.ingredientName,
       // 食材マスタに紐づいている材料は、マスタ側のallergensのみを信頼する（名前からの自動再判定はしない）

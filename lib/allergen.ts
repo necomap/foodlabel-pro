@@ -3,6 +3,8 @@
 // 食品表示法（食品表示基準）に基づく
 // ============================================================
 
+import { toGrams } from './nutrition';
+
 // 特定原材料8品目（表示義務）
 export const REQUIRED_ALLERGENS: Record<string, string[]> = {
   'えび':  ['えび', 'エビ', '海老', '蝦', 'シュリンプ'],
@@ -26,7 +28,8 @@ export const OPTIONAL_ALLERGENS: Record<string, string[]> = {
   'オレンジ':      ['オレンジ', 'オレンジピール', 'オレンジジュース'],
   'カシューナッツ': ['カシューナッツ'],
   'キウイフルーツ': ['キウイ', 'キウイフルーツ'],
-  '牛肉':          ['牛肉', 'ビーフ', '牛', 'ビーフエキス', 'ゼラチン'],
+  // ゼラチンは独立した推奨品目（下の'ゼラチン'）であり、原料は牛とは限らない（豚由来も多い）ため牛肉の判定語から外した
+  '牛肉':          ['牛肉', 'ビーフ', '牛', 'ビーフエキス'],
   'ごま':          ['ごま', 'ゴマ', '胡麻', 'セサミ', 'ごま油', 'タヒニ'],
   'さけ':          ['さけ', 'サケ', '鮭', 'サーモン', '塩鮭'],
   'さば':          ['さば', 'サバ', '鯖'],
@@ -43,6 +46,15 @@ export const OPTIONAL_ALLERGENS: Record<string, string[]> = {
 
 export const ALL_ALLERGENS = { ...REQUIRED_ALLERGENS, ...OPTIONAL_ALLERGENS };
 
+// 判定語を部分一致で探す際の明らかな誤判定を防ぐため、先に取り除く語（2026-09-27追加）。
+// 例: 「豆乳」→乳、「鶏もも肉」→もも（桃）、「牛乳」→牛肉、「鶏卵」→鶏肉 と誤判定されていた。
+const DETECT_EXCLUSIONS: Record<string, string[]> = {
+  '乳':   ['豆乳', '乳化剤', 'ピーナッツバター', 'ピーナツバター'],
+  '牛肉': ['牛乳', '牛蒡'],
+  '鶏肉': ['鶏卵'],
+  'もも': ['もも肉', 'モモ肉', 'すもも', 'スモモ'],
+};
+
 /**
  * 食材名からアレルゲンを自動判定する
  * @param ingredientName - 食材名
@@ -53,8 +65,10 @@ export function detectAllergens(ingredientName: string): string[] {
   const name = ingredientName.trim();
 
   for (const [allergen, keywords] of Object.entries(ALL_ALLERGENS)) {
+    let target = name;
+    for (const ex of DETECT_EXCLUSIONS[allergen] ?? []) target = target.split(ex).join('');
     for (const keyword of keywords) {
-      if (name.includes(keyword)) {
+      if (target.includes(keyword)) {
         detected.push(allergen);
         break;
       }
@@ -177,8 +191,12 @@ export function prepareIngredientsForLabel<T extends LabelIngredientInput>(ingre
     }
   }
 
+  // 重量順：g・kg・ml・L等はグラム換算して比較する（以前はg同士しか比較せず、
+  // 牛乳200mlのような材料が重量順に並ばなかった）。重量換算できない単位（個など）は元の並び順。
+  // 比較関数が矛盾しないよう、全て重量換算できる場合のみ重量で比べる。
   return merged.sort((a, b) => {
-    if (a.sortByWeight && a.unit === 'g' && b.unit === 'g') return (b.amount ?? 0) - (a.amount ?? 0);
+    const ga = toGrams(a.amount ?? 0, a.unit), gb = toGrams(b.amount ?? 0, b.unit);
+    if (a.sortByWeight !== false && b.sortByWeight !== false && ga != null && gb != null && ga !== gb) return gb - ga;
     return (a.displayOrder ?? 0) - (b.displayOrder ?? 0);
   });
 }

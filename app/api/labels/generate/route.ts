@@ -9,7 +9,7 @@ import { getPlanLimits } from '@/lib/plan-limits';
 import { prisma } from '@/lib/db';
 import { generateLabelContent, generateLabelHtml, getDefaultDisplaySettings } from '@/lib/label';
 import { buildIngredientsLabel, collectRecipeAllergens, prepareIngredientsForLabel } from '@/lib/allergen';
-import { calcPerUnit, roundForDisplay, calcNutritionForAmount, resolveIngredientNutritionPer100g } from '@/lib/nutrition';
+import { computeLiveRecipeNutrition } from '@/lib/nutrition';
 import { getGenericNameOverrides } from '@/lib/generic-name-overrides';
 import { deductStockForPrint } from '@/lib/stock-sync';
 import type { RecipeDetail, LabelConfig, BakingStep } from '@/types';
@@ -156,15 +156,11 @@ export async function POST(request: Request) {
   // 「未確認」かどうかを毎回判定し直す。こうしないと、食材マスタ側で後から栄養成分を
   // 入力・修正しても、このレシピを開き直して保存し直すまで警告が消えない
   // （直したのに反映されないように見える）不具合になる。
-  const resolvedIngredients = recipe.ingredients.map(ing => {
-    let unconfirmed = ing.nutritionUnconfirmed;
-    let nutrition: ReturnType<typeof calcNutritionForAmount> | null = null;
-    if (ing.ingredientId && ing.ingredient) {
-      const resolved = resolveIngredientNutritionPer100g(ing.ingredient as any);
-      unconfirmed = resolved.unconfirmed;
-      if (!resolved.unconfirmed) nutrition = calcNutritionForAmount(resolved.per100g, Number(ing.amount));
-    }
-    return { ing, unconfirmed, nutrition };
+  const liveNutrition = computeLiveRecipeNutrition(recipe.ingredients as any);
+  const resolvedIngredients = recipe.ingredients.map((ing, idx) => {
+    const live = liveNutrition.perIngredient[idx];
+    const unconfirmed = (ing.ingredientId && ing.ingredient) ? live.unconfirmed : ing.nutritionUnconfirmed;
+    return { ing, unconfirmed, nutrition: live.nutrition, notWeighable: live.notWeighable };
   });
   const resolvedById = new Map(resolvedIngredients.map(r => [r.ing.id, r]));
 
@@ -172,6 +168,10 @@ export async function POST(request: Request) {
   const warnings = resolvedIngredients
     .filter(r => r.unconfirmed)
     .map(r => `「${r.ing.ingredient?.name ?? r.ing.ingredientNameOverride ?? '不明'}」の成分情報が未確認です`);
+  // 個・枚など重量に換算できない単位の材料は栄養成分に含まれない（黙って0扱いにしないよう警告する）
+  resolvedIngredients
+    .filter(r => r.notWeighable && !r.unconfirmed)
+    .forEach(r => warnings.push(`「${r.ing.ingredient?.name ?? r.ing.ingredientNameOverride ?? '不明'}」は単位が「${r.ing.unit}」のため栄養成分の計算に含まれていません（g・kg・ml・Lで入力すると計算されます）`));
 
   // 店舗情報取得
   const shopId = config.shopId;
@@ -292,17 +292,8 @@ export async function POST(request: Request) {
     }))
   );
 
-  const totalNutrition = {
-    energyKcal:     recipe.energyKcal     ? Number(recipe.energyKcal)     : null,
-    protein:        recipe.protein        ? Number(recipe.protein)        : null,
-    fat:            recipe.fat            ? Number(recipe.fat)            : null,
-    carbohydrate:   recipe.carbohydrate   ? Number(recipe.carbohydrate)   : null,
-    sodium:         recipe.sodium         ? Number(recipe.sodium)         : null,
-    saltEquivalent: recipe.saltEquivalent  ? Number(recipe.saltEquivalent) : null,
-    dietaryFiber:   recipe.dietaryFiber   ? Number(recipe.dietaryFiber)   : null,
-    sugar:          recipe.sugar          ? Number(recipe.sugar)          : null,
-    cholesterol:    recipe.cholesterol    ? Number(recipe.cholesterol)    : null,
-  };
+  // 食材マスタの最新値から再計算した合計（保存時点の古い合計値ではなく）。上のliveNutrition参照。
+  const totalNutrition = liveNutrition.total;
 
   const recipeDetail: RecipeDetail = {
     id:             recipe.id,
@@ -310,6 +301,9 @@ export async function POST(request: Request) {
     nameKana:       recipe.nameKana,
     categoryName:   recipe.category?.name ?? null,
     unitCount:      recipe.unitCount,
+    // 1個あたり栄養成分の廃棄率補正（レシピ詳細画面と同じ計算にそろえる。以前は渡しておらず、
+    // ラベルだけ廃棄分を差し引かない数値になっていた）
+    ...({ wasteRatio: Number(recipe.wasteRatio ?? 0) } as any),
     shelfLifeDays:  recipe.shelfLifeDays,
     shelfLifeType:  recipe.shelfLifeType as 'BEST_BEFORE' | 'USE_BY',
     salePrice:      recipe.salePrice  ? Number(recipe.salePrice)  : null,
@@ -381,6 +375,8 @@ export async function POST(request: Request) {
         costPrice:              ing.costPrice   != null ? Number(ing.costPrice)  : null,
         costTotal:              ing.costTotal   != null ? Number(ing.costTotal)  : null,
         allergenOverride:       ing.allergenOverride,
+        // 印字するアレルゲンの情報源（マスタ紐づけ材料）。これが無いとラベルからアレルゲンが抜ける。
+        masterAllergens:        ing.ingredient?.allergens ?? [],
         isPrimaryIngredient:    ing.isPrimaryIngredient,
         nutritionUnconfirmed:   resolved?.unconfirmed ?? ing.nutritionUnconfirmed,
         nutrition,
@@ -450,18 +446,6 @@ export async function POST(request: Request) {
     });
   }
 
-  console.log('DEBUG_SHOP:', JSON.stringify({
-    address: shopInfo.address,
-    phone: shopInfo.phone,
-    rep: shopInfo.representative,
-    name: shopInfo.shopName,
-  }));
-  console.log('DEBUG_LABEL:', JSON.stringify({
-    ing: recipeDetail.ingredientsLabel?.slice(0,30),
-    qc: recipeDetail.qualityControl,
-    pc: recipeDetail.printComment,
-  }));
-
   // 印刷ログを記録（プレビューモードはカウントしない）
   if (!body.isPreview) {
     try {
@@ -504,14 +488,6 @@ export async function POST(request: Request) {
     data: {
       html, content, warnings,
       stockSync: stockSyncResult,
-      _debug: {
-        shopAddress: shopInfo.address,
-        shopPhone: shopInfo.phone,
-        shopRep: shopInfo.representative,
-        ingredientsLabel: recipeDetail.ingredientsLabel?.slice(0,50),
-        qualityControl: recipeDetail.qualityControl,
-        printComment: recipeDetail.printComment,
-      }
     },
   });
 }

@@ -15,10 +15,12 @@ export default function AdBanner({ slot, format = 'auto', className = '' }: AdBa
 
   // プレミアム・プロ・管理者は広告非表示
   const plan = (session?.user as any)?.plan;
-  if (plan === 'premium' || plan === 'pro' || plan === 'admin') return null;
+  const hideAds = plan === 'premium' || plan === 'pro' || plan === 'admin';
 
+  // フックは早期returnより前に必ず呼ぶ（以前はreturn nullの後にuseEffectがあり、
+  // セッション読込完了でプランが判明した瞬間に「フックの数が変わった」エラーで画面が落ちる構造だった）
   useEffect(() => {
-    if (initialized.current) return;
+    if (hideAds || initialized.current) return;
     initialized.current = true;
     try {
       const adsbygoogle = (window as any).adsbygoogle;
@@ -28,7 +30,9 @@ export default function AdBanner({ slot, format = 'auto', className = '' }: AdBa
     } catch (e) {
       console.error('AdSense error:', e);
     }
-  }, []);
+  }, [hideAds]);
+
+  if (hideAds) return null;
 
   return (
     <div className={`ad-banner ${className}`}>

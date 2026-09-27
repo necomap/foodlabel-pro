@@ -7,7 +7,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getReadOnlyRecipeIds } from '@/lib/plan-limits-server';
 import { buildIngredientsLabel, collectRecipeAllergens, prepareIngredientsForLabel } from '@/lib/allergen';
-import { calcPerUnit, roundForDisplay, calcNutritionForAmount, resolveIngredientNutritionPer100g, calcCostRate } from '@/lib/nutrition';
+import { calcPerUnit, roundForDisplay, calcCostRate, computeLiveRecipeNutrition } from '@/lib/nutrition';
 import { getGenericNameOverrides } from '@/lib/generic-name-overrides';
 import type { BakingStep } from '@/types';
 
@@ -95,18 +95,11 @@ export async function GET(_req: Request, { params }: Params) {
     allergenInfo.all
   );
 
-  // 栄養成分
-  const totalNutrition = {
-    energyKcal:     recipe.energyKcal    ? Number(recipe.energyKcal)     : null,
-    protein:        recipe.protein       ? Number(recipe.protein)        : null,
-    fat:            recipe.fat           ? Number(recipe.fat)            : null,
-    carbohydrate:   recipe.carbohydrate  ? Number(recipe.carbohydrate)   : null,
-    sodium:         recipe.sodium        ? Number(recipe.sodium)         : null,
-    saltEquivalent: recipe.saltEquivalent ? Number(recipe.saltEquivalent) : null,
-    dietaryFiber:   recipe.dietaryFiber  ? Number(recipe.dietaryFiber)   : null,
-    sugar:          recipe.sugar         ? Number(recipe.sugar)          : null,
-    cholesterol:    recipe.cholesterol   ? Number(recipe.cholesterol)    : null,
-  };
+  // 栄養成分：食材マスタに紐づく材料は最新の値から再計算する（lib/nutrition.ts computeLiveRecipeNutrition参照）。
+  // 以前はレシピ保存時点の合計値（recipe.energyKcal等）を使っていたため、食材マスタを直しても
+  // 保存し直すまで数値が変わらず、しかも0の項目がnull（—表示）になっていた。
+  const liveNutrition = computeLiveRecipeNutrition(sortedIngredients as any);
+  const totalNutrition = liveNutrition.total;
 
   // 原価は栄養成分と違い、これまで「材料をレシピに追加した時点の原価単価」のスナップショット
   // （RecipeIngredient.costPrice）を保存するだけで、食材マスタ側の仕入単価（Ingredient.unitPrice）を
@@ -169,30 +162,14 @@ export async function GET(_req: Request, { params }: Params) {
       isActive:       recipe.isActive,
       createdAt:      recipe.createdAt,
       updatedAt:      recipe.updatedAt,
-      ingredients: resolvedIngredients.map(({ ing, costPrice, costTotal }) => {
+      ingredients: resolvedIngredients.map(({ ing, costPrice, costTotal }, idx) => {
         // 食材マスタに紐づいている材料は、RecipeIngredientに保存された時点のスナップショットではなく、
         // 食材マスタの最新の栄養成分から毎回「未確認」かどうかを判定し直す。
         // こうしないと、食材マスタ側で栄養成分を後から入力・修正しても、このレシピを開き直して
         // 保存し直すまで警告が消えない（直したのに反映されていないように見える）不具合になる。
-        let nutritionUnconfirmed = ing.nutritionUnconfirmed;
-        let nutrition = {
-          energyKcal:     ing.energyKcal     != null ? Number(ing.energyKcal)     : null,
-          protein:        ing.protein        != null ? Number(ing.protein)        : null,
-          fat:            ing.fat            != null ? Number(ing.fat)            : null,
-          carbohydrate:   ing.carbohydrate   != null ? Number(ing.carbohydrate)   : null,
-          sodium:         ing.sodium         != null ? Number(ing.sodium)         : null,
-          saltEquivalent: ing.saltEquivalent != null ? Number(ing.saltEquivalent) : null,
-          dietaryFiber:   ing.dietaryFiber   != null ? Number(ing.dietaryFiber)   : null,
-          sugar:          ing.sugar          != null ? Number(ing.sugar)          : null,
-          cholesterol:    ing.cholesterol    != null ? Number(ing.cholesterol)    : null,
-        };
-        if (ing.ingredientId && ing.ingredient) {
-          const resolved = resolveIngredientNutritionPer100g(ing.ingredient as any);
-          nutritionUnconfirmed = resolved.unconfirmed;
-          if (!resolved.unconfirmed) {
-            nutrition = calcNutritionForAmount(resolved.per100g, Number(ing.amount));
-          }
-        }
+        const live = liveNutrition.perIngredient[idx];
+        const nutritionUnconfirmed = (ing.ingredientId && ing.ingredient) ? live.unconfirmed : ing.nutritionUnconfirmed;
+        const nutrition = live.nutrition;
         const hasPersonalGenericOverride = !!(ing.ingredientId && genericNameOverrides.has(ing.ingredientId));
         return {
           id:                     ing.id,
@@ -253,16 +230,18 @@ export async function PUT(request: Request, { params }: Params) {
 
   const body = await request.json();
 
+  if (!body?.name || !String(body.name).trim()) {
+    return NextResponse.json({ success: false, error: '品名を入力してください' }, { status: 400 });
+  }
+
   try {
-    // 既存の材料・手順を削除
-    await prisma.$transaction([
-      prisma.recipeIngredient.deleteMany({ where: { recipeId: params.id } }),
-      prisma.recipeStep.deleteMany({ where: { recipeId: params.id } }),
-    ]);
+    // 2026-09-27: 以前は最初に既存の材料・手順を削除してから計算・保存していたため、
+    // 途中でエラーになると材料が全部消えたレシピが残る危険があった。
+    // 先に全て計算し、削除→更新→再作成を1つのトランザクションでまとめて行う（下参照）。
 
     // 材料の栄養計算
-    const { calcNutritionForAmount, sumNutrition, calcPerUnit, calcCostRate } = await import('@/lib/nutrition');
-    const { buildIngredientsLabel: bil, collectRecipeAllergens: car, detectAllergens: da } = await import('@/lib/allergen');
+    const { calcNutritionForAmount, sumNutrition, calcCostRate, toGrams, resolveIngredientNutritionPer100g } = await import('@/lib/nutrition');
+    const { detectAllergens: da } = await import('@/lib/allergen');
 
     const ingredients = body.ingredients ?? [];
     const ingredientDetails = await Promise.all(
@@ -290,19 +269,11 @@ export async function PUT(request: Request, { params }: Params) {
             // 正しい値に更新される（保存し直さなくても、印刷・表示時は常にマスタの最新値が使われる）。
             allergens = rec.allergens;
             if ((rec as any).genericName) displayName = (rec as any).genericName;
-            if (rec.nutritionData || rec.energyKcalManual != null) {
-              nutritionPer100g = {
-                energyKcal:     rec.energyKcalManual != null ? Number(rec.energyKcalManual) : (rec.nutritionData?.energyKcal != null ? Number(rec.nutritionData.energyKcal) : null),
-                protein:        rec.proteinManual != null ? Number(rec.proteinManual) : (rec.nutritionData?.protein != null ? Number(rec.nutritionData.protein) : null),
-                fat:            rec.fatManual != null ? Number(rec.fatManual) : (rec.nutritionData?.fat != null ? Number(rec.nutritionData.fat) : null),
-                carbohydrate:   rec.carbohydrateManual != null ? Number(rec.carbohydrateManual) : (rec.nutritionData?.carbohydrate != null ? Number(rec.nutritionData.carbohydrate) : null),
-                sodium:         rec.sodiumManual != null ? Number(rec.sodiumManual) : (rec.nutritionData?.sodium != null ? Number(rec.nutritionData.sodium) : null),
-                saltEquivalent: rec.saltEquivalentManual != null ? Number(rec.saltEquivalentManual) : (rec.nutritionData?.saltEquivalent != null ? Number(rec.nutritionData.saltEquivalent) : null),
-                dietaryFiber:   rec.dietaryFiberManual != null ? Number(rec.dietaryFiberManual) : (rec.nutritionData?.dietaryFiber != null ? Number(rec.nutritionData.dietaryFiber) : null),
-                sugar:          rec.sugarManual != null ? Number(rec.sugarManual) : (rec.nutritionData?.sugar != null ? Number(rec.nutritionData.sugar) : null),
-                cholesterol:    rec.cholesterolManual != null ? Number(rec.cholesterolManual) : (rec.nutritionData?.cholesterol != null ? Number(rec.nutritionData.cholesterol) : null),
-              };
-            } else { nutritionUnconfirmed = true; }
+            // 未確認判定・手入力優先のロジックはレシピ詳細・ラベル生成と共通（lib/nutrition.ts）。
+            // 以前は「熱量の手入力があるか」だけで判定しており、熱量以外だけ手入力した食材を未確認扱いしていた。
+            const resolved = resolveIngredientNutritionPer100g(rec as any);
+            nutritionPer100g = resolved.per100g;
+            nutritionUnconfirmed = resolved.unconfirmed;
           }
         }
         if (!hasIngredientLink) {
@@ -311,7 +282,12 @@ export async function PUT(request: Request, { params }: Params) {
           allergens = ing.allergenOverride?.length ? ing.allergenOverride : da(ing.ingredientNameOverride ?? ing.name ?? '');
         }
         const amount = Number(ing.amount);
-        const nutrition = calcNutritionForAmount(nutritionPer100g, amount);
+        // 重量換算できる単位（g・kg・ml・cc・L）のみ栄養計算。以前は「個」「枚」でも数字をそのまま
+        // グラム扱いしていた（卵2個→2g分として計算）。新規作成APIと同じ扱いにそろえた。
+        const amountG = toGrams(amount, ing.unit ?? 'g');
+        const nutrition = amountG != null && amountG > 0
+          ? calcNutritionForAmount(nutritionPer100g, amountG)
+          : { energyKcal: null, protein: null, fat: null, carbohydrate: null, sodium: null, saltEquivalent: null, dietaryFiber: null, sugar: null, cholesterol: null };
         // 原価単価：この材料行で明示的に入力されていればそれを優先し、未入力（0/空欄/undefined）の
         // 場合のみ食材マスタの現在の仕入単価で補完する（GET側の再計算ロジックと同じ考え方。
         // 詳細はGETハンドラのresolvedIngredients付近のコメント参照）。
@@ -323,25 +299,20 @@ export async function PUT(request: Request, { params }: Params) {
       })
     );
 
-    const allergenInfo = car(ingredientDetails.map(d => ({
-      allergens: d.allergens, allergenOverride: d.ing.allergenOverride ?? [],
-      ingredientName: d.displayName,
-      // 食材マスタに紐づいている材料は、マスタ側のallergensのみを信頼する（名前からの自動再判定はしない）
-      hasIngredientLink: d.hasIngredientLink,
-    })));
     const totalNutrition = sumNutrition(ingredientDetails.map(d => ({ nutrition: d.nutrition })));
     const totalCost = ingredientDetails.reduce((s, d) => s + (d.costTotal ?? 0), 0);
-    const totalWeightG = ingredients.reduce((s: number, ing: any) => s + (ing.unit === 'g' || ing.unit === 'ml' ? Number(ing.amount) : 0), 0);
+    const totalWeightG = ingredients.reduce((s: number, ing: any) => s + (toGrams(Number(ing.amount), ing.unit ?? 'g') ?? 0), 0);
     const unitCount = body.unitCount ?? 1;
     const wasteAmountG = body.wasteAmountG ? Number(body.wasteAmountG) : 0;
     const wasteRatio = (totalWeightG > 0 && wasteAmountG > 0) ? Math.round((wasteAmountG / totalWeightG) * 100 * 100) / 100 : 0;
-    const ingredientsLabel = bil(
-      ingredientDetails.map(d => ({ ingredientName: d.displayName, amount: Number(d.ing.amount), unit: d.ing.unit, originCountry: d.ing.originCountry ?? undefined, isAdditive: d.ing.isAdditive ?? false, additiveReason: d.ing.additiveReason ?? undefined })).sort((a,b) => b.amount - a.amount),
-      allergenInfo.all
-    );
+    const salePriceNum = body.salePrice ? Number(body.salePrice) : null;
+    const steps: string[] = body.steps ?? [];
 
-    // レシピ更新
-    await prisma.recipe.update({
+    // 削除→更新→再作成を1トランザクションで（途中失敗時は全て元に戻る）
+    await prisma.$transaction([
+      prisma.recipeIngredient.deleteMany({ where: { recipeId: params.id } }),
+      prisma.recipeStep.deleteMany({ where: { recipeId: params.id } }),
+      prisma.recipe.update({
       where: { id: params.id },
       data: {
         categoryId:      body.categoryId || null,
@@ -354,8 +325,9 @@ export async function PUT(request: Request, { params }: Params) {
         moldType:        body.moldType || null,
         wasteAmountG:    wasteAmountG || null,
         wasteRatio:      wasteRatio,
-        salePrice:       body.salePrice ? Number(body.salePrice) : null,
-        shelfLifeDays:   body.shelfLifeDays ? Number(body.shelfLifeDays) : null,
+        salePrice:       salePriceNum,
+        // 0日（当日中）も有効な値なので、0をnullにしない（新規作成APIと同じ扱い）
+        shelfLifeDays:   (body.shelfLifeDays != null && body.shelfLifeDays !== '') ? Number(body.shelfLifeDays) : null,
         shelfLifeType:   body.shelfLifeType ?? 'USE_BY',
         contentAmount:   body.contentAmount ?? null,
         storageMethod:   body.storageMethod ?? null,
@@ -366,7 +338,8 @@ export async function PUT(request: Request, { params }: Params) {
         bakingConditions: body.bakingConditions ? JSON.stringify(body.bakingConditions) : null,
         totalCost:       totalCost || null,
         unitCost:        totalCost ? totalCost / unitCount : null,
-        costRate:        calcCostRate(totalCost / unitCount, body.salePrice ? Number(body.salePrice) : null),
+        // 販売価格が未入力なら原価率はnull（以前は0%として保存されていた。新規作成APIと同じ扱い）
+        costRate:        salePriceNum ? calcCostRate(totalCost / unitCount, salePriceNum) : null,
         totalWeightG:    totalWeightG || null,
         energyKcal:      totalNutrition.energyKcal,
         protein:         totalNutrition.protein,
@@ -379,11 +352,9 @@ export async function PUT(request: Request, { params }: Params) {
         cholesterol:     totalNutrition.cholesterol,
         updatedAt:       new Date(),
       },
-    });
-
-    // 材料・手順を再作成
-    if (ingredientDetails.length > 0) {
-      await prisma.recipeIngredient.createMany({
+    }),
+      // 材料・手順を再作成
+      prisma.recipeIngredient.createMany({
         data: ingredientDetails.map((d, idx) => ({
           recipeId:              params.id,
           ingredientId:          d.ing.ingredientId || null,
@@ -412,17 +383,13 @@ export async function PUT(request: Request, { params }: Params) {
           sugar:                 d.nutrition.sugar,
           cholesterol:           d.nutrition.cholesterol,
         })),
-      });
-    }
-
-    const steps = body.steps ?? [];
-    if (steps.length > 0) {
-      await prisma.recipeStep.createMany({
+      }),
+      prisma.recipeStep.createMany({
         data: steps.map((s: string, idx: number) => ({
           recipeId: params.id, stepNumber: idx + 1, instruction: s,
         })),
-      });
-    }
+      }),
+    ]);
 
     return NextResponse.json({ success: true, message: 'レシピを更新しました' });
   } catch (err) {

@@ -244,6 +244,23 @@ export async function PUT(request: Request, { params }: Params) {
     const { detectAllergens: da } = await import('@/lib/allergen');
 
     const ingredients = body.ingredients ?? [];
+
+    // 他ユーザーの非共有食材を紐づけられないようにする（lib/ingredient-access.ts 参照）。
+    // 既にこのレシピに紐づいている食材は、共有元が後から共有をやめていても引き続き許可する。
+    const { findDisallowedIngredientIds, DISALLOWED_INGREDIENT_MESSAGE } = await import('@/lib/ingredient-access');
+    const currentLinks = await prisma.recipeIngredient.findMany({
+      where:  { recipeId: params.id, ingredientId: { not: null } },
+      select: { ingredientId: true },
+    });
+    const disallowed = await findDisallowedIngredientIds(
+      session.user.id,
+      ingredients.map((i: any) => i?.ingredientId),
+      currentLinks.map(l => l.ingredientId as string),
+    );
+    if (disallowed.length > 0) {
+      return NextResponse.json({ success: false, error: DISALLOWED_INGREDIENT_MESSAGE }, { status: 400 });
+    }
+
     const ingredientDetails = await Promise.all(
       ingredients.map(async (ing: any) => {
         let nutritionPer100g: any = {};

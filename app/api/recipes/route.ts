@@ -10,6 +10,7 @@ import { calcNutritionForAmount, sumNutrition, calcPerUnit, calcCostRate, toGram
 import { getPlanLimits } from '@/lib/plan-limits';
 import { getReadOnlyRecipeIds } from '@/lib/plan-limits-server';
 import { detectAllergens } from '@/lib/allergen';
+import { findDisallowedIngredientIds, DISALLOWED_INGREDIENT_MESSAGE } from '@/lib/ingredient-access';
 import type { NutritionValues } from '@/types';
 
 // ============================================================
@@ -176,6 +177,12 @@ export async function POST(request: Request) {
       );
     }
     const data = result.data;
+
+    // 他ユーザーの非共有食材を紐づけられないようにする（lib/ingredient-access.ts 参照）
+    const disallowed = await findDisallowedIngredientIds(session.user.id, data.ingredients.map(i => i.ingredientId));
+    if (disallowed.length > 0) {
+      return NextResponse.json({ success: false, error: DISALLOWED_INGREDIENT_MESSAGE }, { status: 400 });
+    }
 
     // 各材料の栄養成分を計算
     const ingredientDetails = await Promise.all(

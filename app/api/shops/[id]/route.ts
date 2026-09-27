@@ -5,6 +5,21 @@ import { prisma } from '@/lib/db';
 
 type Params = { params: { id: string } };
 
+// 2026-09修正（セキュリティ）: logoUrl/qrUrlはこれまでノーチェックでそのまま保存しており、
+// lib/label.tsのラベルHTML生成側でも当時logoUrlをエスケープしていなかった（現在は修正済み）。
+// 通常の画面（設定画面）は必ずapp/api/upload/route.tsが返すURLしかセットしないが、この
+// APIを直接叩けば任意の文字列を送り込めてしまうため、http(s)://で始まる値だけを許可する
+// 多層防御を追加する（"><script>のような値でDBを汚さないようにする）。
+function isSafeHttpUrl(v: unknown): v is string {
+  if (typeof v !== 'string' || v === '') return false;
+  try {
+    const u = new URL(v);
+    return u.protocol === 'http:' || u.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 export async function PUT(request: Request, { params }: Params) {
   const session = await auth();
   if (!session) return NextResponse.json({ success: false, error: '認証が必要です' }, { status: 401 });
@@ -13,6 +28,8 @@ export async function PUT(request: Request, { params }: Params) {
   if (!shop) return NextResponse.json({ success: false, error: '店舗が見つかりません' }, { status: 404 });
 
   const body = await request.json();
+  const safeQrUrl   = body.qrUrl   !== undefined ? (isSafeHttpUrl(body.qrUrl)   ? body.qrUrl   : null) : undefined;
+  const safeLogoUrl = body.logoUrl !== undefined ? (isSafeHttpUrl(body.logoUrl) ? body.logoUrl : null) : undefined;
   try {
     await prisma.$executeRaw`
       UPDATE shops SET
@@ -25,8 +42,8 @@ export async function PUT(request: Request, { params }: Params) {
         email                = ${body.email || null},
         "showPhone"          = ${body.showPhone ?? shop.showPhone},
         "showRepresentative" = ${body.showRepresentative ?? shop.showRepresentative},
-        "qrUrl"              = ${body.qrUrl ?? null},
-        "logoUrl"            = ${body.logoUrl ?? null},
+        "qrUrl"              = ${safeQrUrl ?? null},
+        "logoUrl"            = ${safeLogoUrl ?? null},
         "logoHeightMm"       = ${body.logoHeightMm ?? 8},
         "qrSizeMm"           = ${body.qrSizeMm ?? 6},
         "updatedAt"          = NOW()

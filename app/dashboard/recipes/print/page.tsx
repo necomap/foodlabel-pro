@@ -33,6 +33,21 @@ function formatAmount(v: number): string {
   return Number.isInteger(v) ? String(v) : v.toFixed(1);
 }
 
+// 2026-09修正（セキュリティ）: このファイルはレシピ名・材料名・工程名・作り方・備考など、
+// ユーザー（他ユーザーが登録し共有食材として承認されたものを含む）が自由入力できる文字列を
+// そのままテンプレートリテラルでHTMLに埋め込んでおり、一切エスケープしていなかった。
+// 印刷（lib/print-html.ts）は同一オリジンのiframeで開くため、ここにスクリプトを含む値が
+// 紛れ込むと、印刷したユーザー自身のセッションで実行されてしまう（例: 悪意ある内容の
+// 共有食材名を、無関係な別ユーザーがレシピに追加して印刷した場合など）。
+// 表示直前に必ずこの関数を通して無害化する。
+function escHtml(s: string): string {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 // 材料テーブルの行HTMLを生成。processLabel（工程・用途、例：湯種／本ごね／仕上げ）が
 // 前の材料と変わったタイミングで、見出し行を差し込む。
 function buildIngredientRowsHtml(
@@ -45,10 +60,10 @@ function buildIngredientRowsHtml(
   for (const i of ingredients) {
     const label = i.processLabel || '';
     if (label && label !== prevLabel) {
-      html += `<tr><td colspan="${1 + factors.length}" style="padding-top:2mm;font-weight:bold;font-size:8pt;color:#a56a3a;border-bottom:0.3mm solid #e8ddd0;">${label}</td></tr>`;
+      html += `<tr><td colspan="${1 + factors.length}" style="padding-top:2mm;font-weight:bold;font-size:8pt;color:#a56a3a;border-bottom:0.3mm solid #e8ddd0;">${escHtml(label)}</td></tr>`;
     }
     prevLabel = label;
-    html += `<tr><td>${displayName(i)}</td>${factors.map(f=>`<td style="text-align:right;white-space:nowrap;">${formatAmount(scaleAmount(i.amount,f.factor))}${i.unit}</td>`).join('')}</tr>`;
+    html += `<tr><td>${escHtml(displayName(i))}</td>${factors.map(f=>`<td style="text-align:right;white-space:nowrap;">${formatAmount(scaleAmount(i.amount,f.factor))}${escHtml(i.unit)}</td>`).join('')}</tr>`;
   }
   return html;
 }
@@ -179,8 +194,8 @@ function PrintContent() {
 <div class="grid">
 ${recipes.map(r => `
   <div class="recipe-card">
-    <div class="recipe-name">${r.name}${r.isActive === false ? ' <span style="font-size:8pt;font-weight:normal;color:#999;">（非表示）</span>' : ''}</div>
-    <div style="font-size:9pt;color:#888;margin-bottom:2mm;">${[r.categoryName, `${r.unitCount}個分`, r.totalWeightG ? `全重量${r.totalWeightG}g` : null].filter(Boolean).join(' / ')}${nameMode==='generic' ? ' / 一般名表示（提出用）' : ''}</div>
+    <div class="recipe-name">${escHtml(r.name)}${r.isActive === false ? ' <span style="font-size:8pt;font-weight:normal;color:#999;">（非表示）</span>' : ''}</div>
+    <div style="font-size:9pt;color:#888;margin-bottom:2mm;">${[r.categoryName ? escHtml(r.categoryName) : null, `${r.unitCount}個分`, r.totalWeightG ? `全重量${r.totalWeightG}g` : null].filter(Boolean).join(' / ')}${nameMode==='generic' ? ' / 一般名表示（提出用）' : ''}</div>
     <div class="section-title">材料</div>
     <table>
       ${headerRow}
@@ -189,16 +204,16 @@ ${recipes.map(r => `
     </table>
     ${r.bakingConditions && r.bakingConditions.length > 0 ? `
       <div class="section-title">焼成条件</div>
-      ${r.bakingConditions.map((b,i)=>`<div class="baking-row"><span>段階${i+1}</span>${b.steam?`<span>スチーム:${b.steam}</span>`:''}${b.topHeat!=null?`<span>上火:${b.topHeat}℃</span>`:''}${b.bottomHeat!=null?`<span>下火:${b.bottomHeat}℃</span>`:''}${b.timeMin!=null?`<span>${b.timeMin}分</span>`:''}</div>`).join('')}
+      ${r.bakingConditions.map((b,i)=>`<div class="baking-row"><span>段階${i+1}</span>${b.steam?`<span>スチーム:${escHtml(b.steam)}</span>`:''}${b.topHeat!=null?`<span>上火:${b.topHeat}℃</span>`:''}${b.bottomHeat!=null?`<span>下火:${b.bottomHeat}℃</span>`:''}${b.timeMin!=null?`<span>${b.timeMin}分</span>`:''}</div>`).join('')}
     ` : ''}
     ${r.steps.length > 0 ? `
       <div class="section-title">作り方</div>
       <ol style="margin:0;padding-left:5mm;font-size:9pt;">
-        ${r.steps.map(s=>`<li style="margin-bottom:1mm;">${s}</li>`).join('')}
+        ${r.steps.map(s=>`<li style="margin-bottom:1mm;">${escHtml(s)}</li>`).join('')}
       </ol>
     ` : ''}
     ${r.shelfLifeDays ? `<div style="font-size:9pt;color:#666;margin-top:2mm;">${r.shelfLifeType==='BEST_BEFORE'?'賞味期限':'消費期限'}: ${r.shelfLifeDays}日</div>` : ''}
-    ${r.notes ? `<div style="font-size:9pt;color:#666;margin-top:1mm;">備考: ${r.notes}</div>` : ''}
+    ${r.notes ? `<div style="font-size:9pt;color:#666;margin-top:1mm;">備考: ${escHtml(r.notes)}</div>` : ''}
   </div>
 `).join('')}
 </div>

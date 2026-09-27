@@ -60,8 +60,36 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           user.passwordHash
         );
 
+        // 2026-09修正（セキュリティ）: loginFailCount/loginLockedUntilはDBスキーマ・上の
+        // ロック判定ロジックは以前から存在していたが、実際に失敗回数をカウントアップする処理が
+        // どこにも実装されておらず、アカウントロックが一度も発動しない状態だった（＝パスワードの
+        // 総当たり攻撃に対して無制限に試行できてしまっていた）。ここで実際にカウントし、
+        // 一定回数（5回）失敗したら15分間ロックする。
+        const FAIL_LOCK_THRESHOLD = 5;
+        const LOCK_DURATION_MS    = 15 * 60 * 1000;
+
         if (!isValid) {
+          const newFailCount = (user.loginFailCount ?? 0) + 1;
+          if (newFailCount >= FAIL_LOCK_THRESHOLD) {
+            const lockedUntil = new Date(Date.now() + LOCK_DURATION_MS);
+            await prisma.$executeRaw`
+              UPDATE users SET "loginFailCount" = ${newFailCount}, "loginLockedUntil" = ${lockedUntil}
+              WHERE id = ${user.id}
+            `;
+          } else {
+            await prisma.$executeRaw`
+              UPDATE users SET "loginFailCount" = ${newFailCount}
+              WHERE id = ${user.id}
+            `;
+          }
           throw new Error('メールアドレスまたはパスワードが違います');
+        }
+
+        // ログイン成功時は失敗カウント・ロックをリセットする
+        if ((user.loginFailCount ?? 0) > 0 || user.loginLockedUntil) {
+          await prisma.$executeRaw`
+            UPDATE users SET "loginFailCount" = 0, "loginLockedUntil" = NULL WHERE id = ${user.id}
+          `;
         }
 
         // ログイン成功通知メール（非同期・失敗しても無視）

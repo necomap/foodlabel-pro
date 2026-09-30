@@ -22,6 +22,9 @@
     },
     "app/api/cron/onboarding/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/admin/nutrition-import/route.ts": {
+      "maxDuration": 300
     }
   }
 }

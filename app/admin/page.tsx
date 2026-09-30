@@ -443,19 +443,47 @@ function NutritionImporter() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [file,    setFile]    = useState<File|null>(null);
   const [loading, setLoading] = useState(false);
-  const [result,  setResult]  = useState<{imported:number;skipped:number;sheetsProcessed:number}|null>(null);
+  const [result,  setResult]  = useState<{imported:number;skipped:number;sheetsProcessed:number;seconds?:number;finishedAt:string}|null>(null);
+  // 失敗は数秒で消えるトーストだけだと、放置後に成否が分からないため画面に残す
+  const [error,   setError]   = useState<{message:string;finishedAt:string}|null>(null);
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!loading) return;
+    setElapsed(0);
+    const started = Date.now();
+    const t = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(t);
+  }, [loading]);
+
+  const nowLabel = () => new Date().toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
   const handleImport = async () => {
     if (!file) return;
-    setLoading(true); setResult(null);
+    setLoading(true); setResult(null); setError(null);
     const formData = new FormData();
     formData.append('file', file);
     try {
       const res  = await fetch('/api/admin/nutrition-import', { method: 'POST', body: formData });
-      const data = await res.json();
-      if (data.success) { setResult(data.data); toast.success(data.message); }
-      else toast.error(data.error ?? 'インポートに失敗しました');
-    } catch { toast.error('通信エラー'); } finally { setLoading(false); }
+      const text = await res.text();
+      let data: any = null;
+      try { data = JSON.parse(text); } catch { /* 時間切れ等でHTMLが返った場合 */ }
+      if (data?.success) {
+        setResult({ ...data.data, finishedAt: nowLabel() });
+        toast.success(data.message);
+      } else {
+        const msg = data?.error
+          ?? (res.status === 504 ? '処理が時間切れになりました（途中までの食品は更新済みの可能性があります）。もう一度実行してください'
+            : res.status === 413 ? 'ファイルが大きすぎます（4.5MBまで）'
+            : `インポートに失敗しました（HTTP ${res.status}）`);
+        setError({ message: msg, finishedAt: nowLabel() });
+        toast.error(msg);
+      }
+    } catch {
+      const msg = '通信エラー（ネットワークが切れた、またはPCがスリープした可能性があります）。もう一度実行してください';
+      setError({ message: msg, finishedAt: nowLabel() });
+      toast.error(msg);
+    } finally { setLoading(false); }
   };
 
   return (
@@ -471,17 +499,33 @@ function NutritionImporter() {
         )}
       </div>
       <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden"
-        onChange={e => { setFile(e.target.files?.[0] ?? null); setResult(null); }} />
+        onChange={e => { setFile(e.target.files?.[0] ?? null); setResult(null); setError(null); }} />
       <button onClick={handleImport} disabled={!file || loading}
         className="btn-primary flex items-center gap-2 disabled:opacity-50">
-        {loading ? <><Loader2 className="w-4 h-4 animate-spin" />インポート中...</> : <><Upload className="w-4 h-4" />インポート実行</>}
+        {loading ? <><Loader2 className="w-4 h-4 animate-spin" />インポート中...（{elapsed}秒）</> : <><Upload className="w-4 h-4" />インポート実行</>}
       </button>
+      {loading && (
+        <p className="text-xs text-stone-500">通常1分以内に終わります。完了するまでこの画面を閉じたり、PCをスリープさせたりしないでください。</p>
+      )}
       {result && (
         <div className="alert-success">
           <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
           <div className="text-sm">
-            <p className="font-medium">インポート完了</p>
-            <p>登録・更新: {result.imported}件 / 処理シート数: {result.sheetsProcessed}</p>
+            <p className="font-medium">インポート完了（{result.finishedAt}）</p>
+            <p>
+              登録・更新: {result.imported}件 / 処理シート数: {result.sheetsProcessed}
+              {result.skipped > 0 && <> / スキップ: {result.skipped}件</>}
+              {result.seconds != null && <> / 所要時間: {result.seconds}秒</>}
+            </p>
+          </div>
+        </div>
+      )}
+      {error && (
+        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">
+          <XCircle className="w-5 h-5 flex-shrink-0" />
+          <div className="text-sm">
+            <p className="font-medium">インポート失敗（{error.finishedAt}）</p>
+            <p>{error.message}</p>
           </div>
         </div>
       )}

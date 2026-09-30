@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { Search, ChevronDown, ChevronUp, HelpCircle, MessageSquare } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, HelpCircle, MessageSquare, FileText } from 'lucide-react';
 
 interface FAQ { q: string; a: string; category: string; }
 
@@ -75,6 +75,15 @@ export default function HelpPage() {
         </h1>
         <p className="text-stone-500 text-sm mt-0.5">よくある質問と使い方の説明です</p>
       </div>
+      {/* 2026-09-30新設: PDFマニュアル（public/manual/。docs/FoodLabelPro_ユーザーマニュアル.docx をPDF化したもの） */}
+      <a href="/manual/FoodLabelPro_manual.pdf" target="_blank" rel="noopener"
+        className="card flex items-center gap-3 hover:bg-cream-50 transition-colors">
+        <FileText className="w-8 h-8 text-brand-500 flex-shrink-0" />
+        <div>
+          <p className="font-medium text-stone-800">ユーザーマニュアル（PDF）</p>
+          <p className="text-xs text-stone-500">はじめての使い方・ラベル印刷の設定手順・うまく印刷できないときの対処をまとめています</p>
+        </div>
+      </a>
       <div className="card space-y-3">
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />

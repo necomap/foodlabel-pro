@@ -20,7 +20,7 @@ export async function middleware(req: NextRequest) {
   // 個別にチェックしているので、ここを公開パスにしてもセキュリティ上は問題ない。
   // 2026-08: ここに/api/cronが無かったため、Cronからのリクエストが常に/auth/loginへ
   // リダイレクトされ、バックアップメールが一度も送信されていなかった不具合を修正。
-  const publicPaths = ['/auth/', '/api/auth', '/api/util', '/api/stripe/webhook', '/api/cron', '/terms', '/privacy', '/legal', '/help', '/about', '/features', '/blog'];
+  const publicPaths = ['/auth/', '/api/auth', '/api/util', '/api/stripe/webhook', '/api/cron', '/api/email/unsubscribe', '/manual/', '/terms', '/privacy', '/legal', '/help', '/about', '/features', '/blog'];
   const isPublic = publicPaths.some(p => pathname.startsWith(p));
 
   if (!isLoggedIn && !isPublic && pathname !== '/' && pathname !== '') {

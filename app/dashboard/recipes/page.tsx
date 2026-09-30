@@ -3,8 +3,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Plus, Search, Filter, AlertTriangle, ChevronRight, Flame, Tag, TrendingUp, RefreshCw, Package, Printer, EyeOff, Eye, CheckSquare, Square, ClipboardList } from 'lucide-react';
+import { Plus, Search, Filter, AlertTriangle, ChevronRight, Flame, Tag, TrendingUp, RefreshCw, Package, Printer, EyeOff, Eye, CheckSquare, Square, ClipboardList, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
+import SampleRecipePicker from '@/components/recipe/SampleRecipePicker';
 
 interface RecipeSummary {
   id: string; name: string; nameKana: string|null; variationName: string|null; categoryName: string|null;
@@ -77,6 +78,8 @@ export default function RecipesPage() {
   });
   const [total,      setTotal]      = useState(0);
   const [categories, setCategories] = useState<{id:string;name:string}[]>([]);
+  // 2026-09-30新設: サンプルレシピ取り込みモーダル
+  const [showSamples, setShowSamples] = useState(false);
   // 非表示モード
   const [showHidden, setShowHidden] = useState(() => readQueryParam('hidden', '') === 'true');
   // 複数選択
@@ -129,7 +132,8 @@ export default function RecipesPage() {
   }, [page, search, category, showHidden]);
 
   useEffect(() => { fetchRecipes(); }, [fetchRecipes]);
-  useEffect(() => { fetch('/api/categories').then(r=>r.json()).then(d=>{if(d.success) setCategories(d.data);}); }, []);
+  const loadCategories = useCallback(() => { fetch('/api/categories').then(r=>r.json()).then(d=>{if(d.success) setCategories(d.data);}); }, []);
+  useEffect(() => { loadCategories(); }, [loadCategories]);
 
   const toggleSelect = (id: string) => {
     setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
@@ -294,6 +298,9 @@ export default function RecipesPage() {
                   </button>
                 </>
               )}
+              <button onClick={() => setShowSamples(true)} className="btn-secondary flex items-center gap-2 text-sm">
+                <Sparkles className="w-4 h-4" />サンプルから追加
+              </button>
               <Link href="/dashboard/recipes/new" className="btn-primary flex items-center gap-2">
                 <Plus className="w-4 h-4" />新規作成
               </Link>
@@ -349,10 +356,29 @@ export default function RecipesPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">{Array(6).fill(0).map((_,i)=><SkeletonCard key={i} />)}</div>
       ) : recipes.length === 0 ? (
         <div className="card text-center py-16">
-          <Package className="w-12 h-12 text-stone-300 mx-auto mb-4" />
-          <p className="text-stone-500 font-medium">{showHidden ? '非表示レシピはありません' : 'レシピが見つかりません'}</p>
-          {!search && !showHidden && (
-            <Link href="/dashboard/recipes/new" className="btn-primary inline-flex items-center gap-2 mt-4"><Plus className="w-4 h-4" />最初のレシピを作成する</Link>
+          {!search && !category && !showHidden ? (
+            /* 2026-09-30新設: レシピが1件も無い人（主に新規登録者）への案内。
+               白紙から材料を入力するのは手間が大きく、登録だけして使われない原因になっていたため、
+               まずサンプルを取り込んでラベルのプレビュー・印刷まで体験してもらう導線を最優先で見せる。 */
+            <div className="max-w-md mx-auto px-4">
+              <Sparkles className="w-12 h-12 text-brand-400 mx-auto mb-4" />
+              <p className="text-stone-800 font-bold text-lg">まずはサンプルでラベルを作ってみましょう</p>
+              <p className="text-stone-500 text-sm mt-2">
+                クッキー・食パン・ショートケーキ・唐揚げなどのサンプルレシピを取り込むと、
+                材料・栄養成分・アレルゲン入りのラベルがすぐに印刷できます。自分の商品に合わせて書き換えるだけで使えます。
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2 justify-center mt-5">
+                <button onClick={() => setShowSamples(true)} className="btn-primary inline-flex items-center justify-center gap-2">
+                  <Sparkles className="w-4 h-4" />サンプルレシピを選ぶ
+                </button>
+                <Link href="/dashboard/recipes/new" className="btn-secondary inline-flex items-center justify-center gap-2"><Plus className="w-4 h-4" />白紙から作成する</Link>
+              </div>
+            </div>
+          ) : (
+            <>
+              <Package className="w-12 h-12 text-stone-300 mx-auto mb-4" />
+              <p className="text-stone-500 font-medium">{showHidden ? '非表示レシピはありません' : 'レシピが見つかりません'}</p>
+            </>
           )}
         </div>
       ) : (
@@ -423,6 +449,9 @@ export default function RecipesPage() {
             </div>
           )}
         </>
+      )}
+      {showSamples && (
+        <SampleRecipePicker onClose={() => setShowSamples(false)} onImported={() => { fetchRecipes(); loadCategories(); }} />
       )}
     </div>
   );

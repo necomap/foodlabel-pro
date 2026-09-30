@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Cookie, HelpCircle, ChevronDown } from 'lucide-react';
+import { Cookie, HelpCircle, ChevronDown, FileText } from 'lucide-react';
 
 export const metadata = { title: 'ヘルプ・よくある質問 | FoodLabel Pro' };
 
@@ -37,6 +37,15 @@ export default function PublicHelpPage() {
           </h1>
           <p className="text-stone-500 text-sm mt-2">FoodLabel Proについてのよくある質問をまとめました</p>
         </div>
+
+        <a href="/manual/FoodLabelPro_manual.pdf" target="_blank" rel="noopener"
+          className="card flex items-center gap-3 hover:bg-cream-50 transition-colors">
+          <FileText className="w-8 h-8 text-brand-500 flex-shrink-0" />
+          <div>
+            <p className="font-medium text-stone-800">ユーザーマニュアル（PDF）</p>
+            <p className="text-xs text-stone-500">画面の使い方・ラベル印刷の設定手順をまとめたマニュアルです</p>
+          </div>
+        </a>
 
         <div className="space-y-3">
           {FAQS.map((faq, i) => (

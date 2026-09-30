@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import type { LabelTemplateConfig, LabelContent } from '@/types';
 import { printFoodLabel } from '@/lib/bpac-print';
 import { printHtmlDocument } from '@/lib/print-html';
+import PrintGuide from '@/components/label/PrintGuide';
 
 interface RecipeOption { id: string; name: string; variationName?: string | null; shelfLifeDays: number | null; shelfLifeType: string; contentAmount: string | null; }
 interface ShopOption   { id: string; shopName: string; isDefault: boolean; }
@@ -58,6 +59,26 @@ function RecipeSearchSelect({ recipes, value, onChange }: {
     </div>
   );
 }
+
+// 2026-09-30新設: 用紙プリセット。選ぶとラベル幅・高さ（ラベルプリンタ）または列×行（A4）が入る。
+// 特定メーカーの型番には依存させず、よく使われるサイズ・面付けだけを並べている。
+const PAPER_PRESETS: Array<{ id: string; device: 'LABEL_PRINTER' | 'A4_PRINTER'; label: string; w?: number; h?: number; cols?: number; rows?: number }> = [
+  { id: 'l62x60',   device: 'LABEL_PRINTER', label: '幅62 × 高さ60mm（62mm幅ロール・標準）', w: 62,  h: 60 },
+  { id: 'l62x80',   device: 'LABEL_PRINTER', label: '幅62 × 高さ80mm（62mm幅ロール・項目が多いとき）', w: 62,  h: 80 },
+  { id: 'l62x100',  device: 'LABEL_PRINTER', label: '幅62 × 高さ100mm（62mm幅ロール・長め）', w: 62,  h: 100 },
+  { id: 'l60x60',   device: 'LABEL_PRINTER', label: '幅60 × 高さ60mm', w: 60,  h: 60 },
+  { id: 'l50x70',   device: 'LABEL_PRINTER', label: '幅50 × 高さ70mm', w: 50,  h: 70 },
+  { id: 'l40x60',   device: 'LABEL_PRINTER', label: '幅40 × 高さ60mm（小さめ）', w: 40,  h: 60 },
+  { id: 'l100x100', device: 'LABEL_PRINTER', label: '幅100 × 高さ100mm（100mm幅ロール）', w: 100, h: 100 },
+  { id: 'a1x1',  device: 'A4_PRINTER', label: 'A4 ノーカット（1面）', cols: 1, rows: 1 },
+  { id: 'a2x4',  device: 'A4_PRINTER', label: 'A4 8面（2列×4行）',   cols: 2, rows: 4 },
+  { id: 'a2x5',  device: 'A4_PRINTER', label: 'A4 10面（2列×5行）',  cols: 2, rows: 5 },
+  { id: 'a2x6',  device: 'A4_PRINTER', label: 'A4 12面（2列×6行）',  cols: 2, rows: 6 },
+  { id: 'a3x5',  device: 'A4_PRINTER', label: 'A4 15面（3列×5行）',  cols: 3, rows: 5 },
+  { id: 'a3x6',  device: 'A4_PRINTER', label: 'A4 18面（3列×6行）',  cols: 3, rows: 6 },
+  { id: 'a3x7',  device: 'A4_PRINTER', label: 'A4 21面（3列×7行）',  cols: 3, rows: 7 },
+  { id: 'a3x8',  device: 'A4_PRINTER', label: 'A4 24面（3列×8行）',  cols: 3, rows: 8 },
+];
 
 export default function LabelsPage() {
   const searchParams = useSearchParams();
@@ -318,6 +339,26 @@ export default function LabelsPage() {
 
   const updateLabelStorage = (key: string, val: string) => {
     localStorage.setItem('label_' + key, val);
+  };
+
+  // 2026-09-30新設: 用紙プリセット・印刷手順ガイド
+  const [showPrintGuide, setShowPrintGuide] = useState(false);
+  const currentPaperPreset = (PAPER_PRESETS.find(p => p.device === deviceType && (
+    deviceType === 'LABEL_PRINTER'
+      ? !labelHeightAuto && Number(labelW) === p.w && Number(labelH) === p.h
+      : Number(a4Cols) === p.cols && Number(a4Rows) === p.rows
+  ))?.id) ?? 'custom';
+  const applyPaperPreset = (id: string) => {
+    const p = PAPER_PRESETS.find(x => x.id === id);
+    if (!p) return; // 「その他」は現在の数値のまま
+    if (p.device === 'LABEL_PRINTER') {
+      setLabelW(String(p.w)); updateLabelStorage('labelW', String(p.w));
+      setLabelH(String(p.h)); updateLabelStorage('labelH', String(p.h));
+      setLabelHeightAuto(false); localStorage.setItem('label_labelHeightAuto', 'false');
+    } else {
+      setA4Cols(String(p.cols)); updateLabelStorage('a4Cols', String(p.cols));
+      setA4Rows(String(p.rows)); updateLabelStorage('a4Rows', String(p.rows));
+    }
   };
 
   // ============================================================
@@ -1038,87 +1079,21 @@ export default function LabelsPage() {
                 <option value="A4_PRINTER">A4プリンタ（レーザー・インクジェット）</option>
               </select>
             </div>
+            {/* 2026-09-30新設: 用紙プリセット（選ぶだけでサイズ・面付けが入る）と印刷手順ガイド */}
             <div>
-              <label className="field-label">フォントサイズ（pt）</label>
-              <input type="text" inputMode="numeric" pattern="[0-9]*" value={fontSizePt} onChange={e => { setFontSizePt(e.target.value); updateLabelStorage('fontSizePt', e.target.value); }}
-                className="field-input" min="6" max="12" step="0.5" />
-              <p className="field-hint">法令上の下限（現在の表示可能面積 約{computeDisplayAreaCm2().toFixed(1)}cm²）: {computeLegalMinFontPt()}pt</p>
-            </div>
-            <div>
-              <label className="field-label">フォント</label>
-              <select value={fontFamily} onChange={e => { setFontFamily(e.target.value); updateLabelStorage('fontFamily', e.target.value); }} className="field-select">
-                <option value="noto-sans-jp">Noto Sans JP（標準・全環境で表示崩れなし）</option>
-                <option value="yu-gothic">游ゴシック体</option>
-                <option value="hiragino-kaku-gothic">ヒラギノ角ゴ</option>
-                <option value="meiryo">メイリオ</option>
+              <label className="field-label">用紙</label>
+              <select value={currentPaperPreset} onChange={e => applyPaperPreset(e.target.value)} className="field-select">
+                {PAPER_PRESETS.filter(p => p.device === deviceType).map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+                <option value="custom">その他（サイズを自分で入力）</option>
               </select>
-              <p className="field-hint">游ゴシック・ヒラギノ角ゴ・メイリオはOS標準搭載フォントです。印刷環境にそのフォントが無い場合はNoto Sans JPで表示されます。</p>
-            </div>
-            <div>
-              <label className="field-label">容器全体のサイズ（mm・任意）</label>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="例：150" value={packageWidthMm}
-                    onChange={e => { setPackageWidthMm(e.target.value); updateLabelStorage('packageWidthMm', e.target.value); }} className="field-input" />
-                  <p className="text-xs text-stone-400 mt-0.5">↔ 幅（横方向）</p>
-                </div>
-                <div>
-                  <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="例：100" value={packageHeightMm}
-                    onChange={e => { setPackageHeightMm(e.target.value); updateLabelStorage('packageHeightMm', e.target.value); }} className="field-input" />
-                  <p className="text-xs text-stone-400 mt-0.5">↕ 高さ（縦方向）</p>
-                </div>
-              </div>
-              <p className="field-hint">シールを貼る容器・袋全体のサイズです。未入力の場合はシールサイズから推定します（実際の容器面積と異なる場合があります）。文字サイズの法令上の下限判定に使用します。</p>
-            </div>
-
-            <div>
-              <label className="field-label">識別マーク（リサイクルマーク）</label>
-              <div className="flex flex-col gap-2 mt-1">
-                {[
-                  { key: 'plastic',  label: 'プラ',       rolePlaceholder: '例：袋' },
-                  { key: 'paper',    label: '紙',         rolePlaceholder: '例：外箱' },
-                  { key: 'pet',      label: 'PET',        rolePlaceholder: '例：容器' },
-                  { key: 'steel',    label: 'スチール缶',  rolePlaceholder: '例：缶' },
-                  { key: 'aluminum', label: 'アルミ缶',    rolePlaceholder: '例：缶' },
-                  { key: 'board',    label: '段ボール（任意）', rolePlaceholder: '例：外箱' },
-                ].map(m => {
-                  const checked = recycleMarks.includes(m.key);
-                  return (
-                    <div key={m.key} className="flex items-center gap-2">
-                      <label className="flex items-center gap-1.5 text-sm cursor-pointer w-32 flex-shrink-0">
-                        <input type="checkbox" checked={checked}
-                          onChange={e => {
-                            const next = e.target.checked ? [...recycleMarks, m.key] : recycleMarks.filter(k => k !== m.key);
-                            setRecycleMarks(next);
-                            localStorage.setItem('label_recycleMarks', JSON.stringify(next));
-                          }}
-                          className="accent-brand-500" />
-                        {m.label}
-                      </label>
-                      {checked && (
-                        <input type="text" value={recycleMarkRoles[m.key] ?? ''} placeholder={m.rolePlaceholder}
-                          maxLength={20}
-                          onChange={e => {
-                            const next = { ...recycleMarkRoles, [m.key]: e.target.value };
-                            setRecycleMarkRoles(next);
-                            localStorage.setItem('label_recycleMarkRoles', JSON.stringify(next));
-                          }}
-                          className="field-input py-1 text-sm flex-1" />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              <p className="field-hint">マークの下に、何を分別すればよいか（外箱・袋など）を役割名として任意で印字できます。</p>
-              <div className="mt-3">
-                <label className="field-label">識別マークのサイズ: {recycleMarkHeightMm}mm</label>
-                <input type="range" min="6" max="20" value={recycleMarkHeightMm}
-                  onChange={e => { setRecycleMarkHeightMm(Number(e.target.value)); localStorage.setItem('label_recycleMarkHeightMm', e.target.value); }}
-                  className="w-full accent-brand-500" />
-                <div className="flex justify-between text-xs text-stone-400"><span>6mm（法令上の最小）</span><span>20mm</span></div>
-                <p className="field-hint">バーコードとは別に、マーク自体の大きさを指定できます。識別マークは法令上、マーク単体で6mm以上必要です。</p>
-              </div>
-              <p className="field-hint">バーコードの隣に小さく印字されます（ラベルプリンタ・A4どちらでも表示されます）。</p>
+              <p className="field-hint">
+                {deviceType === 'LABEL_PRINTER'
+                  ? '近いサイズを選ぶと下の幅・高さが入ります。お使いの用紙に合わせて数値を直してもかまいません。'
+                  : '面付け（列×行）が入ります。1枚のサイズや余白は、用紙のパッケージに書かれた数値を「用紙の細かい寸法」に入力してください。'}
+              </p>
+              <button type="button" onClick={() => setShowPrintGuide(true)} className="mt-2 text-sm text-brand-600 hover:underline">
+                うまく印刷できないときは → 印刷手順ガイド
+              </button>
             </div>
 
             {deviceType === 'LABEL_PRINTER' ? (
@@ -1137,26 +1112,16 @@ export default function LabelsPage() {
                   <input type="checkbox" checked={labelHeightAuto}
                     onChange={e => { setLabelHeightAuto(e.target.checked); localStorage.setItem('label_labelHeightAuto', String(e.target.checked)); }}
                     className="accent-brand-500" />
-                  <span className="text-sm font-medium text-stone-700">1枚ずつ印刷の長さを変える（レシートのような可変長印刷）</span>
+                  <span className="text-sm font-medium text-stone-700">内容に合わせて長さを変える（可変長印刷）</span>
                 </label>
-                <p className="text-xs text-amber-600">
-                  ※ ご利用のラベル用紙が「無定長ロール」という商品名でも、ここは通常チェック不要です（このチェックと用紙の種類は別の設定です）。
-                  用紙が固定サイズ（例：62mm×60mm）のシールなら、下記のとおりチェックは外したままにしてください。
+                <p className="text-xs text-stone-400">
+                  {labelHeightAuto
+                    ? '内容に合わせて1枚ごとに長さが変わります（上の高さは文字サイズ計算の目安です）。サイズをそろえたい場合はチェックを外してください。'
+                    : '通常はチェック不要です。連続（長尺）ロール紙でも、高さを固定すればその長さで印刷されます。プリンタ本体側の用紙サイズも同じにしてください（「印刷手順ガイド」参照）。'}
                 </p>
-                {labelHeightAuto ? (
-                  <p className="text-xs text-stone-400">
-                    高さを固定せず、印刷内容に応じて1枚ごとに長さが変わります（上の「目安の高さ」は文字サイズ計算の目安としてのみ使われ、実際の印刷長さはこの通りになるとは限りません）。
-                    ラベルのサイズをぴったり62×60mmなどに揃えたい場合は、このチェックは外して「ラベル高さ」に固定値を入れてください（内容が長い場合は自動的に文字が縮小されます）。
-                  </p>
-                ) : (
-                  <p className="text-xs text-stone-400">
-                    このままでOKです。ラベル幅・高さに固定サイズ（例：62mm×60mm）を入れれば、その通りの大きさで印刷されます。
-                    お使いの用紙が無定長（連続）ロール紙であっても、幅・高さの設定はプリンタ本体のドライバ側（Windowsの「デバイスとプリンター」→ 印刷設定/プロパティ）で別途行うものなので、
-                    このチェックとは関係ありません。ブラウザの印刷ダイアログの用紙サイズ選択より、ドライバ側の設定が優先されることがあります。
-                  </p>
-                )}
-                <div className="pt-2 border-t border-stone-200">
-                  <label className="field-label">内側の余白調整（実機の欠け具合に合わせて調整）</label>
+                <details className="pt-2 border-t border-stone-200">
+                  <summary className="text-sm text-stone-600 cursor-pointer">印字位置の微調整（端が欠けるときだけ）</summary>
+                  <div className="mt-2">
                   <p className="text-xs text-stone-400 mb-2">
                     プリンタードライバー側の余白設定と合わせて二重にならないよう、少し控えめな初期値にしています。
                     上端が欠ける／余白が広すぎる等ある場合は、実際に印刷しながらここで調整してください。
@@ -1187,7 +1152,8 @@ export default function LabelsPage() {
                         className="w-full accent-brand-500" />
                     </div>
                   </div>
-                </div>
+                  </div>
+                </details>
               </div>
             ) : (
               <div className="space-y-3">
@@ -1201,6 +1167,9 @@ export default function LabelsPage() {
                     <input type="text" inputMode="numeric" pattern="[0-9]*" value={a4Rows} onChange={e => { setA4Rows(e.target.value); updateLabelStorage('a4Rows', e.target.value); }} className="field-input" min="1" max="10" />
                   </div>
                 </div>
+                <details open={!!(a4SealW || a4SealH || Number(a4ColGap) || Number(a4RowGap) || Number(startPos) > 1)} className="pt-2 border-t border-stone-200">
+                  <summary className="text-sm text-stone-600 cursor-pointer">用紙の細かい寸法（位置がずれるとき・途中から使うとき）</summary>
+                  <div className="space-y-3 mt-2">
                 <div>
                   <label className="field-label">ラベル1枚のサイズ（任意・mm）</label>
                   <div className="flex items-end gap-2">
@@ -1250,8 +1219,103 @@ export default function LabelsPage() {
                     className="field-input" min="1" placeholder="1（左上から）" />
                   <p className="field-hint">使用済みラベル用紙を使う場合に指定</p>
                 </div>
+                  </div>
+                </details>
               </div>
             )}
+            <details className="pt-2 border-t border-stone-200">
+              <summary className="text-sm text-stone-600 cursor-pointer">文字サイズ・フォント・容器サイズ</summary>
+              <div className="space-y-4 mt-3">
+            <div>
+              <label className="field-label">フォントサイズ（pt）</label>
+              <input type="text" inputMode="numeric" pattern="[0-9]*" value={fontSizePt} onChange={e => { setFontSizePt(e.target.value); updateLabelStorage('fontSizePt', e.target.value); }}
+                className="field-input" min="6" max="12" step="0.5" />
+              <p className="field-hint">法令上の下限（現在の表示可能面積 約{computeDisplayAreaCm2().toFixed(1)}cm²）: {computeLegalMinFontPt()}pt</p>
+            </div>
+            <div>
+              <label className="field-label">フォント</label>
+              <select value={fontFamily} onChange={e => { setFontFamily(e.target.value); updateLabelStorage('fontFamily', e.target.value); }} className="field-select">
+                <option value="noto-sans-jp">Noto Sans JP（標準・全環境で表示崩れなし）</option>
+                <option value="yu-gothic">游ゴシック体</option>
+                <option value="hiragino-kaku-gothic">ヒラギノ角ゴ</option>
+                <option value="meiryo">メイリオ</option>
+              </select>
+              <p className="field-hint">游ゴシック・ヒラギノ角ゴ・メイリオはOS標準搭載フォントです。印刷環境にそのフォントが無い場合はNoto Sans JPで表示されます。</p>
+            </div>
+            <div>
+              <label className="field-label">容器全体のサイズ（mm・任意）</label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="例：150" value={packageWidthMm}
+                    onChange={e => { setPackageWidthMm(e.target.value); updateLabelStorage('packageWidthMm', e.target.value); }} className="field-input" />
+                  <p className="text-xs text-stone-400 mt-0.5">↔ 幅（横方向）</p>
+                </div>
+                <div>
+                  <input type="text" inputMode="numeric" pattern="[0-9]*" placeholder="例：100" value={packageHeightMm}
+                    onChange={e => { setPackageHeightMm(e.target.value); updateLabelStorage('packageHeightMm', e.target.value); }} className="field-input" />
+                  <p className="text-xs text-stone-400 mt-0.5">↕ 高さ（縦方向）</p>
+                </div>
+              </div>
+              <p className="field-hint">シールを貼る容器・袋全体のサイズです。未入力の場合はシールサイズから推定します（実際の容器面積と異なる場合があります）。文字サイズの法令上の下限判定に使用します。</p>
+            </div>
+
+              </div>
+            </details>
+
+            <details open={recycleMarks.length > 0} className="pt-2 border-t border-stone-200">
+              <summary className="text-sm text-stone-600 cursor-pointer">識別マーク（リサイクルマーク）{recycleMarks.length > 0 ? `：${recycleMarks.length}件` : ''}</summary>
+              <div className="mt-3">
+            <div>
+              <div className="flex flex-col gap-2 mt-1">
+                {[
+                  { key: 'plastic',  label: 'プラ',       rolePlaceholder: '例：袋' },
+                  { key: 'paper',    label: '紙',         rolePlaceholder: '例：外箱' },
+                  { key: 'pet',      label: 'PET',        rolePlaceholder: '例：容器' },
+                  { key: 'steel',    label: 'スチール缶',  rolePlaceholder: '例：缶' },
+                  { key: 'aluminum', label: 'アルミ缶',    rolePlaceholder: '例：缶' },
+                  { key: 'board',    label: '段ボール（任意）', rolePlaceholder: '例：外箱' },
+                ].map(m => {
+                  const checked = recycleMarks.includes(m.key);
+                  return (
+                    <div key={m.key} className="flex items-center gap-2">
+                      <label className="flex items-center gap-1.5 text-sm cursor-pointer w-32 flex-shrink-0">
+                        <input type="checkbox" checked={checked}
+                          onChange={e => {
+                            const next = e.target.checked ? [...recycleMarks, m.key] : recycleMarks.filter(k => k !== m.key);
+                            setRecycleMarks(next);
+                            localStorage.setItem('label_recycleMarks', JSON.stringify(next));
+                          }}
+                          className="accent-brand-500" />
+                        {m.label}
+                      </label>
+                      {checked && (
+                        <input type="text" value={recycleMarkRoles[m.key] ?? ''} placeholder={m.rolePlaceholder}
+                          maxLength={20}
+                          onChange={e => {
+                            const next = { ...recycleMarkRoles, [m.key]: e.target.value };
+                            setRecycleMarkRoles(next);
+                            localStorage.setItem('label_recycleMarkRoles', JSON.stringify(next));
+                          }}
+                          className="field-input py-1 text-sm flex-1" />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="field-hint">マークの下に、何を分別すればよいか（外箱・袋など）を役割名として任意で印字できます。</p>
+              <div className="mt-3">
+                <label className="field-label">識別マークのサイズ: {recycleMarkHeightMm}mm</label>
+                <input type="range" min="6" max="20" value={recycleMarkHeightMm}
+                  onChange={e => { setRecycleMarkHeightMm(Number(e.target.value)); localStorage.setItem('label_recycleMarkHeightMm', e.target.value); }}
+                  className="w-full accent-brand-500" />
+                <div className="flex justify-between text-xs text-stone-400"><span>6mm（法令上の最小）</span><span>20mm</span></div>
+                <p className="field-hint">バーコードとは別に、マーク自体の大きさを指定できます。識別マークは法令上、マーク単体で6mm以上必要です。</p>
+              </div>
+              <p className="field-hint">バーコードの隣に小さく印字されます（ラベルプリンタ・A4どちらでも表示されます）。</p>
+            </div>
+
+              </div>
+            </details>
           </div>
           </div>
         </div>
@@ -1342,13 +1406,14 @@ export default function LabelsPage() {
               <Info className="w-5 h-5 flex-shrink-0" />
               <div className="text-sm">
                 <p className="font-medium mb-1">印刷方法</p>
-                <p>「印刷する」ボタンをクリックするとブラウザの印刷ダイアログが開きます。</p>
-                <p className="mt-1">ラベルプリンタの場合: 用紙サイズを手動でラベルサイズに合わせてください。</p>
-                <p className="mt-1">A4プリンタの場合: 「拡大縮小なし（100%）」で印刷してください。</p>
+                <p>「印刷する」でブラウザの印刷画面が開きます。<strong>余白：なし・倍率：100%・ヘッダーとフッター：オフ</strong>で印刷してください。</p>
+                <p className="mt-1">{deviceType === 'LABEL_PRINTER' ? 'ラベルプリンタは、プリンタ本体側の用紙サイズもラベルと同じにしておく必要があります。' : 'A4ラベル用紙は、先に普通紙で1枚試し刷りして位置を確認すると安心です。'}</p>
+                <button type="button" onClick={() => setShowPrintGuide(true)} className="mt-1 text-brand-600 hover:underline">詳しい手順（印刷手順ガイド）を見る</button>
               </div>
             </div>
           )}
         </div>
+      {showPrintGuide && <PrintGuide deviceType={deviceType} onClose={() => setShowPrintGuide(false)} />}
       </div>
     </div>
   );

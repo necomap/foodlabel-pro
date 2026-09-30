@@ -54,6 +54,10 @@ model User {
   // （詳細はlib/stock-sync.ts参照）。
   inventoryUserId      String?            @db.VarChar(200)
   haccpStoreCode       String?            @db.VarChar(50)
+  // 2026-09-30新設: 登録後のステップメール（lib/onboarding-mail.ts）。
+  // onboardingMailStage＝送信済みの通数（0〜4）。onboardingMailOptOut＝メール内の配信停止リンクで停止した人。
+  onboardingMailStage  Int                @default(0)
+  onboardingMailOptOut Boolean            @default(false)
   adminLogs            AdminLog[]
   data_transfer_logs   data_transfer_logs[]
   ingredients          Ingredient[]

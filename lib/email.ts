@@ -66,3 +66,8 @@ export async function sendLoginNotificationEmail(email: string, ipAddress: strin
   const html = `<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;"><h2 style="color:#d4891f;">FoodLabel Pro</h2><p>お使いのアカウントに新しいログインがありました。</p><table style="width:100%;border-collapse:collapse;margin:16px 0;"><tr><td style="padding:8px;border:1px solid #eee;background:#f9f9f9;font-weight:bold;">日時</td><td style="padding:8px;border:1px solid #eee;">${now}</td></tr><tr><td style="padding:8px;border:1px solid #eee;background:#f9f9f9;font-weight:bold;">IPアドレス</td><td style="padding:8px;border:1px solid #eee;">${ipAddress}</td></tr></table><p style="color:#e74c3c;font-size:13px;">心当たりがない場合はすぐにパスワードを変更してください。</p><a href="${APP_URL_LOCAL}/auth/forgot-password" style="display:inline-block;background:#e74c3c;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold;">パスワードを変更する</a></div>`;
   return sendEmail(email, '【FoodLabel Pro】新しいログインがありました', html);
 }
+
+// 2026-09-30新設: 登録後のステップメール（lib/onboarding-mail.ts）用。本文・配信停止リンクは呼び出し側で組み立てる。
+export async function sendMarketingEmail(to: string, subject: string, html: string): Promise<boolean> {
+  return sendEmail(to, subject, html);
+}

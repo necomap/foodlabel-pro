@@ -8,7 +8,7 @@ export default function PrivacyPage() {
       <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-sm p-8 space-y-8">
         <div>
           <h1 className="text-2xl font-bold text-stone-800">プライバシーポリシー</h1>
-          <p className="text-stone-500 text-sm mt-1">最終更新日：2026年3月23日</p>
+          <p className="text-stone-500 text-sm mt-1">最終更新日：2026年9月30日</p>
         </div>
 
         <section className="space-y-3">
@@ -31,6 +31,7 @@ export default function PrivacyPage() {
             <li>利用規約に違反した行為への対応</li>
             <li>本サービスの改善・新機能の開発</li>
             <li>メンテナンス・重要なお知らせの送信</li>
+            <li>使い方のご案内・新機能や料金プランのご案内メールの送信（メール内のリンクからいつでも配信停止できます）</li>
           </ul>
         </section>
 

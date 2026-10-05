@@ -8,7 +8,7 @@ export default function PrivacyPage() {
       <div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-sm p-8 space-y-8">
         <div>
           <h1 className="text-2xl font-bold text-stone-800">プライバシーポリシー</h1>
-          <p className="text-stone-500 text-sm mt-1">最終更新日：2026年9月30日</p>
+          <p className="text-stone-500 text-sm mt-1">最終更新日：2026年10月5日</p>
         </div>
 
         <section className="space-y-3">
@@ -56,6 +56,11 @@ export default function PrivacyPage() {
             本サービスでは、Cookieを使用してセッション管理を行っています。
             また、Google AdSenseによる広告配信のためにCookieが使用される場合があります。
             ブラウザの設定でCookieを無効にすることができますが、一部機能が利用できなくなる場合があります。
+          </p>
+          <p className="text-stone-600 text-sm leading-relaxed">
+            本サービスは、Amazon.co.jpを宣伝しリンクすることによってサイトが紹介料を獲得できる手段を提供することを目的に設定されたアフィリエイトプログラムである、Amazonアソシエイト・プログラムの参加者です。
+            Amazonのアソシエイトとして、FoodLabel Proは適格販売により収入を得ています。
+            Amazonのサイトへ移動した後のCookieの取り扱いは、Amazonのプライバシー規約に従います。
           </p>
         </section>
 

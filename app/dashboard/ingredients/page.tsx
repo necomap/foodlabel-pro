@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { Search, Plus, Edit2, Trash2, AlertTriangle, CheckCircle2, Loader2, FlaskConical, Package, Tag, ChevronDown, ChevronUp, ExternalLink, ShoppingCart } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { detectAllergens, splitLabelList } from '@/lib/allergen';
 
 interface Ingredient {
   id: string; name: string; nameKana: string|null; allergens: string[];
@@ -12,6 +13,9 @@ interface Ingredient {
   isPublic: boolean; isOwnRecord: boolean; isSystemOwned: boolean; hasPurchaseSetting: boolean;
   ingredientCategoryId: string|null; ingredientCategoryName: string|null;
   recipeUsageCount: number;
+  // 複合原材料の内訳・中間品の元レシピ（2026-10-22）
+  compositeIngredients?: string|null; compositeAdditives?: string|null;
+  compositeIsPersonalOverride?: boolean; sourceRecipeId?: string|null;
   nutrition: { energyKcal:number|null; protein:number|null; fat:number|null; carbohydrate:number|null; saltEquivalent:number|null; dietaryFiber:number|null; sugar:number|null; cholesterol:number|null; } | null;
 }
 
@@ -27,6 +31,66 @@ interface RecipeUsage { id: string; name: string; variationName: string|null; is
 
 const STORAGE_LABELS: Record<string,string> = { ROOM_TEMP:'常温', FRIDGE:'冷蔵', FROZEN:'冷凍', OTHER:'その他' };
 const REQUIRED = ['えび','かに','小麦','そば','卵','乳','落花生','くるみ','カシューナッツ'];  // 2026-04改正で9品目
+
+// ---- 複合原材料の内訳の入力欄（2026-10-22新設）----
+// 市販のチョコレート・あんこ・ジャムなど、それ自体が複数の原材料でできている食材は、ラベルで
+// 「チョコレート（砂糖、カカオマス、…）」のように内訳を書く必要がある。パッケージの原材料表示を
+// 「/」の前（原材料）と後ろ（添加物）に分けて貼り付けてもらう。
+function CompositeFields({ ingredients, additives, onChange, currentAllergens, onAddAllergens, readOnlyNote }: {
+  ingredients: string; additives: string;
+  onChange: (v: { ingredients?: string; additives?: string }) => void;
+  currentAllergens?: string[];
+  onAddAllergens?: (names: string[]) => void;
+  readOnlyNote?: string;
+}) {
+  const [open, setOpen] = useState(!!(ingredients || additives));
+  const detected = Array.from(new Set(splitLabelList(`${ingredients}、${additives}`).flatMap(t => detectAllergens(t))));
+  const missing = currentAllergens ? detected.filter(a => !currentAllergens.includes(a)) : [];
+
+  // パッケージの表示をそのまま貼り付けたとき、「/」で原材料と添加物に自動で分ける
+  const handlePasteSplit = (text: string) => {
+    const t = text.replace(/^原材料名?[:：]\s*/, '');
+    const idx = t.search(/[／/]/);
+    if (idx >= 0) onChange({ ingredients: t.slice(0, idx).trim(), additives: t.slice(idx + 1).replace(/[（(]一部に.*?を含む[）)]\s*$/, '').trim() });
+    else onChange({ ingredients: t.replace(/[（(]一部に.*?を含む[）)]\s*$/, '').trim() });
+  };
+
+  return (
+    <div className="border border-cream-200 rounded-xl p-3 space-y-2">
+      <button type="button" onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between text-sm font-medium text-stone-700">
+        <span>複合原材料の内訳 <span className="text-xs text-stone-400 font-normal">（市販のチョコ・あんこ・自家製クリームなど）</span></span>
+        {open ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+      </button>
+      {open && (
+        <div className="space-y-2">
+          {readOnlyNote && <p className="text-xs text-stone-500 bg-cream-50 rounded-lg p-2">{readOnlyNote}</p>}
+          <div>
+            <label className="field-label">内訳の原材料（読点区切り・重量順）</label>
+            <textarea rows={2} value={ingredients}
+              onChange={e => onChange({ ingredients: e.target.value })}
+              onPaste={e => { const t = e.clipboardData.getData('text'); if (/[／/]/.test(t)) { e.preventDefault(); handlePasteSplit(t); } }}
+              className="field-input text-sm" placeholder="例: 砂糖、カカオマス、ココアバター、全粉乳" />
+            <p className="field-hint">パッケージの「原材料名」をそのまま貼り付けると、「/」より後ろは自動で下の添加物欄に分かれます。ラベルには「食材名（ここの内容）」と表示されます。</p>
+          </div>
+          <div>
+            <label className="field-label">内訳の添加物（読点区切り）</label>
+            <input type="text" value={additives} onChange={e => onChange({ additives: e.target.value })}
+              className="field-input text-sm" placeholder="例: 乳化剤（大豆由来）、香料" />
+            <p className="field-hint">製品全体の添加物欄（「/」の後ろ）にまとめて表示されます。</p>
+          </div>
+          {detected.length > 0 && (
+            <p className={`text-xs rounded-lg p-2 ${missing.length ? 'bg-amber-50 text-amber-700' : 'bg-cream-50 text-stone-500'}`}>
+              内訳から見つかったアレルゲン: {detected.join('・')}（ラベルには自動で表示されます）
+              {missing.length > 0 && onAddAllergens && (
+                <button type="button" onClick={() => onAddAllergens(missing)} className="ml-2 underline font-medium">アレルゲン欄に追加</button>
+              )}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ---- カテゴリ管理モーダル ----
 // カテゴリは「全ユーザー共通の基本カテゴリ（管理者のみ追加・編集可）」と
@@ -149,6 +213,8 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
     storage:         ingredient?.storage ?? 'ROOM_TEMP',
     supplier:        ingredient?.supplier ?? '',
     originCountry:   (ingredient as any)?.originCountry ?? '',
+    compositeIngredients: ingredient?.compositeIngredients ?? '',
+    compositeAdditives:   ingredient?.compositeAdditives ?? '',
     isPublic:        ingredient?.isPublic ?? false,
     allergens:       ingredient?.allergens.join('、') ?? '',
     energyKcal:      ingredient?.nutrition?.energyKcal      != null ? String(ingredient.nutrition.energyKcal)      : '',
@@ -195,6 +261,8 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
         storage:       form.storage,
         supplier:      form.supplier.trim() || emptyValue,
         originCountry: form.originCountry.trim() || emptyValue,
+        compositeIngredients: form.compositeIngredients.trim() || emptyValue,
+        compositeAdditives:   form.compositeAdditives.trim() || emptyValue,
         isPublic:      form.isPublic,
         allergens:     form.allergens ? form.allergens.split(/[,、,]/).map(a=>a.trim()).filter(Boolean) : [],
         energyKcalManual:   form.energyKcal    ? parseFloat(form.energyKcal)    : emptyValue,
@@ -361,6 +429,17 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
             <label className="field-label">アレルゲン（カンマ区切り）</label>
             <input type="text" value={form.allergens} onChange={e=>setForm(f=>({...f,allergens:e.target.value}))} className="field-input" placeholder="例: 小麦、乳" />
           </div>
+          {ingredient?.sourceRecipeId && (
+            <p className="text-xs text-blue-700 bg-blue-50 rounded-lg p-2.5">
+              この食材はレシピから作った中間品です。栄養成分・アレルゲン・内訳・原価は、元のレシピを保存するたびに自動で更新されます（ここで直しても、元レシピを保存すると上書きされます）。
+            </p>
+          )}
+          <CompositeFields
+            ingredients={form.compositeIngredients} additives={form.compositeAdditives}
+            onChange={v => setForm(f => ({ ...f, ...(v.ingredients !== undefined ? { compositeIngredients: v.ingredients } : {}), ...(v.additives !== undefined ? { compositeAdditives: v.additives } : {}) }))}
+            currentAllergens={form.allergens.split(/[,、,]/).map(a => a.trim()).filter(Boolean)}
+            onAddAllergens={names => setForm(f => ({ ...f, allergens: [...f.allergens.split(/[,、,]/).map(a => a.trim()).filter(Boolean), ...names].join('、') }))}
+          />
           <div className="grid sm:grid-cols-3 gap-3">
             <div><label className="field-label">仕入れ単位(g)</label><input type="number" value={form.purchaseUnitG} onChange={e=>setForm(f=>({...f,purchaseUnitG:e.target.value}))} className="field-input" placeholder="例: 1000" /></div>
             <div><label className="field-label">仕入れ価格(円)</label><input type="number" value={form.purchasePrice} onChange={e=>setForm(f=>({...f,purchasePrice:e.target.value}))} className="field-input" placeholder="例: 500" /></div>
@@ -443,10 +522,22 @@ function PurchaseSettingModal({ ingredient, onClose, onSaved }: {
     storage:       ingredient.storage ?? 'ROOM_TEMP',
     supplier:      ingredient.supplier ?? '',
   });
+  const [composite, setComposite] = useState({
+    ingredients: ingredient.compositeIngredients ?? '',
+    additives:   ingredient.compositeAdditives ?? '',
+  });
+  const compositeChanged = composite.ingredients !== (ingredient.compositeIngredients ?? '') || composite.additives !== (ingredient.compositeAdditives ?? '');
 
   const handleSave = async () => {
     setSaving(true);
     try {
+      // 複合原材料の内訳（自分専用）を変えた場合は別APIで保存する（食材マスタ本体は書き換えない）
+      if (compositeChanged) {
+        const r = await fetch(`/api/ingredients/${ingredient.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ compositeIngredients: composite.ingredients, compositeAdditives: composite.additives }) });
+        const d = await r.json();
+        if (!d.success) { toast.error(d.error ?? '内訳の保存に失敗しました'); return; }
+      }
       const payload = {
         purchaseUnitG: form.purchaseUnitG ? parseInt(form.purchaseUnitG) : null,
         purchasePrice: form.purchasePrice ? parseFloat(form.purchasePrice) : null,
@@ -482,6 +573,11 @@ function PurchaseSettingModal({ ingredient, onClose, onSaved }: {
             <div><label className="field-label">保管方法</label><select value={form.storage} onChange={e=>setForm(f=>({...f,storage:e.target.value}))} className="field-select"><option value="ROOM_TEMP">常温</option><option value="FRIDGE">冷蔵</option><option value="FROZEN">冷凍</option><option value="OTHER">その他</option></select></div>
             <div><label className="field-label">仕入先</label><input type="text" value={form.supplier} onChange={e=>setForm(f=>({...f,supplier:e.target.value}))} className="field-input" /></div>
           </div>
+          <CompositeFields
+            ingredients={composite.ingredients} additives={composite.additives}
+            onChange={v => setComposite(c => ({ ingredients: v.ingredients ?? c.ingredients, additives: v.additives ?? c.additives }))}
+            readOnlyNote="使っている銘柄の内訳を、あなた専用に設定できます（他のユーザーには影響しません）。内訳に書いたアレルゲンは、ラベルに自動で表示されます。"
+          />
         </div>
         <div className="flex gap-3 p-5 border-t border-cream-200">
           <button onClick={onClose} className="btn-secondary flex-1">キャンセル</button>

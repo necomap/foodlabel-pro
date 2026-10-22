@@ -8,7 +8,8 @@ import { prisma } from '@/lib/db';
 import { getReadOnlyRecipeIds } from '@/lib/plan-limits-server';
 import { buildIngredientsLabel, collectRecipeAllergens, prepareIngredientsForLabel } from '@/lib/allergen';
 import { calcPerUnit, roundForDisplay, calcCostRate, computeLiveRecipeNutrition } from '@/lib/nutrition';
-import { getGenericNameOverrides } from '@/lib/generic-name-overrides';
+import { getGenericNameOverrides, getCompositeOverrides, resolveComposite } from '@/lib/generic-name-overrides';
+import { syncIngredientFromRecipe } from '@/lib/recipe-as-ingredient';
 import type { BakingStep } from '@/types';
 
 type Params = { params: { id: string } };
@@ -30,6 +31,7 @@ export async function GET(_req: Request, { params }: Params) {
           ingredient: {
             select: {
               id: true, name: true, allergens: true, unitPrice: true, genericName: true, genericNameConfirmed: true, alwaysHideFromLabel: true, originCountry: true,
+              compositeIngredients: true, compositeAdditives: true, sourceRecipeId: true,
               // 栄養成分「未確認」警告を、レシピ保存時点のスナップショットではなく食材マスタの
               // 最新値から毎回判定し直すために必要（詳細はlib/nutrition.tsのコメント参照）
               energyKcalManual: true, proteinManual: true, fatManual: true, carbohydrateManual: true,
@@ -59,6 +61,8 @@ export async function GET(_req: Request, { params }: Params) {
   const genericNameOverrides = await getGenericNameOverrides(session.user.id, sortedIngredients.map(ing => ing.ingredientId));
   const resolveGenericName = (ing: typeof sortedIngredients[number]): string | null =>
     (ing.ingredientId && genericNameOverrides.get(ing.ingredientId)) || (ing.ingredient as any)?.genericName || null;
+  const compositeOverrides = await getCompositeOverrides(session.user.id, sortedIngredients.map(ing => ing.ingredientId));
+  const compositeOf = (ing: typeof sortedIngredients[number]) => resolveComposite(compositeOverrides, ing.ingredientId, ing.ingredient as any);
 
   // アレルゲン集約（ラベル印刷時の判定〔app/api/labels/generate/route.ts〕と同じく、一般名優先で判定する）
   const allergenInfo = collectRecipeAllergens(
@@ -68,6 +72,7 @@ export async function GET(_req: Request, { params }: Params) {
       ingredientName:   resolveGenericName(ing) || ing.ingredient?.name || ing.ingredientNameOverride || '',
       // 食材マスタに紐づいている材料は、マスタ側のallergensのみを信頼する（名前からの自動再判定はしない）
       hasIngredientLink: !!ing.ingredientId,
+      compositeText: [compositeOf(ing).compositeIngredients, compositeOf(ing).compositeAdditives].filter(Boolean).join('、'),
     }))
   );
 
@@ -90,6 +95,7 @@ export async function GET(_req: Request, { params }: Params) {
         additiveReason: ing.additiveReason ?? undefined,
         hideFromLabel:  (ing as any).hideFromLabel ?? false,
         ingredientAlwaysHideFromLabel: (ing.ingredient as any)?.alwaysHideFromLabel ?? false,
+        ...compositeOf(ing),
       }))
     ),
     allergenInfo.all
@@ -127,10 +133,17 @@ export async function GET(_req: Request, { params }: Params) {
   const unitCostResolved  = recipe.unitCount > 0 ? totalCostResolved / recipe.unitCount : 0;
   const costRateResolved  = recipe.salePrice ? calcCostRate(unitCostResolved, Number(recipe.salePrice)) : 0;
 
+  // このレシピから作った中間品の食材（あれば）。レシピ詳細の「中間品として使う」ボタンの表示切替用
+  const asIngredient = await prisma.ingredient.findFirst({
+    where: { userId: session.user.id, sourceRecipeId: recipe.id, isActive: true },
+    select: { id: true, name: true },
+  });
+
   return NextResponse.json({
     success: true,
     data: {
       id:             recipe.id,
+      asIngredient:   asIngredient ?? null,
       name:           recipe.name,
       nameKana:       recipe.nameKana,
       variationName:  (recipe as any).variationName ?? null,
@@ -407,6 +420,9 @@ export async function PUT(request: Request, { params }: Params) {
         })),
       }),
     ]);
+
+    // このレシピから作った中間品の食材があれば、最新の内容に更新する（失敗してもレシピ保存は成功扱い）
+    await syncIngredientFromRecipe(session.user.id, params.id);
 
     return NextResponse.json({ success: true, message: 'レシピを更新しました' });
   } catch (err) {

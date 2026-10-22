@@ -151,6 +151,19 @@ export default function RecipeDetailPage() {
     finally { setSavingGeneric(false); }
   };
 
+  // 中間品（自家製クリーム・生地など）として食材マスタに登録・更新する（2026-10-22）
+  const [savingAsIngredient, setSavingAsIngredient] = useState(false);
+  const handleAsIngredient = async () => {
+    setSavingAsIngredient(true);
+    try {
+      const res  = await fetch(`/api/recipes/${id}/as-ingredient`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) { toast.success(data.message, { duration: 6000 }); fetchRecipe(true); }
+      else toast.error(data.error ?? '登録に失敗しました');
+    } catch { toast.error('通信エラー'); }
+    finally { setSavingAsIngredient(false); }
+  };
+
   const handleCopy = async () => {
     try {
       const res  = await fetch(`/api/recipes/${id}/copy`, { method: 'POST' });
@@ -283,6 +296,23 @@ export default function RecipeDetailPage() {
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
+      </div>
+
+      {/* 中間品として使う（2026-10-22） */}
+      <div className="flex flex-wrap items-center gap-2 text-xs text-stone-500 bg-cream-50 border border-cream-200 rounded-xl px-3 py-2">
+        {(recipe as any).asIngredient ? (
+          <>
+            <span>このレシピは食材「{(recipe as any).asIngredient.name}」（中間品）として他のレシピで使えます。保存するたびに自動で更新されます。</span>
+            <button onClick={handleAsIngredient} disabled={savingAsIngredient} className="underline text-brand-600 disabled:opacity-50">今すぐ更新</button>
+          </>
+        ) : (
+          <>
+            <span>カスタード・生地などの仕込み品なら、食材として他のレシピの材料に使えます（ラベルでは内訳が自動で展開されます）。</span>
+            <button onClick={handleAsIngredient} disabled={savingAsIngredient} className="underline text-brand-600 disabled:opacity-50">
+              {savingAsIngredient ? '登録中…' : '中間品として食材マスタに登録'}
+            </button>
+          </>
+        )}
       </div>
 
       {/* 未確認成分の警告 */}

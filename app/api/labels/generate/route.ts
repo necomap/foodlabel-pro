@@ -10,7 +10,7 @@ import { prisma } from '@/lib/db';
 import { generateLabelContent, generateLabelHtml, getDefaultDisplaySettings } from '@/lib/label';
 import { buildIngredientsLabel, collectRecipeAllergens, prepareIngredientsForLabel } from '@/lib/allergen';
 import { computeLiveRecipeNutrition } from '@/lib/nutrition';
-import { getGenericNameOverrides } from '@/lib/generic-name-overrides';
+import { getGenericNameOverrides, getCompositeOverrides, resolveComposite } from '@/lib/generic-name-overrides';
 import { deductStockForPrint } from '@/lib/stock-sync';
 import type { RecipeDetail, LabelConfig, BakingStep } from '@/types';
 
@@ -135,6 +135,7 @@ export async function POST(request: Request) {
           ingredient: {
             select: {
               name: true, allergens: true, genericName: true, alwaysHideFromLabel: true, originCountry: true,
+              compositeIngredients: true, compositeAdditives: true,
               // 栄養成分「未確認」警告を、レシピ保存時点のスナップショットではなく食材マスタの
               // 最新値から毎回判定し直すために必要（詳細はlib/nutrition.tsのコメント参照）
               energyKcalManual: true, proteinManual: true, fatManual: true, carbohydrateManual: true,
@@ -280,6 +281,9 @@ export async function POST(request: Request) {
   const genericNameOverrides = await getGenericNameOverrides(session.user.id, sortedIngredients.map(ing => ing.ingredientId));
   const resolveGenericName = (ing: typeof sortedIngredients[number]): string | null =>
     (ing.ingredientId && genericNameOverrides.get(ing.ingredientId)) || ing.ingredient?.genericName || null;
+  // 複合原材料の内訳（自分専用の上書き → 食材マスタ本体）。2026-10-22
+  const compositeOverrides = await getCompositeOverrides(session.user.id, sortedIngredients.map(ing => ing.ingredientId));
+  const compositeOf = (ing: typeof sortedIngredients[number]) => resolveComposite(compositeOverrides, ing.ingredientId, ing.ingredient as any);
 
   const allergenInfo = collectRecipeAllergens(
     sortedIngredients.map(ing => ({
@@ -288,6 +292,7 @@ export async function POST(request: Request) {
       ingredientName:   resolveGenericName(ing) || ing.ingredient?.name || ing.ingredientNameOverride || '',
       // 食材マスタに紐づいている材料は、マスタ側のallergensのみを信頼する（名前からの自動再判定はしない）
       hasIngredientLink: !!ing.ingredientId,
+      compositeText: [compositeOf(ing).compositeIngredients, compositeOf(ing).compositeAdditives].filter(Boolean).join('、'),
     }))
   );
 
@@ -334,6 +339,7 @@ export async function POST(request: Request) {
           additiveReason: i.additiveReason ?? undefined,
           hideFromLabel: (i as any).hideFromLabel ?? false,
           ingredientAlwaysHideFromLabel: (i.ingredient as any)?.alwaysHideFromLabel ?? false,
+          ...compositeOf(i),
         }))
       ),
       allergenInfo.all
@@ -371,6 +377,7 @@ export async function POST(request: Request) {
         additiveReason:         ing.additiveReason ?? undefined,
         hideFromLabel:          (ing as any).hideFromLabel ?? false,
         ingredientAlwaysHideFromLabel: (ing.ingredient as any)?.alwaysHideFromLabel ?? false,
+        ...compositeOf(ing),
         costPrice:              ing.costPrice   != null ? Number(ing.costPrice)  : null,
         costTotal:              ing.costTotal   != null ? Number(ing.costTotal)  : null,
         allergenOverride:       ing.allergenOverride,

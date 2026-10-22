@@ -31,6 +31,18 @@ export async function PUT(request: Request, { params }: Params) {
   // 一般名クイック編集）に限ってこの経路を通す。
   if (!canEdit) {
     const bodyKeys = Object.keys(body);
+    // 2026-10-22: 複合原材料の内訳（銘柄ごとに違う）も、自分専用の上書きとして保存できるようにした
+    const isCompositeOnlyEdit = bodyKeys.length > 0 && bodyKeys.every(k => k === 'compositeIngredients' || k === 'compositeAdditives');
+    if (isCompositeOnlyEdit) {
+      const ci = (typeof body.compositeIngredients === 'string' ? body.compositeIngredients.trim() : '') || null;
+      const ca = (typeof body.compositeAdditives === 'string' ? body.compositeAdditives.trim() : '') || null;
+      await prisma.ingredientPurchaseSetting.upsert({
+        where:  { userId_ingredientId: { userId: session.user.id, ingredientId: params.id } },
+        create: { userId: session.user.id, ingredientId: params.id, compositeIngredientsOverride: ci, compositeAdditivesOverride: ca },
+        update: { compositeIngredientsOverride: ci, compositeAdditivesOverride: ca },
+      });
+      return NextResponse.json({ success: true, message: '複合原材料の内訳（自分専用）を保存しました' });
+    }
     const isGenericNameOnlyEdit = bodyKeys.length === 1 && bodyKeys[0] === 'genericName';
     if (!isGenericNameOnlyEdit) {
       return NextResponse.json({ success: false, error: 'この食材を編集する権限がありません' }, { status: 403 });
@@ -116,6 +128,8 @@ export async function PUT(request: Request, { params }: Params) {
       supplier:        body.supplier        !== undefined ? body.supplier : ing.supplier,
       productCode:     body.productCode     ?? ing.productCode,
       originCountry:   body.originCountry   !== undefined ? (body.originCountry || null) : (ing as any).originCountry,
+      compositeIngredients: body.compositeIngredients !== undefined ? ((body.compositeIngredients ?? '').trim() || null) : (ing as any).compositeIngredients,
+      compositeAdditives:   body.compositeAdditives   !== undefined ? ((body.compositeAdditives ?? '').trim() || null)   : (ing as any).compositeAdditives,
       allergens:       allergens,
       isPublic:        resolvedIsPublic,
       isApproved:      body.isPublic === false ? true : (body.isPublic ? false : ing.isApproved),

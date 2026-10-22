@@ -192,6 +192,9 @@ model IngredientPurchaseSetting {
   // （他のユーザーの表示には一切影響しない）。設定・解除は app/api/ingredients/[id]/route.ts の
   // PUT（genericNameのみを含むリクエスト、かつ本体の編集権限が無い場合）で行う。
   genericNameOverride String?    @db.VarChar(200)
+  // 2026-10-22新設: 共有食材の複合原材料の内訳を「自分専用」に設定する上書き値（銘柄によって内訳が違うため）
+  compositeIngredientsOverride String?
+  compositeAdditivesOverride   String?
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
   user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -246,6 +249,15 @@ model Ingredient {
   // 水・浄水など、どのレシピで使っても原材料表示に出す必要がない食材用。ONにすると、この食材を
   // 使っている全レシピで自動的に原材料名表示から除外される（栄養成分・アレルゲン判定には影響しない）。
   alwaysHideFromLabel  Boolean             @default(false)
+  // 2026-10-22新設: 複合原材料（市販のチョコレート・あんこ・自家製カスタードなど）の内訳。
+  // compositeIngredients はラベルで「チョコレート（砂糖、カカオマス、…）」のように食材名の後ろの
+  // かっこ内に展開する原材料（読点区切り）。compositeAdditives は内訳に含まれる添加物で、
+  // 製品全体の添加物欄（「/」以降）にまとめて表示する。どちらも未入力なら従来どおり食材名のみ。
+  compositeIngredients String?
+  compositeAdditives   String?
+  // 2026-10-22新設: 中間品（自家製のクリーム・生地など）として、レシピから作った食材の場合の元レシピID。
+  // 元レシピを保存すると、栄養成分・アレルゲン・内訳・原価がこの食材に自動で反映される（lib/recipe-as-ingredient.ts）。
+  sourceRecipeId       String?
   isActive             Boolean             @default(true)
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
@@ -257,6 +269,7 @@ model Ingredient {
 
   // 食材マスタ一覧・検索（userId絞り込み＋isActive）の高速化用
   @@index([userId, isActive])
+  @@index([sourceRecipeId])
   @@map("ingredients")
 }
 

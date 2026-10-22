@@ -104,6 +104,9 @@ export interface RecipeIngredientDetail extends RecipeIngredientInput {
   isPrimaryIngredient:    boolean;
   // 食材マスタ側で「常に非表示」に設定されている食材かどうか（hideFromLabelとはOR条件で合成される）
   ingredientAlwaysHideFromLabel?: boolean;
+  // 複合原材料の内訳（2026-10-22）
+  compositeIngredients?: string | null;
+  compositeAdditives?:   string | null;
   // 食材マスタ側のアレルゲン（ingredientIdがある材料では、印字するアレルゲンの唯一の情報源）。
   // 2026-09-27: これをラベル生成に渡していなかったため、マスタ紐づけ材料のアレルゲンが
   // 印刷ラベルから抜け落ちる重大な不具合があった（lib/label.ts generateLabelContent参照）。
@@ -194,6 +197,8 @@ export interface LabelDisplaySettings {
   showDietaryFiber?:   boolean;
   showSugar?:          boolean;
   showCholesterol?:    boolean;
+  // 栄養成分の「0と表示できる」基準を適用する（未指定＝適用する）。2026-10-22
+  applyZeroRule?:      boolean;
   showQualityControl?: boolean;
   showComment?:        boolean;
   nutritionNote?:      string;

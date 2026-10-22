@@ -109,6 +109,9 @@ export function collectRecipeAllergens(
     // 判定されてしまうケースでも、食材マスタ側で一度修正すれば全レシピに反映されるようになる。
     // 食材マスタに紐づいていない（自由入力の）材料は、このフラグをfalse／未指定のままにする。
     hasIngredientLink?: boolean;
+    // 複合原材料の内訳（原材料・添加物の文字列）。2026-10-22: 内訳に書かれたアレルゲンの表示漏れを
+    // 防ぐため、食材マスタのアレルゲンに加えて内訳の文字列からも自動判定して足す（表示が多くなる側に倒す）
+    compositeText?: string | null;
   }>
 ): {
   required: string[];   // 義務表示9品目
@@ -130,7 +133,8 @@ export function collectRecipeAllergens(
         ? ing.allergenOverride
         : detectAllergens(ing.ingredientName);
 
-    for (const raw of sources) {
+    const fromComposite = splitLabelList(ing.compositeText).flatMap(t => detectAllergens(t));
+    for (const raw of [...sources, ...fromComposite]) {
       const a = (raw ?? '').trim();
       if (!a) continue;
       if (a in ALL_ALLERGENS) { allDetected.add(a); continue; }
@@ -183,6 +187,9 @@ export interface LabelIngredientInput {
   hideFromLabel?: boolean;
   // 食材マスタ側の「常に非表示」設定（この食材を使う全レシピに効く）
   ingredientAlwaysHideFromLabel?: boolean;
+  // 複合原材料の内訳（原材料／添加物）。2026-10-22新設
+  compositeIngredients?: string | null;
+  compositeAdditives?:   string | null;
 }
 
 /**
@@ -210,6 +217,7 @@ export function prepareIngredientsForLabel<T extends LabelIngredientInput>(ingre
       m.ingredientName.trim() === name &&
       !!m.isAdditive === !!ing.isAdditive &&
       (m.isAdditive ? (m.additiveReason ?? '') === (ing.additiveReason ?? '') : true) &&
+      (m.compositeIngredients ?? '') === (ing.compositeIngredients ?? '') &&
       m.unit === ing.unit
     );
     if (match) {
@@ -244,6 +252,24 @@ const BULK_NAME_ADDITIVE_PURPOSES = ['乳化剤', 'pH調整剤', '膨張剤', '�
 // 添加物の用途のうち、用途名を付けず物質名だけを書くもの（強化剤・加工助剤等は表示免除の場合が多い）
 const NAME_ONLY_ADDITIVE_PURPOSES = ['強化剤', '製造用剤'];
 
+/** 読点・カンマ区切りの文字列を項目に分ける（かっこ内の読点では分けない） */
+export function splitLabelList(text: string | null | undefined): string[] {
+  const src = (text ?? '').trim();
+  if (!src) return [];
+  const out: string[] = [];
+  let depth = 0, cur = '';
+  for (const ch of src) {
+    if (ch === '（' || ch === '(') depth++;
+    if (ch === '）' || ch === ')') depth = Math.max(0, depth - 1);
+    if (depth === 0 && (ch === '、' || ch === ',' || ch === '，' || ch === '\n')) {
+      if (cur.trim()) out.push(cur.trim());
+      cur = '';
+    } else cur += ch;
+  }
+  if (cur.trim()) out.push(cur.trim());
+  return out;
+}
+
 export function buildIngredientsLabel(
   ingredients: Array<{
     ingredientName: string;
@@ -253,20 +279,22 @@ export function buildIngredientsLabel(
     originCountry?: string;
     isAdditive?:    boolean;
     additiveReason?: string;
+    compositeIngredients?: string | null;
+    compositeAdditives?:   string | null;
   }>,
   allergens: string[]
 ): string {
   // 原材料と添加物を分離
   const mainIngredients = ingredients.filter(i => !i.isAdditive);
-  const additives = ingredients.filter(i => i.isAdditive);
 
-  // 原材料名（先頭に原産国を追加）
+  // 原材料名（先頭に原産国を追加）。複合原材料は「名前（内訳）」で展開する（2026-10-22）
   const mainNames = mainIngredients
     .map((i, idx) => {
-      const name = i.ingredientName.trim();
-      if (idx === 0 && i.originCountry) {
-        return `${name}（${i.originCountry}）`;
-      }
+      let name = i.ingredientName.trim();
+      if (!name) return '';
+      if (idx === 0 && i.originCountry) name = `${name}（${i.originCountry}）`;
+      const inner = splitLabelList(i.compositeIngredients);
+      if (inner.length > 0) name = `${name}（${inner.join('、')}）`;
       return name;
     })
     .filter(Boolean);
@@ -280,27 +308,37 @@ export function buildIngredientsLabel(
   //   ・一括名で表示できる用途（乳化剤・膨張剤・香料・酸味料・pH調整剤など）→ 一括名のみ 例: 膨張剤
   //   ・強化剤・製造用剤（表示免除の場合が多い）→ 物質名のみ
   //   ・「その他」で自由入力された用途 → 「用途（物質名）」
-  const additiveOrder: string[] = [];
+  // 複合原材料の内訳に含まれる添加物（compositeAdditives）は、入力された文字列のまま、
+  // その複合原材料の重量順の位置に差し込む（同じ表記は1回だけ）。
+  type Slot = { kind: 'group'; key: string } | { kind: 'text'; text: string };
+  const slots: Slot[] = [];
   const additiveGroups: Record<string, string[]> = {};
-  additives.forEach(i => {
-    const name = i.ingredientName.trim();
-    if (!name) return;
-    let reason = (i.additiveReason ?? '').trim().replace(/として$/, '');
-    if (reason === 'その他') reason = '';  // 「その他」を選んで用途名を未入力のまま
-    const key = reason || '__none__';
-    if (!additiveGroups[key]) { additiveGroups[key] = []; additiveOrder.push(key); }
-    if (!additiveGroups[key].includes(name)) additiveGroups[key].push(name);
+  ingredients.forEach(i => {
+    if (i.isAdditive) {
+      const name = i.ingredientName.trim();
+      if (!name) return;
+      let reason = (i.additiveReason ?? '').trim().replace(/として$/, '');
+      if (reason === 'その他') reason = '';  // 「その他」を選んで用途名を未入力のまま
+      const key = reason || '__none__';
+      if (!additiveGroups[key]) { additiveGroups[key] = []; slots.push({ kind: 'group', key }); }
+      if (!additiveGroups[key].includes(name)) additiveGroups[key].push(name);
+    } else {
+      for (const t of splitLabelList(i.compositeAdditives)) slots.push({ kind: 'text', text: t });
+    }
   });
 
   const additiveTexts: string[] = [];
-  additiveOrder.forEach(key => {
+  const pushText = (t: string) => { if (t && !additiveTexts.includes(t)) additiveTexts.push(t); };
+  slots.forEach(slot => {
+    if (slot.kind === 'text') { pushText(slot.text); return; }
+    const key = slot.key;
     const names = additiveGroups[key];
     if (key === '__none__' || NAME_ONLY_ADDITIVE_PURPOSES.includes(key)) {
-      additiveTexts.push(...names);
+      names.forEach(pushText);
     } else if (BULK_NAME_ADDITIVE_PURPOSES.includes(key)) {
-      additiveTexts.push(key);
+      pushText(key);
     } else {
-      additiveTexts.push(`${key}（${names.join('、')}）`);
+      pushText(`${key}（${names.join('、')}）`);
     }
   });
 

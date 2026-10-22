@@ -23,3 +23,37 @@ export async function getGenericNameOverrides(userId: string, ingredientIds: (st
   });
   return new Map(rows.map(r => [r.ingredientId, r.genericNameOverride as string]));
 }
+
+// ============================================================
+// 複合原材料の内訳の「自分専用」上書き（2026-10-22新設）
+// ============================================================
+// 共有食材（システム共有・他ユーザー共有）は本体を編集できないため、銘柄ごとに違う内訳は
+// IngredientPurchaseSetting.compositeIngredientsOverride / compositeAdditivesOverride に保存する。
+// 実際に使う値は resolveComposite() で「自分の上書き → 食材マスタ本体」の順に決める。
+export type CompositeOverride = { ingredients: string | null; additives: string | null };
+
+export async function getCompositeOverrides(userId: string, ingredientIds: (string | null | undefined)[]): Promise<Map<string, CompositeOverride>> {
+  const ids = Array.from(new Set(ingredientIds.filter((v): v is string => !!v)));
+  if (ids.length === 0) return new Map();
+  const rows = await prisma.ingredientPurchaseSetting.findMany({
+    where: {
+      userId, ingredientId: { in: ids },
+      OR: [{ compositeIngredientsOverride: { not: null } }, { compositeAdditivesOverride: { not: null } }],
+    },
+    select: { ingredientId: true, compositeIngredientsOverride: true, compositeAdditivesOverride: true },
+  });
+  return new Map(rows.map(r => [r.ingredientId, { ingredients: r.compositeIngredientsOverride, additives: r.compositeAdditivesOverride }]));
+}
+
+export function resolveComposite(
+  overrides: Map<string, CompositeOverride>,
+  ingredientId: string | null | undefined,
+  ingredient: { compositeIngredients?: string | null; compositeAdditives?: string | null } | null | undefined,
+): { compositeIngredients: string | null; compositeAdditives: string | null } {
+  const o = ingredientId ? overrides.get(ingredientId) : undefined;
+  if (o) return { compositeIngredients: o.ingredients, compositeAdditives: o.additives };
+  return {
+    compositeIngredients: ingredient?.compositeIngredients ?? null,
+    compositeAdditives:   ingredient?.compositeAdditives ?? null,
+  };
+}

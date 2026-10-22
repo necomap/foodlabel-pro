@@ -290,3 +290,38 @@ export function calcRecommendedSalePrice(
   // 10円単位に切り上げ
   return Math.ceil(raw / 10) * 10;
 }
+
+/**
+ * 栄養成分の「0と表示できる」基準を適用する（2026-10-22新設）。
+ * 食品表示基準（別表第9）では、食品100g（100ml）あたりの量が次の値に満たない場合、
+ * 表示単位（1個あたりなど）にかかわらず「0」と表示できる。
+ *   熱量 5kcal／たんぱく質・脂質・炭水化物 0.5g／ナトリウム 5mg（食塩相当量に換算して約0.0127g）
+ * 判定は100gあたりの量で行うため、レシピの合計重量（totalWeightG）が無い場合は何もしない。
+ */
+export function applyZeroDisplayRule(
+  perUnit: NutritionValues,
+  total: NutritionValues,
+  totalWeightG: number | null | undefined,
+): NutritionValues {
+  const w = Number(totalWeightG ?? 0);
+  if (!(w > 0)) return perUnit;
+  const per100 = (v: number | null | undefined) => (v != null ? (Number(v) / w) * 100 : null);
+  const zeroIf = (key: keyof NutritionValues, threshold: number) => {
+    const p = per100(total[key]);
+    return p != null && p < threshold ? 0 : perUnit[key];
+  };
+  return {
+    ...perUnit,
+    energyKcal:     zeroIf('energyKcal', 5),
+    protein:        zeroIf('protein', 0.5),
+    fat:            zeroIf('fat', 0.5),
+    carbohydrate:   zeroIf('carbohydrate', 0.5),
+    sodium:         zeroIf('sodium', 5),
+    saltEquivalent: (() => {
+      const pNa = per100(total.sodium);
+      if (pNa != null) return pNa < 5 ? 0 : perUnit.saltEquivalent;
+      const pSalt = per100(total.saltEquivalent);
+      return pSalt != null && pSalt < 5 * 2.54 / 1000 ? 0 : perUnit.saltEquivalent;
+    })(),
+  };
+}

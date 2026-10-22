@@ -6,7 +6,7 @@ import { addDays, format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import type { LabelContent, LabelConfig, RecipeDetail } from '@/types';
 import { buildIngredientsLabel, collectRecipeAllergens, prepareIngredientsForLabel } from './allergen';
-import { calcPerUnit, roundForDisplay } from './nutrition';
+import { applyZeroDisplayRule, calcPerUnit, roundForDisplay } from './nutrition';
 
 /**
  * レシピと設定からラベル内容を生成する
@@ -52,6 +52,7 @@ export function generateLabelContent(
       ingredientName:   ing.ingredientName,
       // 食材マスタに紐づいている材料は、マスタ側のallergensのみを信頼する（名前からの自動再判定はしない）
       hasIngredientLink: !!ing.ingredientId,
+      compositeText: [(ing as any).compositeIngredients, (ing as any).compositeAdditives].filter(Boolean).join('、'),
     }))
   );
 
@@ -69,6 +70,8 @@ export function generateLabelContent(
       additiveReason: (i as any).additiveReason ?? undefined,
       hideFromLabel: (i as any).hideFromLabel ?? false,
       ingredientAlwaysHideFromLabel: (i as any).ingredientAlwaysHideFromLabel ?? false,
+      compositeIngredients: (i as any).compositeIngredients ?? null,
+      compositeAdditives:   (i as any).compositeAdditives ?? null,
     }))
   );
 
@@ -76,9 +79,13 @@ export function generateLabelContent(
 
   // 栄養成分（1個あたり）
   const totalNutrition = recipe.nutrition;
-  const perUnit = roundForDisplay(
+  const perUnitRounded = roundForDisplay(
     calcPerUnit(totalNutrition, recipe.unitCount, Number((recipe as any).wasteRatio ?? 0))
   );
+  // 「0と表示できる」基準（100gあたりで判定）。表示設定でOFFにできる（2026-10-22）
+  const perUnit = config.displaySettings?.applyZeroRule !== false
+    ? applyZeroDisplayRule(perUnitRounded, totalNutrition, (recipe as any).totalWeightG)
+    : perUnitRounded;
 
   // 未確認成分の警告
   const warnings = recipe.ingredients

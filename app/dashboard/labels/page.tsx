@@ -159,6 +159,7 @@ export default function LabelsPage() {
   const [showPhone,    setShowPhone]    = useState(true);
   const [showRep,      setShowRep]      = useState(false);
   const [showFiber,    setShowFiber]    = useState(true);
+  const [applyZeroRule, setApplyZeroRule] = useState(true);  // 栄養成分の0表示基準（2026-10-22）
   const [showSugar,    setShowSugar]    = useState(true);
   const [showCholest,  setShowCholest]  = useState(false);
   const [showComment,  setShowComment]  = useState(true);
@@ -279,6 +280,7 @@ export default function LabelsPage() {
     setShowPhone(getB('showPhone', true));
     setShowRep(getB('showRep', false));
     setShowFiber(getB('showFiber', true));
+    setApplyZeroRule(getB('applyZeroRule', true));
     setShowSugar(getB('showSugar', true));
     setShowCholest(getB('showCholest', false));
     setShowComment(getB('showComment', true));
@@ -544,7 +546,7 @@ export default function LabelsPage() {
         }),
         displaySettings: {
           showPostalCode, showPhone, showRepresentative: showRep, showEmail: false,
-          showNutrition, showDietaryFiber: showFiber,
+          showNutrition, showDietaryFiber: showFiber, applyZeroRule,
           showSugar, showCholesterol: showCholest,
           showQualityControl: showQC, showComment,
           nutritionNote: '※推定値',
@@ -627,7 +629,7 @@ export default function LabelsPage() {
         }),
         displaySettings: {
           showPostalCode, showPhone, showRepresentative: showRep, showEmail: false,
-          showNutrition, showDietaryFiber: showFiber,
+          showNutrition, showDietaryFiber: showFiber, applyZeroRule,
           showSugar, showCholesterol: showCholest,
           showQualityControl: showQC, showComment,
           nutritionNote: '※推定値',
@@ -908,6 +910,8 @@ export default function LabelsPage() {
             {[
               { label: '栄養成分表示を表示', value: showNutrition, onChange: (v:boolean)=>{setShowNutrition(v);localStorage.setItem('label_showNutrition',String(v));},
                 note: `現在の表示可能面積は約${computeDisplayAreaCm2().toFixed(1)}cm²です。食品表示基準上、表示可能面積が30cm²以下の場合は栄養成分表示を省略できます（詳細は最新の基準をご確認ください）。シールが小さいときはOFFにできます。` },
+              { label: '栄養成分の「0」表示基準を適用', value: applyZeroRule, onChange: (v:boolean)=>{setApplyZeroRule(v);localStorage.setItem('label_applyZeroRule',String(v));},
+                note: '100gあたり 熱量5kcal・たんぱく質/脂質/炭水化物0.5g・ナトリウム5mg 未満の項目を「0」と表示します（食品表示基準で認められた表示方法）。' },
               { label: '郵便番号を表示', value: showPostalCode, onChange: (v:boolean)=>{setShowPostalCode(v);localStorage.setItem('label_showPostalCode',String(v));} },
               { label: '電話番号を表示', value: showPhone,   onChange: (v:boolean)=>{setShowPhone(v);localStorage.setItem('label_showPhone',String(v));} },
               { label: '代表者名を表示', value: showRep,     onChange: (v:boolean)=>{setShowRep(v);localStorage.setItem('label_showRep',String(v));}, note: '個人事業主は法的義務を確認してください' },

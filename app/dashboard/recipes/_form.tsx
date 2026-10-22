@@ -699,29 +699,29 @@ export default function RecipeForm() {
                     className="field-input text-xs py-1 text-stone-600 w-auto max-w-xs"
                   >
                     <option value="">使用理由を選択</option>
-                    <option value="甘味料として">甘味料として</option>
-                    <option value="着色料として">着色料として</option>
-                    <option value="保存料として">保存料として</option>
-                    <option value="増粘剤として">増粘剤として</option>
-                    <option value="酸化防止剤として">酸化防止剤として</option>
-                    <option value="発色剤として">発色剤として</option>
-                    <option value="漂白剤として">漂白剤として</option>
-                    <option value="防かび剤として">防かび剤として</option>
-                    <option value="乳化剤として">乳化剤として</option>
-                    <option value="pH調整剤として">pH調整剤として</option>
-                    <option value="膨張剤として">膨張剤として</option>
-                    <option value="香料として">香料として</option>
-                    <option value="調味料として">調味料として</option>
-                    <option value="酸味料として">酸味料として</option>
-                    <option value="強化剤として">強化剤として</option>
-                    <option value="製造用剤として">製造用剤として</option>
+                    <option value="甘味料として">甘味料（ラベル表記: 甘味料（物質名））</option>
+                    <option value="着色料として">着色料（ラベル表記: 着色料（物質名））</option>
+                    <option value="保存料として">保存料（ラベル表記: 保存料（物質名））</option>
+                    <option value="増粘剤として">増粘剤（ラベル表記: 増粘剤（物質名））</option>
+                    <option value="酸化防止剤として">酸化防止剤（ラベル表記: 酸化防止剤（物質名））</option>
+                    <option value="発色剤として">発色剤（ラベル表記: 発色剤（物質名））</option>
+                    <option value="漂白剤として">漂白剤（ラベル表記: 漂白剤（物質名））</option>
+                    <option value="防かび剤として">防かび剤（ラベル表記: 防かび剤（物質名））</option>
+                    <option value="乳化剤として">乳化剤（ラベル表記: 乳化剤）</option>
+                    <option value="pH調整剤として">pH調整剤（ラベル表記: pH調整剤）</option>
+                    <option value="膨張剤として">膨張剤（ラベル表記: 膨張剤）</option>
+                    <option value="香料として">香料（ラベル表記: 香料）</option>
+                    <option value="調味料として">調味料（ラベル表記: 調味料（物質名））</option>
+                    <option value="酸味料として">酸味料（ラベル表記: 酸味料）</option>
+                    <option value="強化剤として">強化剤（ラベル表記: 物質名のみ）</option>
+                    <option value="製造用剤として">製造用剤（ラベル表記: 物質名のみ）</option>
                     <option value="その他">その他（自由入力）</option>
                   </select>
                   {((ing as IngredientRow).additiveReason === 'その他' || (!(['甘味料として','着色料として','保存料として','増粘剤として','酸化防止剤として','発色剤として','漂白剤として','防かび剤として','乳化剤として','pH調整剤として','膨張剤として','香料として','調味料として','酸味料として','強化剤として','製造用剤として',''].includes((ing as IngredientRow).additiveReason ?? '')))) && (
                     <input type="text"
                       value={(ing as IngredientRow).additiveReason === 'その他' ? '' : (ing as IngredientRow).additiveReason ?? ''}
                       onChange={e => updateIngredient(ing.key, 'additiveReason', e.target.value)}
-                      placeholder="使用理由を直接入力"
+                      placeholder="用途名を直接入力（例: 増粘多糖類）"
                       className="field-input text-xs py-1"
                     />
                   )}

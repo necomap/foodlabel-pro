@@ -41,7 +41,7 @@ function NutritionRow({ label, value, unit, highlight }: { label: string; value:
   );
 }
 
-const REQUIRED_ALLERGENS = ['えび','かに','小麦','そば','卵','乳','落花生','くるみ'];
+const REQUIRED_ALLERGENS = ['えび','かに','小麦','そば','卵','乳','落花生','くるみ','カシューナッツ'];  // 2026-04改正で9品目
 
 export default function RecipeDetailPage() {
   const params = useParams();

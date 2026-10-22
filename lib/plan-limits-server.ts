@@ -6,7 +6,7 @@
 // 画面側で直書きされる二重管理の原因になっていた。サーバー専用コード（APIルート等）
 // からはこちらをimportすること。
 import { prisma } from '@/lib/db';
-import { getPlanLimits } from '@/lib/plan-limits';
+import { getPlanLimits, startOfMonthJST } from '@/lib/plan-limits';
 
 // ============================================================
 // プラン上限超過による「読み取り専用」レシピの判定
@@ -48,8 +48,7 @@ export async function getReadOnlyRecipeIds(userId: string, plan: string): Promis
 // 1回の呼び出し＝1回とカウントする（エクスポートするレシピ件数やインポート件数では
 // なく、機能を実行した回数）。data_transfer_logsテーブルに記録する。
 export async function getMonthlyDataTransferCount(userId: string, type: 'export' | 'import'): Promise<number> {
-  const now = new Date();
-  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const firstOfMonth = startOfMonthJST();  // 2026-10-22: 日本時間の月初に修正
   const result = await prisma.$queryRaw`
     SELECT COUNT(*) as count
     FROM data_transfer_logs

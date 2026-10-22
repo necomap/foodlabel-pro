@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { getPlanLimits } from '@/lib/plan-limits';
+import { getPlanLimits, startOfMonthJST, startOfNextMonthJST, startOfTodayJST, formatDateJST } from '@/lib/plan-limits';
 
 export async function GET() {
   const session = await auth();
@@ -21,8 +21,8 @@ export async function GET() {
   const stockSyncConfigured = !!(userRow?.haccpStoreCode || userRow?.inventoryUserId);
 
   // 今日の印刷枚数を取得（プレミアム・フリー共通）
-  const today = new Date();
-  today.setHours(0,0,0,0);
+  // 2026-10-22: 日本時間基準に修正（以前はサーバーのUTC基準で、日本時間9時に「今日」が切り替わっていた）
+  const today = startOfTodayJST();
   const todayResult = await prisma.$queryRaw`
     SELECT COALESCE(SUM("printCount"), 0) as total
     FROM label_print_logs
@@ -33,7 +33,7 @@ export async function GET() {
 
   if (limits.maxLabelPrints === Infinity) {
     // 今月合計も取得
-    const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const firstOfMonth = startOfMonthJST();
     const monthResult = await prisma.$queryRaw`
       SELECT COALESCE(SUM("printCount"), 0) as total
       FROM label_print_logs
@@ -51,10 +51,8 @@ export async function GET() {
     });
   }
 
-  const now = new Date();
-  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const firstOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  const resetDate = `${firstOfNextMonth.getFullYear()}/${String(firstOfNextMonth.getMonth() + 1).padStart(2, '0')}/${String(firstOfNextMonth.getDate()).padStart(2, '0')}`;
+  const firstOfMonth = startOfMonthJST();
+  const resetDate = formatDateJST(startOfNextMonthJST());
 
   const result = await prisma.$queryRaw`
     SELECT COALESCE(SUM("printCount"), 0) as total

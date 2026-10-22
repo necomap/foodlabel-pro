@@ -16,6 +16,7 @@
 // UI側にも同様の免責文言を表示する（app/dashboard/recipes/[id]/page.tsx参照）。
 
 import type { NutritionValues } from '@/types';
+import { toLabelAllergenName } from '@/lib/allergen';
 
 export type EcTextStyle = 'simple' | 'warm' | 'gift';
 
@@ -105,7 +106,7 @@ export function generateEcText(input: EcTextInput, style: EcTextStyle = 'simple'
 
   // ---- アレルゲン ----
   const allergenBlock = input.allergens && input.allergens.length > 0
-    ? `【アレルギー物質】\n本品には ${input.allergens.join('・')} を含みます。`
+    ? `【アレルギー物質】\n本品には ${input.allergens.map(toLabelAllergenName).join('・')} を含みます。`
     : '';
 
   // ---- 栄養成分（1個あたり・推定値） ----

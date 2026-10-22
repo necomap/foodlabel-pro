@@ -5,7 +5,9 @@
 
 import { toGrams } from './nutrition';
 
-// 特定原材料8品目（表示義務）
+// 特定原材料9品目（表示義務）
+// 2026-10-22: 食品表示基準の改正（令和8年4月1日施行・経過措置は令和10年3月31日まで）で
+// カシューナッツが特定原材料（義務）に移ったため、推奨側からこちらへ移動した。
 export const REQUIRED_ALLERGENS: Record<string, string[]> = {
   'えび':  ['えび', 'エビ', '海老', '蝦', 'シュリンプ'],
   'かに':  ['かに', 'カニ', '蟹', 'クラブ'],
@@ -17,16 +19,16 @@ export const REQUIRED_ALLERGENS: Record<string, string[]> = {
             'アイスクリーム', 'チョコレート', 'クーベルチュール'],
   '落花生': ['落花生', 'ピーナッツ', 'ピーナツ', 'ピーナッツバター'],
   'くるみ': ['くるみ', 'クルミ', '胡桃', 'ウォルナット'],
+  'カシューナッツ': ['カシューナッツ', 'カシュー'],
 };
 
-// 特定原材料に準ずるもの20品目（推奨表示）
+// 特定原材料に準ずるもの20品目（推奨表示）※2026-04改正後の品目
 export const OPTIONAL_ALLERGENS: Record<string, string[]> = {
   'アーモンド':    ['アーモンド', 'アーモンドプードル', 'アーモンドミルク', 'アーモンドスライス'],
   'あわび':        ['あわび', 'アワビ', '鮑'],
   'いか':          ['いか', 'イカ', '烏賊'],
   'いくら':        ['いくら', 'イクラ'],
   'オレンジ':      ['オレンジ', 'オレンジピール', 'オレンジジュース'],
-  'カシューナッツ': ['カシューナッツ'],
   'キウイフルーツ': ['キウイ', 'キウイフルーツ'],
   // ゼラチンは独立した推奨品目（下の'ゼラチン'）であり、原料は牛とは限らない（豚由来も多い）ため牛肉の判定語から外した
   '牛肉':          ['牛肉', 'ビーフ', '牛', 'ビーフエキス'],
@@ -34,7 +36,8 @@ export const OPTIONAL_ALLERGENS: Record<string, string[]> = {
   'さけ':          ['さけ', 'サケ', '鮭', 'サーモン', '塩鮭'],
   'さば':          ['さば', 'サバ', '鯖'],
   '大豆':          ['大豆', '豆乳', '豆腐', '味噌', 'みそ', 'しょうゆ', '醤油', '枝豆', '酒粕', 'きなこ', '油揚げ'],
-  '鶏肉':          ['鶏肉', 'チキン', '鶏', 'ターキー', 'チキンエキス'],
+  // 2026-10-22: 食品成分表の表記（にわとり・若どり・鳥肉）でも判定できるよう追加
+  '鶏肉':          ['鶏肉', 'チキン', '鶏', 'ターキー', 'チキンエキス', 'にわとり', '若どり', '鳥肉'],
   'バナナ':        ['バナナ'],
   '豚肉':          ['豚肉', 'ポーク', 'ベーコン', 'ハム', 'ウインナー', 'ソーセージ', '豚', 'ポークエキス', 'ポークビッツ'],
   'マカダミアナッツ': ['マカダミアナッツ', 'マカダミア', 'macadamia'],
@@ -42,6 +45,8 @@ export const OPTIONAL_ALLERGENS: Record<string, string[]> = {
   'やまいも':      ['やまいも', 'ヤマイモ', '山芋', '長芋', '大和芋'],
   'りんご':        ['りんご', 'リンゴ', '林檎', 'アップル', 'アップルジュース'],
   'ゼラチン':      ['ゼラチン', 'コラーゲン', '板ゼラチン', '粉ゼラチン'],
+  // 2026-10-22: 同じ改正で推奨品目に追加
+  'ピスタチオ':    ['ピスタチオ'],
 };
 
 export const ALL_ALLERGENS = { ...REQUIRED_ALLERGENS, ...OPTIONAL_ALLERGENS };
@@ -55,6 +60,9 @@ const DETECT_EXCLUSIONS: Record<string, string[]> = {
   'もも': ['もも肉', 'モモ肉', 'すもも', 'スモモ'],
 };
 
+// 肉の部位としての「もも」を判定から外すための、肉を表す語（2026-10-22追加）
+const MEAT_WORDS = ['肉', '鶏', '豚', '牛', 'チキン', 'ポーク', 'ビーフ', 'にわとり', '若どり', 'ぶた', '羊', '鴨', 'ターキー'];
+
 /**
  * 食材名からアレルゲンを自動判定する
  * @param ingredientName - 食材名
@@ -64,9 +72,15 @@ export function detectAllergens(ingredientName: string): string[] {
   const detected: string[] = [];
   const name = ingredientName.trim();
 
+  // 2026-10-22: 「鶏肉（もも）」「豚もも」「若鶏もも」のように、肉の部位としての「もも」が
+  // 果物の「もも（桃）」と誤判定されていた。肉を表す語を含む名前では、ひらがな・カタカナの
+  // 「もも／モモ」を判定から外す（「桃」「ピーチ」は引き続き判定する）。
+  const isMeatName = MEAT_WORDS.some(w => name.includes(w));
+
   for (const [allergen, keywords] of Object.entries(ALL_ALLERGENS)) {
     let target = name;
     for (const ex of DETECT_EXCLUSIONS[allergen] ?? []) target = target.split(ex).join('');
+    if (allergen === 'もも' && isMeatName) target = target.split('もも').join('').split('モモ').join('');
     for (const keyword of keywords) {
       if (target.includes(keyword)) {
         detected.push(allergen);
@@ -97,11 +111,15 @@ export function collectRecipeAllergens(
     hasIngredientLink?: boolean;
   }>
 ): {
-  required: string[];   // 義務表示8品目
-  optional: string[];   // 推奨表示20品目
+  required: string[];   // 義務表示9品目
+  optional: string[];   // 推奨表示20品目（品目名に無い自由入力のアレルゲンも末尾に含める）
   all:      string[];   // 全部
 } {
   const allDetected = new Set<string>();
+  // 2026-10-22: 食材マスタのアレルゲンは自由入力のため、「乳成分」「小麦粉」のように品目名と
+  // 一致しない書き方をすると、以前はラベルから黙って消えていた（表示漏れ）。
+  // 品目名に寄せられるものは寄せ、寄せられないものも消さずにそのまま表示する。
+  const others: string[] = [];
 
   for (const ing of ingredients) {
     // 食材マスタに紐づいている場合は、マスタ側のallergensのみを信頼する（最優先・唯一の情報源）。
@@ -112,13 +130,18 @@ export function collectRecipeAllergens(
         ? ing.allergenOverride
         : detectAllergens(ing.ingredientName);
 
-    for (const a of sources) {
-      allDetected.add(a);
+    for (const raw of sources) {
+      const a = (raw ?? '').trim();
+      if (!a) continue;
+      if (a in ALL_ALLERGENS) { allDetected.add(a); continue; }
+      const norm = a === '乳成分' ? ['乳'] : detectAllergens(a);
+      if (norm.length > 0) norm.forEach(n => allDetected.add(n));
+      else if (!others.includes(a)) others.push(a);
     }
   }
 
   const required = Object.keys(REQUIRED_ALLERGENS).filter(a => allDetected.has(a));
-  const optional = Object.keys(OPTIONAL_ALLERGENS).filter(a => allDetected.has(a));
+  const optional = [...Object.keys(OPTIONAL_ALLERGENS).filter(a => allDetected.has(a)), ...others];
 
   return {
     required,
@@ -128,14 +151,22 @@ export function collectRecipeAllergens(
 }
 
 /**
- * アレルゲン表示文字列を生成する
- * 例: "（原材料の一部に小麦・乳・卵を含む）"
+ * ラベル表記用のアレルゲン名（品目名「乳」は表示上「乳成分」と書く）
+ */
+export function toLabelAllergenName(a: string): string {
+  return a === '乳' ? '乳成分' : a;
+}
+
+/**
+ * アレルゲン表示文字列を生成する（一括表示）
+ * 例: "（一部に小麦・卵・乳成分を含む）"
+ * 2026-10-22: 消費者庁の表示例に合わせ、「原材料の一部に」→「一部に」、「乳」→「乳成分」に修正した
  * @param allergens - アレルゲン名の配列
  * @returns アレルゲン表示文字列（空の場合は空文字）
  */
 export function buildAllergenLabel(allergens: string[]): string {
   if (allergens.length === 0) return '';
-  return `（原材料の一部に${allergens.join('・')}を含む）`;
+  return `（一部に${allergens.map(toLabelAllergenName).join('・')}を含む）`;
 }
 
 // 原材料表示の並び替え・合算に使う入力の共通形
@@ -208,6 +239,11 @@ export function prepareIngredientsForLabel<T extends LabelIngredientInput>(ingre
  * @param allergens - 集約済みアレルゲン
  * @returns 原材料表示文字列
  */
+// 添加物の用途のうち、一括名だけで表示できるもの（食品表示基準 別表第7の一括名のうち選択肢にあるもの）
+const BULK_NAME_ADDITIVE_PURPOSES = ['乳化剤', 'pH調整剤', '膨張剤', '香料', '酸味料', 'イーストフード', 'かんすい', '酵素', '光沢剤', 'ガムベース', '軟化剤', '苦味料', '豆腐用凝固剤'];
+// 添加物の用途のうち、用途名を付けず物質名だけを書くもの（強化剤・加工助剤等は表示免除の場合が多い）
+const NAME_ONLY_ADDITIVE_PURPOSES = ['強化剤', '製造用剤'];
+
 export function buildIngredientsLabel(
   ingredients: Array<{
     ingredientName: string;
@@ -235,28 +271,38 @@ export function buildIngredientsLabel(
     })
     .filter(Boolean);
 
-  // 添加物を理由別にグループ化
+  // 添加物を用途別にグループ化（重量順＝登場順を保つ）
+  // 2026-10-22: 以前は「ベーキングパウダー（膨張剤として）」のように「物質名（用途＋として）」で
+  // 出力していたが、食品表示基準の書き方ではない。次のように出力する（保存値は「〇〇として」のままでよい）:
+  //   ・用途名併記が必要な8用途（甘味料・着色料・保存料・増粘剤等・酸化防止剤・発色剤・漂白剤・防かび剤）
+  //     → 「用途名（物質名）」 例: 保存料（ソルビン酸K）
+  //   ・調味料 → 「調味料（物質名）」 例: 調味料（アミノ酸等）
+  //   ・一括名で表示できる用途（乳化剤・膨張剤・香料・酸味料・pH調整剤など）→ 一括名のみ 例: 膨張剤
+  //   ・強化剤・製造用剤（表示免除の場合が多い）→ 物質名のみ
+  //   ・「その他」で自由入力された用途 → 「用途（物質名）」
+  const additiveOrder: string[] = [];
   const additiveGroups: Record<string, string[]> = {};
-  const additivesNoReason: string[] = [];
   additives.forEach(i => {
     const name = i.ingredientName.trim();
     if (!name) return;
-    if (i.additiveReason) {
-      if (!additiveGroups[i.additiveReason]) additiveGroups[i.additiveReason] = [];
-      additiveGroups[i.additiveReason].push(name);
-    } else {
-      additivesNoReason.push(name);
-    }
+    let reason = (i.additiveReason ?? '').trim().replace(/として$/, '');
+    if (reason === 'その他') reason = '';  // 「その他」を選んで用途名を未入力のまま
+    const key = reason || '__none__';
+    if (!additiveGroups[key]) { additiveGroups[key] = []; additiveOrder.push(key); }
+    if (!additiveGroups[key].includes(name)) additiveGroups[key].push(name);
   });
 
-  // 添加物テキストを生成
   const additiveTexts: string[] = [];
-  Object.entries(additiveGroups).forEach(([reason, names]) => {
-    additiveTexts.push(`${names.join('、')}（${reason}）`);
+  additiveOrder.forEach(key => {
+    const names = additiveGroups[key];
+    if (key === '__none__' || NAME_ONLY_ADDITIVE_PURPOSES.includes(key)) {
+      additiveTexts.push(...names);
+    } else if (BULK_NAME_ADDITIVE_PURPOSES.includes(key)) {
+      additiveTexts.push(key);
+    } else {
+      additiveTexts.push(`${key}（${names.join('、')}）`);
+    }
   });
-  if (additivesNoReason.length > 0) {
-    additiveTexts.push(additivesNoReason.join('、'));
-  }
 
   const allergenText = buildAllergenLabel(allergens);
   const mainText = mainNames.join('、');
@@ -266,7 +312,7 @@ export function buildIngredientsLabel(
 }
 
 /**
- * アレルゲンが特定原材料8品目かどうか判定する
+ * アレルゲンが特定原材料9品目かどうか判定する
  */
 export function isRequiredAllergen(name: string): boolean {
   return name in REQUIRED_ALLERGENS;

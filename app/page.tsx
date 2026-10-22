@@ -52,7 +52,7 @@ export default function RootPage() {
       <section className="px-4 py-12 max-w-4xl mx-auto">
         <div className="grid sm:grid-cols-3 gap-6">
           {[
-            { icon: ShoppingBasket, title: 'アレルゲン自動判定', desc: '食材を選ぶだけで特定原材料8品目・20品目を自動で判定します' },
+            { icon: ShoppingBasket, title: 'アレルゲン自動判定', desc: '食材を選ぶだけで特定原材料9品目・20品目を自動で判定します' },
             { icon: Shield, title: '栄養成分計算', desc: '文科省の食品成分表データを元に栄養成分を自動計算します' },
             { icon: Printer, title: 'ラベル印刷', desc: 'ラベルプリンターやA4用紙に対応した食品表示ラベルを印刷できます' },
           ].map(f => {

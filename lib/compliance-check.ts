@@ -80,7 +80,7 @@ export function checkRecipeCompliance(
   // 添加物の用途表記漏れ（甘味料・着色料・保存料・増粘剤等／安定剤／ゲル化剤／糊料・
   // 酸化防止剤・発色剤・漂白剤・防かび剤／防ばい剤の8用途は、物質名と併せて用途名の
   // 表示が義務。それ以外の添加物は用途名任意のため、あくまで「確認を促す」warningとする）
-  const additivesNoReason = visible.filter(i => i.isAdditive && !i.additiveReason?.trim());
+  const additivesNoReason = visible.filter(i => i.isAdditive && (!i.additiveReason?.trim() || i.additiveReason.trim() === 'その他'));
   if (additivesNoReason.length > 0) {
     const names = additivesNoReason.map(i => i.ingredientName).filter(Boolean).join('・');
     issues.push({

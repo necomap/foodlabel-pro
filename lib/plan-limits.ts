@@ -128,3 +128,37 @@ export function isProPlan(plan: string) {
 // ./plan-limits-server.ts に移動した（このファイルをクライアントコンポーネントから
 // 安全にimportできるようにするため。上部の2026-09コメント参照）。
 // サーバー側のコードは引き続き '@/lib/plan-limits-server' からimportすること。
+
+// ============================================================
+// 日本時間（JST）基準の「今月1日0時」「来月1日0時」「今日0時」（2026-10-22追加）
+// ============================================================
+// Vercelのサーバーは UTC で動くため、new Date(y, m, 1) で月初を作ると UTC の月初
+// （日本時間の1日9:00）になり、フリープランの月間印刷枚数などのリセットが日本時間と
+// 最大9時間ずれていた。日本時間の0時に相当する UTC 時刻の Date を返す。
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
+function jstParts(now: Date) {
+  const j = new Date(now.getTime() + JST_OFFSET_MS);
+  return { y: j.getUTCFullYear(), m: j.getUTCMonth(), d: j.getUTCDate() };
+}
+
+export function startOfMonthJST(now: Date = new Date()): Date {
+  const { y, m } = jstParts(now);
+  return new Date(Date.UTC(y, m, 1) - JST_OFFSET_MS);
+}
+
+export function startOfNextMonthJST(now: Date = new Date()): Date {
+  const { y, m } = jstParts(now);
+  return new Date(Date.UTC(y, m + 1, 1) - JST_OFFSET_MS);
+}
+
+export function startOfTodayJST(now: Date = new Date()): Date {
+  const { y, m, d } = jstParts(now);
+  return new Date(Date.UTC(y, m, d) - JST_OFFSET_MS);
+}
+
+// 「YYYY/MM/DD」（日本時間）
+export function formatDateJST(date: Date): string {
+  const j = new Date(date.getTime() + JST_OFFSET_MS);
+  return `${j.getUTCFullYear()}/${String(j.getUTCMonth() + 1).padStart(2, '0')}/${String(j.getUTCDate()).padStart(2, '0')}`;
+}

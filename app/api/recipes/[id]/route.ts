@@ -223,7 +223,7 @@ export async function PUT(request: Request, { params }: Params) {
   if (readOnlyIds.has(params.id)) {
     return NextResponse.json({
       success: false,
-      error: 'プランのレシピ上限を超えているため、このレシピは読み取り専用です。編集するにはプレミアムプランへのアップグレードが必要です。',
+      error: 'プランのレシピ上限を超えているため、このレシピは読み取り専用です。編集するには上位プランへのアップグレードが必要です。',
       upgradeRequired: true,
     }, { status: 403 });
   }

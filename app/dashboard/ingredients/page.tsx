@@ -26,7 +26,7 @@ interface IngredientCategory { id: string; name: string; isShared?: boolean; }
 interface RecipeUsage { id: string; name: string; variationName: string|null; isActive: boolean; amount: number; unit: string; }
 
 const STORAGE_LABELS: Record<string,string> = { ROOM_TEMP:'常温', FRIDGE:'冷蔵', FROZEN:'冷凍', OTHER:'その他' };
-const REQUIRED = ['えび','かに','小麦','そば','卵','乳','落花生','くるみ'];
+const REQUIRED = ['えび','かに','小麦','そば','卵','乳','落花生','くるみ','カシューナッツ'];  // 2026-04改正で9品目
 
 // ---- カテゴリ管理モーダル ----
 // カテゴリは「全ユーザー共通の基本カテゴリ（管理者のみ追加・編集可）」と

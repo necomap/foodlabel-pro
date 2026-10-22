@@ -5,7 +5,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/lib/auth';
-import { getPlanLimits } from '@/lib/plan-limits';
+import { getPlanLimits, startOfMonthJST } from '@/lib/plan-limits';
 import { prisma } from '@/lib/db';
 import { generateLabelContent, generateLabelHtml, getDefaultDisplaySettings } from '@/lib/label';
 import { buildIngredientsLabel, collectRecipeAllergens, prepareIngredientsForLabel } from '@/lib/allergen';
@@ -98,8 +98,7 @@ export async function POST(request: Request) {
   // フリープランの印刷制限チェック
   const limits = getPlanLimits(session.user.plan ?? 'free');
   if (limits.maxLabelPrints !== Infinity && !body.isPreview) {
-    const now = new Date();
-    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const firstOfMonth = startOfMonthJST();  // 2026-10-22: 日本時間の月初に修正（以前はUTC基準）
     const printCounts = await prisma.$queryRaw`
       SELECT COALESCE(SUM("printCount"), 0) as total
       FROM label_print_logs

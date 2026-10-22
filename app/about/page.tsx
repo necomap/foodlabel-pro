@@ -63,7 +63,7 @@ export default function AboutPage() {
           <h2 className="text-2xl font-bold text-stone-800 font-display text-center">FoodLabel Proが選ばれる理由</h2>
           <div className="space-y-4">
             {[
-              { icon: Shield, title: '食品表示法に対応', desc: '特定原材料8品目・推奨20品目のアレルゲン表示、栄養成分5項目（熱量・たんぱく質・脂質・炭水化物・食塩相当量）の表示に対応しています。' },
+              { icon: Shield, title: '食品表示法に対応', desc: '特定原材料9品目・推奨20品目のアレルゲン表示、栄養成分5項目（熱量・たんぱく質・脂質・炭水化物・食塩相当量）の表示に対応しています。' },
               { icon: ShoppingBasket, title: '文科省の成分表データを使用', desc: '日本食品標準成分表2020年版（八訂）のデータを搭載。食材を選ぶだけで栄養成分が自動計算されます。' },
               { icon: Printer, title: 'A4シール用紙・ラベルプリンターに対応', desc: 'A4のシール用紙（市販のダイカットラベル用紙）への複数面付け印刷に対応。ラベルプリンター本体は機種によって対応状況が異なりますので、詳しくはヘルプページをご確認ください。' },
               { icon: Star, title: 'シンプルで使いやすい', desc: 'ITの知識がなくても直感的に操作できます。食材の登録からラベル印刷まで、最短5分で完結します。' },

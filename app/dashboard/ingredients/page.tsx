@@ -16,6 +16,7 @@ interface Ingredient {
   // 複合原材料の内訳・中間品の元レシピ（2026-10-22）
   compositeIngredients?: string|null; compositeAdditives?: string|null;
   compositeIsPersonalOverride?: boolean; sourceRecipeId?: string|null;
+  nameEn?: string|null;
   nutrition: { energyKcal:number|null; protein:number|null; fat:number|null; carbohydrate:number|null; saltEquivalent:number|null; dietaryFiber:number|null; sugar:number|null; cholesterol:number|null; } | null;
 }
 
@@ -214,6 +215,7 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
     supplier:        ingredient?.supplier ?? '',
     originCountry:   (ingredient as any)?.originCountry ?? '',
     compositeIngredients: ingredient?.compositeIngredients ?? '',
+    nameEn:          ingredient?.nameEn ?? '',
     compositeAdditives:   ingredient?.compositeAdditives ?? '',
     isPublic:        ingredient?.isPublic ?? false,
     allergens:       ingredient?.allergens.join('、') ?? '',
@@ -262,6 +264,7 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
         supplier:      form.supplier.trim() || emptyValue,
         originCountry: form.originCountry.trim() || emptyValue,
         compositeIngredients: form.compositeIngredients.trim() || emptyValue,
+        nameEn:        form.nameEn.trim() || emptyValue,
         compositeAdditives:   form.compositeAdditives.trim() || emptyValue,
         isPublic:      form.isPublic,
         allergens:     form.allergens ? form.allergens.split(/[,、,]/).map(a=>a.trim()).filter(Boolean) : [],
@@ -429,6 +432,11 @@ function IngredientModal({ ingredient, categories, isAdmin, onClose, onSaved }: 
             <label className="field-label">アレルゲン（カンマ区切り）</label>
             <input type="text" value={form.allergens} onChange={e=>setForm(f=>({...f,allergens:e.target.value}))} className="field-input" placeholder="例: 小麦、乳" />
           </div>
+          <div>
+            <label className="field-label">英語名（英語の補助ラベル用・任意）</label>
+            <input type="text" value={form.nameEn} onChange={e=>setForm(f=>({...f,nameEn:e.target.value}))} className="field-input" placeholder="例: Cake flour (wheat)" />
+            <p className="field-hint">空欄の場合、よく使う食材名は自動で英訳されます（辞書に無いものは日本語のまま表示）。</p>
+          </div>
           {ingredient?.sourceRecipeId && (
             <p className="text-xs text-blue-700 bg-blue-50 rounded-lg p-2.5">
               この食材はレシピから作った中間品です。栄養成分・アレルゲン・内訳・原価は、元のレシピを保存するたびに自動で更新されます（ここで直しても、元レシピを保存すると上書きされます）。
@@ -526,7 +534,9 @@ function PurchaseSettingModal({ ingredient, onClose, onSaved }: {
     ingredients: ingredient.compositeIngredients ?? '',
     additives:   ingredient.compositeAdditives ?? '',
   });
-  const compositeChanged = composite.ingredients !== (ingredient.compositeIngredients ?? '') || composite.additives !== (ingredient.compositeAdditives ?? '');
+  const [nameEn, setNameEn] = useState(ingredient.nameEn ?? '');
+  const compositeChanged = composite.ingredients !== (ingredient.compositeIngredients ?? '') || composite.additives !== (ingredient.compositeAdditives ?? '')
+    || nameEn !== (ingredient.nameEn ?? '');
 
   const handleSave = async () => {
     setSaving(true);
@@ -534,7 +544,7 @@ function PurchaseSettingModal({ ingredient, onClose, onSaved }: {
       // 複合原材料の内訳（自分専用）を変えた場合は別APIで保存する（食材マスタ本体は書き換えない）
       if (compositeChanged) {
         const r = await fetch(`/api/ingredients/${ingredient.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ compositeIngredients: composite.ingredients, compositeAdditives: composite.additives }) });
+          body: JSON.stringify({ compositeIngredients: composite.ingredients, compositeAdditives: composite.additives, nameEn }) });
         const d = await r.json();
         if (!d.success) { toast.error(d.error ?? '内訳の保存に失敗しました'); return; }
       }
@@ -572,6 +582,10 @@ function PurchaseSettingModal({ ingredient, onClose, onSaved }: {
           <div className="grid sm:grid-cols-2 gap-3">
             <div><label className="field-label">保管方法</label><select value={form.storage} onChange={e=>setForm(f=>({...f,storage:e.target.value}))} className="field-select"><option value="ROOM_TEMP">常温</option><option value="FRIDGE">冷蔵</option><option value="FROZEN">冷凍</option><option value="OTHER">その他</option></select></div>
             <div><label className="field-label">仕入先</label><input type="text" value={form.supplier} onChange={e=>setForm(f=>({...f,supplier:e.target.value}))} className="field-input" /></div>
+          </div>
+          <div>
+            <label className="field-label">英語名（自分専用・英語の補助ラベル用）</label>
+            <input type="text" value={nameEn} onChange={e=>setNameEn(e.target.value)} className="field-input" placeholder="例: Milk chocolate" />
           </div>
           <CompositeFields
             ingredients={composite.ingredients} additives={composite.additives}

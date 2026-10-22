@@ -106,6 +106,8 @@ export interface RecipeIngredientDetail extends RecipeIngredientInput {
   ingredientAlwaysHideFromLabel?: boolean;
   // 複合原材料の内訳（2026-10-22）
   compositeIngredients?: string | null;
+  masterName?:           string | null;
+  ingredientNameEn?:     string | null;  // 英語の補助ラベル用（2026-10-22）
   compositeAdditives?:   string | null;
   // 食材マスタ側のアレルゲン（ingredientIdがある材料では、印字するアレルゲンの唯一の情報源）。
   // 2026-09-27: これをラベル生成に渡していなかったため、マスタ紐づけ材料のアレルゲンが
@@ -163,6 +165,8 @@ export interface RecipeDetail extends RecipeSummary {
   qualityControl:  string | null;
   contentAmount:   string | null;
   storageMethod:   string | null;
+  nameEn?:          string | null;  // 英語の補助ラベル用（2026-10-22）
+  storageMethodEn?: string | null;
   barcode:         string | null;
   bakingConditions: BakingStep[] | null;
   ingredients:     RecipeIngredientDetail[];
@@ -208,6 +212,7 @@ export interface LabelDisplaySettings {
 }
 
 export interface LabelConfig {
+  language?: 'ja' | 'en';  // 2026-10-22: 'en' で英語の補助ラベル
   logoHeightMm?: number;
   qrSizeMm?:     number;
   // シールサイズが小さいときなど、店舗設定（ロゴURL・QR URL）自体は残したまま
@@ -273,7 +278,7 @@ export interface LabelContent {
   ingredientsText: string;  // 「小麦粉,バター,...（原材料の一部に小麦・乳を含む）」
   contentAmount:   string;
   expiryDate:      string;  // 表示用文字列
-  expiryType:      '賞味期限' | '消費期限';
+  expiryType:      '賞味期限' | '消費期限' | 'Best before' | 'Use by';  // 英語の補助ラベルでは英語（2026-10-22）
   storageMethod:   string;
   manufacturerName: string;
   postalCode:      string;
@@ -307,6 +312,8 @@ export interface LabelContent {
     cholesterol?:   number;
   };
   isEstimated: boolean;  // 推定値かどうか
+  lang?:         'ja' | 'en';  // 'en' は英語の補助ラベル（2026-10-22）
+  containsText?: string;       // 英語ラベルのアレルゲン表示（"Wheat, Egg, Milk"）
   warnings:    string[]; // 未確認成分警告
 }
 

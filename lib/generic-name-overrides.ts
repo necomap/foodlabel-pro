@@ -57,3 +57,14 @@ export function resolveComposite(
     compositeAdditives:   ingredient?.compositeAdditives ?? null,
   };
 }
+
+// 英語名（英語の補助ラベル用）の自分専用上書き（2026-10-22新設）
+export async function getNameEnOverrides(userId: string, ingredientIds: (string | null | undefined)[]): Promise<Map<string, string>> {
+  const ids = Array.from(new Set(ingredientIds.filter((v): v is string => !!v)));
+  if (ids.length === 0) return new Map();
+  const rows = await prisma.ingredientPurchaseSetting.findMany({
+    where: { userId, ingredientId: { in: ids }, nameEnOverride: { not: null } },
+    select: { ingredientId: true, nameEnOverride: true },
+  });
+  return new Map(rows.map(r => [r.ingredientId, r.nameEnOverride as string]));
+}

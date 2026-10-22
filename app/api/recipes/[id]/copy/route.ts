@@ -49,6 +49,8 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
       shelfLifeType:   original.shelfLifeType,
       contentAmount:   original.contentAmount,
       storageMethod:   original.storageMethod,
+      nameEn:          original.nameEn,
+      storageMethodEn: original.storageMethodEn,
       notes:           original.notes,
       printComment:    original.printComment,
       qualityControl:  original.qualityControl,

@@ -10,6 +10,7 @@ import { buildIngredientsLabel, collectRecipeAllergens, prepareIngredientsForLab
 import { calcPerUnit, roundForDisplay, calcCostRate, computeLiveRecipeNutrition } from '@/lib/nutrition';
 import { getGenericNameOverrides, getCompositeOverrides, resolveComposite } from '@/lib/generic-name-overrides';
 import { syncIngredientFromRecipe } from '@/lib/recipe-as-ingredient';
+import { computeLabelHash } from '@/lib/label-check';
 import type { BakingStep } from '@/types';
 
 type Params = { params: { id: string } };
@@ -139,11 +140,24 @@ export async function GET(_req: Request, { params }: Params) {
     select: { id: true, name: true },
   });
 
+  // 表示内容の確認記録（2026-10-22）。ラベル生成APIと同じ計算でハッシュを作り、確認時の値と比べる
+  const nutritionPerUnitForCheck = roundForDisplay(calcPerUnit(totalNutrition, recipe.unitCount, Number(recipe.wasteRatio ?? 0)));
+  const labelHash = computeLabelHash({
+    name: recipe.name, ingredientsLabel, nutritionPerUnit: nutritionPerUnitForCheck as any,
+    contentAmount: recipe.contentAmount, shelfLifeDays: recipe.shelfLifeDays, shelfLifeType: recipe.shelfLifeType, storageMethod: recipe.storageMethod,
+  });
+
   return NextResponse.json({
     success: true,
     data: {
       id:             recipe.id,
       asIngredient:   asIngredient ?? null,
+      labelHash,
+      labelCheck: {
+        checkedAt: (recipe as any).labelCheckedAt ?? null,
+        checkedBy: (recipe as any).labelCheckedBy ?? null,
+        isCurrent: !!(recipe as any).labelCheckedHash && (recipe as any).labelCheckedHash === labelHash,
+      },
       name:           recipe.name,
       nameKana:       recipe.nameKana,
       variationName:  (recipe as any).variationName ?? null,
@@ -158,6 +172,8 @@ export async function GET(_req: Request, { params }: Params) {
       shelfLifeType:  recipe.shelfLifeType,
       contentAmount:  recipe.contentAmount,
       storageMethod:  recipe.storageMethod,
+      nameEn:         (recipe as any).nameEn ?? null,
+      storageMethodEn: (recipe as any).storageMethodEn ?? null,
       notes:          recipe.notes,
       barcode:        recipe.barcode ?? null,
       printComment:   recipe.printComment,
@@ -207,6 +223,10 @@ export async function GET(_req: Request, { params }: Params) {
           costTotal:              costTotal,
           allergenOverride:       ing.allergenOverride,
           isPrimaryIngredient:    ing.isPrimaryIngredient,
+          // 表示チェック用（2026-10-22）: 食材マスタのアレルゲンと複合原材料の内訳
+          masterAllergens:        ing.ingredientId ? (ing.ingredient?.allergens ?? []) : null,
+          masterName:             ing.ingredient?.name ?? null,
+          compositeIngredients:   compositeOf(ing).compositeIngredients,
           nutritionUnconfirmed,
           nutrition,
         };
@@ -361,6 +381,8 @@ export async function PUT(request: Request, { params }: Params) {
         shelfLifeType:   body.shelfLifeType ?? 'USE_BY',
         contentAmount:   body.contentAmount ?? null,
         storageMethod:   body.storageMethod ?? null,
+        nameEn:          body.nameEn || null,
+        storageMethodEn: body.storageMethodEn || null,
         barcode:         body.barcode ?? null,
         notes:           body.notes ?? null,
         printComment:    body.printComment ?? null,

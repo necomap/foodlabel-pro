@@ -10,6 +10,7 @@
 // 販売形態によって必要な表示事項は異なるため、最終的な表示内容は必ずユーザー自身の
 // 確認、または必要に応じて保健所・専門家への確認を経ること。UI側にも必ず
 // 同様の免責文言を表示すること（app/dashboard/recipes/[id]/page.tsx参照）。
+import { checkMasterAllergens, isLikelyComposite } from './allergen';
 
 export type ComplianceSeverity = 'error' | 'warning' | 'info';
 
@@ -30,6 +31,10 @@ export interface ComplianceIngredientInput {
   isPrimaryIngredient?: boolean;
   hideFromLabel?: boolean;
   ingredientAlwaysHideFromLabel?: boolean;
+  // 2026-10-22: 食材マスタのアレルゲン（マスタに紐づかない材料はnull）・マスタ上の名前・複合原材料の内訳
+  masterAllergens?: string[] | null;
+  masterName?:      string | null;
+  compositeIngredients?: string | null;
 }
 
 export interface ComplianceRecipeInput {
@@ -39,6 +44,7 @@ export interface ComplianceRecipeInput {
   storageMethod?: string | null;
   shelfLifeDays?: number | null;
   barcode?:       string | null;
+  allergens?:     string[];   // ラベルに表示されるアレルゲン（2026-10-22）
 }
 
 export interface ComplianceShopInput {
@@ -87,6 +93,43 @@ export function checkRecipeCompliance(
       code: 'additive_reason_missing', severity: 'warning',
       message: `添加物「${names}」に用途名が設定されていません。`,
       hint: '甘味料・着色料・保存料・増粘剤等・酸化防止剤・発色剤・漂白剤・防かび剤（防ばい剤）の8用途に該当する添加物は、物質名に加えて用途名の表示が義務です。該当しない添加物であれば無視して構いません。',
+    });
+  }
+
+  // 食材マスタのアレルゲンの入れ忘れ・誤登録の疑い（2026-10-22）
+  for (const i of recipe.ingredients) {
+    if (!i.masterAllergens) continue;
+    const names = Array.from(new Set([i.ingredientName, i.masterName].filter(Boolean) as string[]));
+    const missing = new Set<string>(); const suspicious = new Set<string>();
+    names.forEach(n => { const r = checkMasterAllergens(n, i.masterAllergens!); r.missing.forEach(a => missing.add(a)); r.suspicious.forEach(a => suspicious.add(a)); });
+    if (missing.size) issues.push({
+      code: 'allergen_master_missing', severity: 'warning',
+      message: `「${i.masterName ?? i.ingredientName}」の名前から「${Array.from(missing).join('・')}」を含む可能性がありますが、食材マスタのアレルゲンに入っていません。`,
+      hint: '食材マスタに紐づいた材料は、食材マスタのアレルゲンだけでラベルを作ります。含む場合は食材マスタで追加してください。',
+    });
+    if (suspicious.size) issues.push({
+      code: 'allergen_peach_suspicious', severity: 'warning',
+      message: `「${i.masterName ?? i.ingredientName}」に果物の「もも」がアレルゲンとして登録されています。`,
+      hint: '肉の部位の「もも」であれば、食材マスタのアレルゲンから外してください（以前の自動判定の誤りが残っている可能性があります）。',
+    });
+  }
+
+  // 複合原材料の内訳の登録漏れの疑い（2026-10-22）
+  const compositeCandidates = visible.filter(i => !i.isAdditive && !i.compositeIngredients?.trim() && isLikelyComposite(`${i.masterName ?? ''}${i.ingredientName}`));
+  if (compositeCandidates.length > 0) {
+    issues.push({
+      code: 'composite_missing', severity: 'info',
+      message: `「${compositeCandidates.map(i => i.ingredientName).join('・')}」は複合原材料（複数の原材料でできた食材）の可能性があります。`,
+      hint: '市販品などの場合は、食材マスタの「複合原材料の内訳」にパッケージの原材料名を登録すると、ラベルに内訳が展開されます。単一の原材料であれば無視して構いません。',
+    });
+  }
+
+  // 改正の経過措置（2026-10-22）: カシューナッツは2026年4月から義務表示（経過措置は2028年3月末まで）
+  if (recipe.allergens?.includes('カシューナッツ')) {
+    issues.push({
+      code: 'cashew_transition', severity: 'info',
+      message: 'カシューナッツは2026年4月1日から表示義務になりました（2028年3月31日までは経過措置期間）。',
+      hint: 'このアプリのラベルには自動で表示されます。以前に印刷して在庫しているラベル・包材に記載が無い場合は、経過措置期限までに差し替えてください。',
     });
   }
 

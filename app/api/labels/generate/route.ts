@@ -8,9 +8,10 @@ import { auth } from '@/lib/auth';
 import { getPlanLimits, startOfMonthJST } from '@/lib/plan-limits';
 import { prisma } from '@/lib/db';
 import { generateLabelContent, generateLabelHtml, getDefaultDisplaySettings } from '@/lib/label';
-import { buildIngredientsLabel, collectRecipeAllergens, prepareIngredientsForLabel } from '@/lib/allergen';
-import { computeLiveRecipeNutrition } from '@/lib/nutrition';
-import { getGenericNameOverrides, getCompositeOverrides, resolveComposite } from '@/lib/generic-name-overrides';
+import { buildIngredientsLabel, collectRecipeAllergens, prepareIngredientsForLabel, checkMasterAllergens } from '@/lib/allergen';
+import { computeLiveRecipeNutrition, calcPerUnit, roundForDisplay } from '@/lib/nutrition';
+import { computeLabelHash } from '@/lib/label-check';
+import { getGenericNameOverrides, getCompositeOverrides, resolveComposite, getNameEnOverrides } from '@/lib/generic-name-overrides';
 import { deductStockForPrint } from '@/lib/stock-sync';
 import type { RecipeDetail, LabelConfig, BakingStep } from '@/types';
 
@@ -45,6 +46,8 @@ const labelConfigSchema = z.object({
   a4SealHeightMm:  z.number().positive().optional(),
   a4ColGapMm:      z.number().min(0).optional(),
   a4RowGapMm:      z.number().min(0).optional(),
+  // 2026-10-22: ラベルの言語（'en' は英語の補助ラベル。lib/label-en.ts）
+  language:        z.enum(['ja', 'en']).optional(),
   displaySettings: z.object({
     showPostalCode:     z.boolean().default(true),
     showPhone:          z.boolean().default(true),
@@ -54,6 +57,8 @@ const labelConfigSchema = z.object({
     showDietaryFiber:   z.boolean().default(true),
     showSugar:          z.boolean().default(true),
     showCholesterol:    z.boolean().default(false),
+    // 2026-10-22: 栄養成分の0表示基準（スキーマに無いとzodに落とされ、OFFにしても効かなかった）
+    applyZeroRule:      z.boolean().default(true),
     showQualityControl: z.boolean().default(true),
     showComment:        z.boolean().default(true),
     nutritionNote:      z.string().default('※推定値'),
@@ -135,7 +140,7 @@ export async function POST(request: Request) {
           ingredient: {
             select: {
               name: true, allergens: true, genericName: true, alwaysHideFromLabel: true, originCountry: true,
-              compositeIngredients: true, compositeAdditives: true,
+              compositeIngredients: true, compositeAdditives: true, nameEn: true,
               // 栄養成分「未確認」警告を、レシピ保存時点のスナップショットではなく食材マスタの
               // 最新値から毎回判定し直すために必要（詳細はlib/nutrition.tsのコメント参照）
               energyKcalManual: true, proteinManual: true, fatManual: true, carbohydrateManual: true,
@@ -172,6 +177,16 @@ export async function POST(request: Request) {
   resolvedIngredients
     .filter(r => r.notWeighable && !r.unconfirmed)
     .forEach(r => warnings.push(`「${r.ing.ingredient?.name ?? r.ing.ingredientNameOverride ?? '不明'}」は単位が「${r.ing.unit}」のため栄養成分の計算に含まれていません（g・kg・ml・Lで入力すると計算されます）`));
+  // 食材マスタのアレルゲンの入れ忘れ・誤登録の疑い（2026-10-22）。マスタに紐づく材料はマスタの値だけで
+  // ラベルを作るため、名前から判定できるアレルゲンがマスタに無いと表示漏れになる。
+  recipe.ingredients.forEach(ing => {
+    if (!ing.ingredientId || !ing.ingredient) return;
+    const names = Array.from(new Set([ing.ingredient.name, ing.ingredient.genericName].filter(Boolean) as string[]));
+    const missing = new Set<string>(); const suspicious = new Set<string>();
+    names.forEach(n => { const r = checkMasterAllergens(n, ing.ingredient!.allergens ?? []); r.missing.forEach(a => missing.add(a)); r.suspicious.forEach(a => suspicious.add(a)); });
+    if (missing.size) warnings.push(`「${ing.ingredient.name}」の名前から「${Array.from(missing).join('・')}」を含む可能性がありますが、食材マスタのアレルゲンに入っていません（含む場合は食材マスタで追加してください）`);
+    if (suspicious.size) warnings.push(`「${ing.ingredient.name}」に果物の「もも」がアレルゲンとして登録されています。肉の部位の「もも」であれば食材マスタで外してください`);
+  });
 
   // 店舗情報取得
   const shopId = config.shopId;
@@ -284,6 +299,10 @@ export async function POST(request: Request) {
   // 複合原材料の内訳（自分専用の上書き → 食材マスタ本体）。2026-10-22
   const compositeOverrides = await getCompositeOverrides(session.user.id, sortedIngredients.map(ing => ing.ingredientId));
   const compositeOf = (ing: typeof sortedIngredients[number]) => resolveComposite(compositeOverrides, ing.ingredientId, ing.ingredient as any);
+  // 英語名（英語の補助ラベル用。自分専用の上書き → 食材マスタ本体）。2026-10-22
+  const nameEnOverrides = await getNameEnOverrides(session.user.id, sortedIngredients.map(ing => ing.ingredientId));
+  const nameEnOf = (ing: typeof sortedIngredients[number]): string | null =>
+    (ing.ingredientId && nameEnOverrides.get(ing.ingredientId)) || (ing.ingredient as any)?.nameEn || null;
 
   const allergenInfo = collectRecipeAllergens(
     sortedIngredients.map(ing => ({
@@ -315,6 +334,8 @@ export async function POST(request: Request) {
     costRate:       recipe.costRate   ? Number(recipe.costRate)   : null,
     contentAmount:  recipe.contentAmount,
     storageMethod:  recipe.storageMethod,
+    nameEn:          (recipe as any).nameEn ?? null,
+    storageMethodEn: (recipe as any).storageMethodEn ?? null,
     barcode:        recipe.barcode ?? null,
     notes:          recipe.notes,
     printComment:   recipe.printComment,
@@ -378,6 +399,7 @@ export async function POST(request: Request) {
         hideFromLabel:          (ing as any).hideFromLabel ?? false,
         ingredientAlwaysHideFromLabel: (ing.ingredient as any)?.alwaysHideFromLabel ?? false,
         ...compositeOf(ing),
+        ingredientNameEn:       nameEnOf(ing),
         costPrice:              ing.costPrice   != null ? Number(ing.costPrice)  : null,
         costTotal:              ing.costTotal   != null ? Number(ing.costTotal)  : null,
         allergenOverride:       ing.allergenOverride,
@@ -390,6 +412,19 @@ export async function POST(request: Request) {
     }),
     steps: recipe.steps.map(s => s.instruction),
   };
+
+  // 表示内容の確認記録（2026-10-22）: 確認後に表示内容が変わっていれば警告する（日本語ラベルのみ）
+  if ((config as any).language !== 'en') {
+    const currentHash = computeLabelHash({
+      name: recipe.name,
+      ingredientsLabel: recipeDetail.ingredientsLabel ?? '',
+      nutritionPerUnit: roundForDisplay(calcPerUnit(totalNutrition, recipe.unitCount, Number(recipe.wasteRatio ?? 0))) as any,
+      contentAmount: recipe.contentAmount, shelfLifeDays: recipe.shelfLifeDays, shelfLifeType: recipe.shelfLifeType, storageMethod: recipe.storageMethod,
+    });
+    const checkedHash = (recipe as any).labelCheckedHash as string | null;
+    if (!checkedHash) warnings.push('このレシピの表示内容は、まだ確認済みになっていません（レシピ詳細画面の「表示内容の確認」で記録できます）');
+    else if (checkedHash !== currentHash) warnings.push('前回の確認以降に、このレシピの表示内容（原材料・アレルゲン・栄養成分など）が変わっています。内容を確認し、レシピ詳細画面で確認し直してください');
+  }
 
   const labelConfig: LabelConfig = {
     ...config,

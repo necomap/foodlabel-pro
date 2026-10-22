@@ -160,6 +160,7 @@ export default function LabelsPage() {
   const [showRep,      setShowRep]      = useState(false);
   const [showFiber,    setShowFiber]    = useState(true);
   const [applyZeroRule, setApplyZeroRule] = useState(true);  // 栄養成分の0表示基準（2026-10-22）
+  const [labelLang, setLabelLang] = useState<'ja' | 'en'>('ja');  // 英語の補助ラベル（2026-10-22）
   const [showSugar,    setShowSugar]    = useState(true);
   const [showCholest,  setShowCholest]  = useState(false);
   const [showComment,  setShowComment]  = useState(true);
@@ -544,6 +545,7 @@ export default function LabelsPage() {
           a4ColGapMm:     a4ColGap ? parseFloat(a4ColGap) : undefined,
           a4RowGapMm:     a4RowGap ? parseFloat(a4RowGap) : undefined,
         }),
+        language: labelLang,
         displaySettings: {
           showPostalCode, showPhone, showRepresentative: showRep, showEmail: false,
           showNutrition, showDietaryFiber: showFiber, applyZeroRule,
@@ -627,6 +629,7 @@ export default function LabelsPage() {
           a4ColGapMm:     a4ColGap ? parseFloat(a4ColGap) : undefined,
           a4RowGapMm:     a4RowGap ? parseFloat(a4RowGap) : undefined,
         }),
+        language: labelLang,
         displaySettings: {
           showPostalCode, showPhone, showRepresentative: showRep, showEmail: false,
           showNutrition, showDietaryFiber: showFiber, applyZeroRule,
@@ -907,6 +910,18 @@ export default function LabelsPage() {
           {/* 表示設定 */}
           <div className="card space-y-3">
             <h2 className="section-title">表示項目設定</h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium text-stone-700">ラベルの言語</span>
+              {([['ja', '日本語（法定表示）'], ['en', 'English（補助ラベル）']] as const).map(([v, l]) => (
+                <button key={v} type="button" onClick={() => setLabelLang(v)}
+                  className={`text-xs px-3 py-1.5 rounded-lg border ${labelLang === v ? 'bg-brand-500 text-white border-brand-500' : 'border-cream-300 text-stone-600'}`}>{l}</button>
+              ))}
+            </div>
+            {labelLang === 'en' && (
+              <p className="text-xs text-amber-700 bg-amber-50 rounded-lg p-2">
+                訪日客向けに、日本語のラベルとあわせて貼る英語の補助表示です。日本語の法定表示の代わりにはならず、輸出先の国の表示基準にも対応していません。英語名が未設定の原材料は日本語のまま表示され、プレビュー時に警告が出ます。
+              </p>
+            )}
             {[
               { label: '栄養成分表示を表示', value: showNutrition, onChange: (v:boolean)=>{setShowNutrition(v);localStorage.setItem('label_showNutrition',String(v));},
                 note: `現在の表示可能面積は約${computeDisplayAreaCm2().toFixed(1)}cm²です。食品表示基準上、表示可能面積が30cm²以下の場合は栄養成分表示を省略できます（詳細は最新の基準をご確認ください）。シールが小さいときはOFFにできます。` },
@@ -1356,7 +1371,7 @@ export default function LabelsPage() {
                 {/* b-PAC印刷（Windows＋Brother QL-820NWB限定）。設定画面でテンプレートパスを
                     入力したユーザーにのみ表示する任意機能。ラベルプリンタ選択時のみ意味があるため
                     deviceType === 'LABEL_PRINTER' でも絞り込む。 */}
-                {generated && bpacTemplatePath && deviceType === 'LABEL_PRINTER' && (
+                {generated && bpacTemplatePath && deviceType === 'LABEL_PRINTER' && labelLang === 'ja' && (
                   <button onClick={handleBpacPrint} disabled={bpacPrinting}
                     title={printReady ? 'b-PAC経由でBrotherプリンターに不定長印刷します' : '印刷する前に「ラベルを生成」を押してください'}
                     className={`btn-secondary flex items-center gap-1.5 px-3 py-2 text-sm disabled:opacity-50 ${printReady ? '' : 'opacity-50'}`}>

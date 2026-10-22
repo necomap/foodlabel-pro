@@ -32,16 +32,21 @@ export async function PUT(request: Request, { params }: Params) {
   if (!canEdit) {
     const bodyKeys = Object.keys(body);
     // 2026-10-22: 複合原材料の内訳（銘柄ごとに違う）も、自分専用の上書きとして保存できるようにした
-    const isCompositeOnlyEdit = bodyKeys.length > 0 && bodyKeys.every(k => k === 'compositeIngredients' || k === 'compositeAdditives');
-    if (isCompositeOnlyEdit) {
-      const ci = (typeof body.compositeIngredients === 'string' ? body.compositeIngredients.trim() : '') || null;
-      const ca = (typeof body.compositeAdditives === 'string' ? body.compositeAdditives.trim() : '') || null;
+    // 英語名（英語の補助ラベル用）も同じく自分専用の上書きとして保存できる
+    const PERSONAL_KEYS = ['compositeIngredients', 'compositeAdditives', 'nameEn'];
+    const isPersonalOnlyEdit = bodyKeys.length > 0 && bodyKeys.every(k => PERSONAL_KEYS.includes(k));
+    if (isPersonalOnlyEdit) {
+      const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '') || null;
+      const data: Record<string, string | null> = {};
+      if ('compositeIngredients' in body) data.compositeIngredientsOverride = str(body.compositeIngredients);
+      if ('compositeAdditives' in body)   data.compositeAdditivesOverride   = str(body.compositeAdditives);
+      if ('nameEn' in body)               data.nameEnOverride               = str(body.nameEn);
       await prisma.ingredientPurchaseSetting.upsert({
         where:  { userId_ingredientId: { userId: session.user.id, ingredientId: params.id } },
-        create: { userId: session.user.id, ingredientId: params.id, compositeIngredientsOverride: ci, compositeAdditivesOverride: ca },
-        update: { compositeIngredientsOverride: ci, compositeAdditivesOverride: ca },
+        create: { userId: session.user.id, ingredientId: params.id, ...data },
+        update: data,
       });
-      return NextResponse.json({ success: true, message: '複合原材料の内訳（自分専用）を保存しました' });
+      return NextResponse.json({ success: true, message: '自分専用の設定を保存しました' });
     }
     const isGenericNameOnlyEdit = bodyKeys.length === 1 && bodyKeys[0] === 'genericName';
     if (!isGenericNameOnlyEdit) {
@@ -130,6 +135,7 @@ export async function PUT(request: Request, { params }: Params) {
       originCountry:   body.originCountry   !== undefined ? (body.originCountry || null) : (ing as any).originCountry,
       compositeIngredients: body.compositeIngredients !== undefined ? ((body.compositeIngredients ?? '').trim() || null) : (ing as any).compositeIngredients,
       compositeAdditives:   body.compositeAdditives   !== undefined ? ((body.compositeAdditives ?? '').trim() || null)   : (ing as any).compositeAdditives,
+      nameEn:               body.nameEn !== undefined ? ((body.nameEn ?? '').trim() || null) : (ing as any).nameEn,
       allergens:       allergens,
       isPublic:        resolvedIsPublic,
       isApproved:      body.isPublic === false ? true : (body.isPublic ? false : ing.isApproved),

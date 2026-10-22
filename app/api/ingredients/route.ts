@@ -7,7 +7,7 @@ import { prisma } from '@/lib/db';
 import { toFullWidth } from '@/lib/excel-import-export';
 import { detectAllergens } from '@/lib/allergen';
 import { normalizeIngredientName, isSimilarName } from '@/lib/ingredient-similarity';
-import { getCompositeOverrides } from '@/lib/generic-name-overrides';
+import { getCompositeOverrides, getNameEnOverrides } from '@/lib/generic-name-overrides';
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -201,6 +201,7 @@ export async function GET(request: Request) {
 
   // 複合原材料の内訳の自分専用上書き（共有食材用）。2026-10-22
   const compositeOverrides = ingIds.length > 0 ? await getCompositeOverrides(session.user.id, ingIds) : new Map();
+  const nameEnOverrides = ingIds.length > 0 ? await getNameEnOverrides(session.user.id, ingIds) : new Map<string, string>();
 
   const items = ingredients.map(ing => {
     // 成分表データ（nutritionData）にリンクしていなくても、手入力(Manual)値だけが
@@ -237,6 +238,8 @@ export async function GET(request: Request) {
       compositeAdditives:   isOwnRecord ? ((ing as any).compositeAdditives ?? null)   : (compositeOverrides.get(ing.id)?.additives   ?? (ing as any).compositeAdditives   ?? null),
       compositeIsPersonalOverride: !isOwnRecord && compositeOverrides.has(ing.id),
       sourceRecipeId:       (ing as any).sourceRecipeId ?? null,
+      // 英語名（英語の補助ラベル用）。共有食材は自分専用の上書きがあればそれ
+      nameEn:               isOwnRecord ? ((ing as any).nameEn ?? null) : (nameEnOverrides.get(ing.id) ?? (ing as any).nameEn ?? null),
       recipeUsageCount: usageMap[ing.id] ?? 0,
       allergens:       ing.allergens,
       nutritionId:     ing.nutritionId,
@@ -293,6 +296,7 @@ const ingredientCreateSchema = z.object({
   originCountry:        z.string().max(100).optional(),
   compositeIngredients: z.string().max(2000).optional(),
   compositeAdditives:   z.string().max(1000).optional(),
+  nameEn:               z.string().max(200).optional(),
   allergens:            z.array(z.string()).optional(),
   isPublic:             z.boolean().default(false),
   // trueの場合、下の類似食材チェックをスキップしてそのまま登録する
@@ -385,6 +389,7 @@ export async function POST(request: Request) {
       originCountry:   data.originCountry || null,
       compositeIngredients: data.compositeIngredients?.trim() || null,
       compositeAdditives:   data.compositeAdditives?.trim() || null,
+      nameEn:               data.nameEn?.trim() || null,
       allergens,
       isPublic:        data.isPublic,
       isApproved:      !data.isPublic,

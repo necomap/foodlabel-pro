@@ -355,3 +355,25 @@ export function buildIngredientsLabel(
 export function isRequiredAllergen(name: string): boolean {
   return name in REQUIRED_ALLERGENS;
 }
+
+/**
+ * 食材マスタに登録されたアレルゲンと、食材名からの自動判定の食い違いを調べる（2026-10-22新設）。
+ * 食材マスタに紐づいた材料は、ラベルにはマスタのアレルゲンだけが使われる（名前からの再判定はしない）ため、
+ * 登録時に入れ忘れると表示漏れになる。印刷前の警告に使う。
+ *   missing    … 名前から判定できるのにマスタに無い品目（表示漏れの疑い）
+ *   suspicious … 肉の部位の「もも」を果物の「もも」として登録している疑い（以前の誤判定の名残）
+ */
+export function checkMasterAllergens(ingredientName: string, masterAllergens: string[]): { missing: string[]; suspicious: string[] } {
+  const normalized = new Set(masterAllergens.map(a => (a === '乳成分' ? '乳' : a.trim())));
+  const missing = detectAllergens(ingredientName).filter(a => !normalized.has(a));
+  const isMeatName = MEAT_WORDS.some(w => ingredientName.includes(w));
+  const suspicious = isMeatName && normalized.has('もも') && !/桃|ピーチ/.test(ingredientName) ? ['もも'] : [];
+  return { missing, suspicious };
+}
+
+// 複合原材料であることが多い食材名（内訳の登録漏れの注意喚起用）
+const LIKELY_COMPOSITE_WORDS = ['チョコ', 'あん', '餡', 'ジャム', 'マーガリン', 'ショートニング', 'カスタード', 'ソース', 'ケチャップ',
+  'マヨネーズ', 'ミックス', 'フィリング', 'ガナッシュ', 'プラリネ', 'クッキー', 'ビスケット', 'コーンフレーク', 'ホイップ', 'フラワーペースト', 'ドレッシング', 'ルウ', 'ルー'];
+export function isLikelyComposite(ingredientName: string): boolean {
+  return LIKELY_COMPOSITE_WORDS.some(w => ingredientName.includes(w));
+}

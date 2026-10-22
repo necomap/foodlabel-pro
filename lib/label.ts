@@ -6,6 +6,7 @@ import { addDays, format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import type { LabelContent, LabelConfig, RecipeDetail } from '@/types';
 import { buildIngredientsLabel, collectRecipeAllergens, prepareIngredientsForLabel } from './allergen';
+import { buildIngredientsLabelEn, translateStorage, translateContentAmount } from './label-en';
 import { applyZeroDisplayRule, calcPerUnit, roundForDisplay } from './nutrition';
 
 /**
@@ -96,7 +97,7 @@ export function generateLabelContent(
   const manufacturerName = shopInfo.companyName ?? shopInfo.shopName;
   const { displaySettings } = config;
 
-  return {
+  const jaContent: LabelContent = {
     productName:     recipe.name,
     categoryName:    recipe.categoryName ?? '',
     ingredientsText,
@@ -155,6 +156,43 @@ export function generateLabelContent(
     // マーク単体で6mm以上必要という法令上の要件があるため、下限を強制的にクランプする。
     recycleMarks:        (recipe as any).recycleMarks ?? [],
     recycleMarkHeightMm: Math.max((recipe as any).recycleMarkHeightMm ?? 8, 6),
+  };
+
+  // 英語の補助ラベル（2026-10-22）。法定表示の日本語ラベルとは別に貼る訪日客向けの表示
+  if (config.language !== 'en') return jaContent;
+  const en = buildIngredientsLabelEn(
+    recipe.ingredients.map(i => ({
+      ingredientName: i.ingredientName,
+      ingredientNameEn: (i as any).ingredientNameEn ?? null,
+      amount: i.amount, unit: i.unit, displayOrder: i.displayOrder, sortByWeight: i.sortByWeight,
+      isAdditive: (i as any).isAdditive ?? false,
+      additiveReason: (i as any).additiveReason ?? undefined,
+      hideFromLabel: (i as any).hideFromLabel ?? false,
+      ingredientAlwaysHideFromLabel: (i as any).ingredientAlwaysHideFromLabel ?? false,
+      compositeIngredients: (i as any).compositeIngredients ?? null,
+      compositeAdditives: (i as any).compositeAdditives ?? null,
+    })),
+    allergenInfo.all,
+  );
+  const enWarnings: string[] = [];
+  const productEn = (recipe.nameEn ?? '').trim();
+  if (!productEn) enWarnings.push('英語ラベル：商品名の英語が未設定です（レシピ編集の「英語の補助ラベル用」で設定できます）');
+  const storageEn = translateStorage(recipe.storageMethod, recipe.storageMethodEn);
+  if (!storageEn && recipe.storageMethod) enWarnings.push('英語ラベル：保存方法の英語が未設定です（定型文以外はレシピ編集で入力してください）');
+  if (en.missing.length) enWarnings.push(`英語ラベル：英語名が未設定の原材料があります（${en.missing.join('・')}）。食材マスタの「英語名」で設定できます`);
+  const contentEn = translateContentAmount(jaContent.contentAmount);
+  return {
+    ...jaContent,
+    lang:            'en',
+    productName:     productEn || jaContent.productName,
+    categoryName:    '',
+    ingredientsText: en.ingredientsText,
+    containsText:    en.containsText,
+    contentAmount:   contentEn,
+    expiryType:      recipe.shelfLifeType === 'BEST_BEFORE' ? 'Best before' : 'Use by',
+    storageMethod:   storageEn || jaContent.storageMethod,
+    nutritionPerUnit: { ...jaContent.nutritionPerUnit, label: `per ${contentEn}` },
+    warnings:        [...jaContent.warnings, ...enWarnings],
   };
 }
 
@@ -463,23 +501,31 @@ export function generateLabelHtml(
   const escHtml = (s: string) =>
     s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+  // 見出しの文言（英語の補助ラベルでは英語にする。2026-10-22）
+  const isEn = content.lang === 'en';
+  const T = isEn
+    ? { ingredients: 'Ingredients', content: 'Net', storage: 'Storage', manufacturer: 'Manufacturer', nutrition: 'Nutrition facts', estimated: ' (estimated)',
+        energy: 'Energy', protein: 'Protein', fat: 'Fat', carb: 'Carbohydrate', salt: 'Salt equivalent', sugar: 'Sugars', fiber: 'Dietary fiber', chol: 'Cholesterol', sep: ': ' }
+    : { ingredients: '原材料名', content: '内容量', storage: '保存方法', manufacturer: '製造者', nutrition: '栄養成分表示', estimated: '※推定値',
+        energy: '熱量', protein: 'たんぱく質', fat: '脂質', carb: '炭水化物', salt: '食塩相当量', sugar: '糖質', fiber: '食物繊維', chol: 'コレステロール', sep: '：' };
+
   // 栄養成分：必須5項目（法令上の表示順固定）＋ ON になっている任意項目を末尾に追加し、
   // 左列に切り上げ半分・右列に残りを詰めて、非表示項目があっても左右の行数バランスを保つ
   const nutritionItems: Array<{ label: string; value: string }> = [
-    { label: '熱量',      value: `${content.nutritionPerUnit.energyKcal}kcal` },
-    { label: 'たんぱく質', value: `${content.nutritionPerUnit.protein}g` },
-    { label: '脂質',      value: `${content.nutritionPerUnit.fat}g` },
-    { label: '炭水化物',   value: `${content.nutritionPerUnit.carbohydrate}g` },
-    { label: '食塩相当量', value: `${content.nutritionPerUnit.saltEquivalent}g` },
+    { label: T.energy,  value: `${content.nutritionPerUnit.energyKcal}kcal` },
+    { label: T.protein, value: `${content.nutritionPerUnit.protein}g` },
+    { label: T.fat,     value: `${content.nutritionPerUnit.fat}g` },
+    { label: T.carb,    value: `${content.nutritionPerUnit.carbohydrate}g` },
+    { label: T.salt,    value: `${content.nutritionPerUnit.saltEquivalent}g` },
   ];
   if (content.nutritionPerUnit.sugar != null) {
-    nutritionItems.push({ label: '糖質', value: `${content.nutritionPerUnit.sugar}g` });
+    nutritionItems.push({ label: T.sugar, value: `${content.nutritionPerUnit.sugar}g` });
   }
   if (content.nutritionPerUnit.dietaryFiber != null) {
-    nutritionItems.push({ label: '食物繊維', value: `${content.nutritionPerUnit.dietaryFiber}g` });
+    nutritionItems.push({ label: T.fiber, value: `${content.nutritionPerUnit.dietaryFiber}g` });
   }
   if (content.nutritionPerUnit.cholesterol != null) {
-    nutritionItems.push({ label: 'コレステロール', value: `${content.nutritionPerUnit.cholesterol}mg` });
+    nutritionItems.push({ label: T.chol, value: `${content.nutritionPerUnit.cholesterol}mg` });
   }
   const nutritionLeftCount = Math.ceil(nutritionItems.length / 2);
   const nutritionLeftItems  = nutritionItems.slice(0, nutritionLeftCount);
@@ -503,28 +549,29 @@ export function generateLabelHtml(
 
   // 名称〜保存方法（法令上必須の基本項目）
   const primaryInfoHtml = `
-  <!-- 名称 -->
+  ${isEn ? '' : `<!-- 名称 -->
   <div style="margin-bottom:0.3mm;">
     <span style="font-weight:bold;">名称：</span>${escHtml(content.categoryName)}
-  </div>
+  </div>`}
   <!-- 原材料名 -->
   <div style="margin-bottom:0.3mm;">
-    <span style="font-weight:bold;">原材料名：</span>${escHtml(content.ingredientsText)}
+    <span style="font-weight:bold;">${T.ingredients}${T.sep}</span>${escHtml(content.ingredientsText)}
   </div>
+  ${isEn && content.containsText ? `<div style="margin-bottom:0.3mm;"><span style="font-weight:bold;">Allergens${T.sep}</span>Contains ${escHtml(content.containsText)}</div>` : ''}
   <!-- 内容量・賞味期限/消費期限（縦幅節約のため同じ行にまとめる） -->
   <div style="margin-bottom:0.3mm; display:flex; flex-wrap:wrap; column-gap:3mm;">
-    <span><span style="font-weight:bold;">内容量：</span>${escHtml(content.contentAmount)}</span>
-    <span><span style="font-weight:bold;">${escHtml(content.expiryType)}：</span>${escHtml(content.expiryDate)}</span>
+    <span><span style="font-weight:bold;">${T.content}${T.sep}</span>${escHtml(content.contentAmount)}</span>
+    <span><span style="font-weight:bold;">${escHtml(content.expiryType)}${T.sep}</span>${escHtml(content.expiryDate)}${isEn ? ' (YYYY.MM.DD)' : ''}</span>
   </div>
   <!-- 保存方法 -->
   <div style="margin-bottom:0.3mm;">
-    <span style="font-weight:bold;">保存方法：</span>${escHtml(content.storageMethod)}
+    <span style="font-weight:bold;">${T.storage}${T.sep}</span>${escHtml(content.storageMethod)}
   </div>`;
 
   // 栄養成分（表示可能面積が小さいなど、食品表示基準上の省略要件を満たす場合はOFFにできる）
   const nutritionHtml = config.displaySettings?.showNutrition !== false ? `<div style="border:0.3mm solid #ccc; padding:0.5mm 1mm; margin-bottom:0.3mm;">
     <div style="font-weight:bold; margin-bottom:0.2mm;">
-      栄養成分表示（${escHtml(content.nutritionPerUnit.label)}）${content.isEstimated ? '※推定値' : ''}
+      ${isEn ? `${T.nutrition} (${escHtml(content.nutritionPerUnit.label)})${content.isEstimated ? T.estimated : ''}` : `${T.nutrition}（${escHtml(content.nutritionPerUnit.label)}）${content.isEstimated ? T.estimated : ''}`}
     </div>
     <table style="width:100%; border-collapse:collapse;">
       ${nutritionRowsHtml}
@@ -575,7 +622,7 @@ export function generateLabelHtml(
   <!-- 製造者情報（ロゴ・QRコード含む） -->
   <div style="margin-top:0.3mm; border-top:0.3mm solid #ccc; padding-top:0.3mm; display:flex; align-items:flex-start; justify-content:space-between; gap:1mm;">
     <div style="flex:1; word-break:break-all; overflow-wrap:break-word; line-height:1.15;">
-    <span style="font-weight:bold;">製造者：</span>${escHtml(content.manufacturerName)}${content.representative ? '　' + escHtml(content.representative) : ''}
+    <span style="font-weight:bold;">${T.manufacturer}${T.sep}</span>${escHtml(content.manufacturerName)}${content.representative ? '　' + escHtml(content.representative) : ''}
     ${(content.postalCode || content.phone) ? '<br>' + [content.postalCode ? escHtml(content.postalCode) : '', content.phone ? 'TEL ' + escHtml(content.phone) : ''].filter(Boolean).join('　') : ''}
     ${content.address ? '<br>' + escHtml(content.address) : ''}
     ${content.email ? '<br>' + escHtml(content.email) : ''}

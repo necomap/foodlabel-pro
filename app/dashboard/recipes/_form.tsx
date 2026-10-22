@@ -164,6 +164,9 @@ export default function RecipeForm() {
   const [shelfLifeType, setShelfLifeType] = useState<'BEST_BEFORE'|'USE_BY'>('BEST_BEFORE');
   const [contentAmount, setContentAmount] = useState('');
   const [storageMethod, setStorageMethod] = useState('直射日光・高温多湿を避けて保存してください。');
+  // 英語の補助ラベル用（2026-10-22）
+  const [nameEn, setNameEn] = useState('');
+  const [storageMethodEn, setStorageMethodEn] = useState('');
   const [barcode,       setBarcode]       = useState('');
   const [notes,         setNotes]         = useState('');
   const [printComment,  setPrintComment]  = useState('');
@@ -220,6 +223,8 @@ export default function RecipeForm() {
         setShelfLifeType(r.shelfLifeType);
         setContentAmount(r.contentAmount ?? '');
         setStorageMethod(r.storageMethod ?? '');
+        setNameEn((r as any).nameEn ?? '');
+        setStorageMethodEn((r as any).storageMethodEn ?? '');
         setBarcode(r.barcode ?? '');
         setNotes(r.notes ?? '');
         setPrintComment(r.printComment ?? '');
@@ -383,6 +388,8 @@ export default function RecipeForm() {
         shelfLifeType,
         contentAmount: contentAmount.trim() || undefined,
         storageMethod: storageMethod.trim() || undefined,
+        nameEn: nameEn.trim() || undefined,
+        storageMethodEn: storageMethodEn.trim() || undefined,
         barcode: barcode.trim() || undefined,
         notes: notes.trim() || undefined,
         printComment: printComment.trim() || undefined,
@@ -554,6 +561,21 @@ export default function RecipeForm() {
           <input type="text" value={storageMethod} onChange={e => setStorageMethod(e.target.value)}
             className="field-input" />
         </div>
+
+        <details className="border border-cream-200 rounded-xl p-3">
+          <summary className="text-sm font-medium text-stone-700 cursor-pointer">英語の補助ラベル用（任意）</summary>
+          <div className="grid sm:grid-cols-2 gap-3 mt-2">
+            <div>
+              <label className="field-label">商品名（英語）</label>
+              <input type="text" value={nameEn} onChange={e => setNameEn(e.target.value)} className="field-input" placeholder="例: Matcha Pound Cake" />
+            </div>
+            <div>
+              <label className="field-label">保存方法（英語）</label>
+              <input type="text" value={storageMethodEn} onChange={e => setStorageMethodEn(e.target.value)} className="field-input" placeholder="空欄なら定型文は自動で英訳" />
+            </div>
+          </div>
+          <p className="field-hint mt-1">ラベル印刷画面で「English」を選んだときに使います。訪日客向けの補助表示で、日本語の法定表示の代わりにはなりません。</p>
+        </details>
 
         <div>
           <label className="field-label">バーコード（任意）</label>

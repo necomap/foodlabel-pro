@@ -151,6 +151,24 @@ export default function RecipeDetailPage() {
     finally { setSavingGeneric(false); }
   };
 
+  // 表示内容の確認記録（簡易承認）（2026-10-22）
+  const [checkerName, setCheckerName] = useState('');
+  const [savingCheck, setSavingCheck] = useState(false);
+  useEffect(() => { try { setCheckerName(localStorage.getItem('label_checkerName') ?? ''); } catch {} }, []);
+  const handleLabelCheck = async () => {
+    if (!checkerName.trim()) { toast.error('確認者の名前を入力してください'); return; }
+    setSavingCheck(true);
+    try {
+      try { localStorage.setItem('label_checkerName', checkerName.trim()); } catch {}
+      const res = await fetch(`/api/recipes/${id}/label-check`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ labelHash: (recipe as any)?.labelHash, checkedBy: checkerName.trim() }) });
+      const data = await res.json();
+      if (data.success) { toast.success(data.message); fetchRecipe(true); }
+      else toast.error(data.error ?? '保存に失敗しました');
+    } catch { toast.error('通信エラー'); }
+    finally { setSavingCheck(false); }
+  };
+
   // 中間品（自家製クリーム・生地など）として食材マスタに登録・更新する（2026-10-22）
   const [savingAsIngredient, setSavingAsIngredient] = useState(false);
   const handleAsIngredient = async () => {
@@ -215,7 +233,11 @@ export default function RecipeDetailPage() {
           isPrimaryIngredient: ing.isPrimaryIngredient,
           hideFromLabel: ing.hideFromLabel,
           ingredientAlwaysHideFromLabel: ing.ingredientAlwaysHideFromLabel,
+          masterAllergens: (ing as any).masterAllergens ?? null,
+          masterName: (ing as any).masterName ?? null,
+          compositeIngredients: (ing as any).compositeIngredients ?? null,
         })),
+        allergens: allergens.all,
         contentAmount: recipe.contentAmount,
         storageMethod: recipe.storageMethod,
         shelfLifeDays: recipe.shelfLifeDays,
@@ -297,6 +319,32 @@ export default function RecipeDetailPage() {
           </button>
         </div>
       </div>
+
+      {/* 表示内容の確認記録（2026-10-22） */}
+      {(() => {
+        const lc = (recipe as any).labelCheck as { checkedAt: string | null; checkedBy: string | null; isCurrent: boolean } | undefined;
+        const fmt = (d: string) => new Date(d).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+        const ok = !!lc?.isCurrent;
+        return (
+          <div className={`rounded-xl border px-3 py-2 text-sm flex flex-wrap items-center gap-2 ${ok ? 'border-green-200 bg-green-50 text-green-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+            <span className="font-medium">表示内容の確認：</span>
+            {ok
+              ? <span>確認済み（{lc!.checkedAt ? fmt(lc!.checkedAt) : ''}・{lc!.checkedBy}）</span>
+              : lc?.checkedAt
+                ? <span>前回の確認（{fmt(lc.checkedAt)}・{lc.checkedBy}）以降に、原材料・アレルゲン・栄養成分などの表示内容が変わりました。</span>
+                : <span>まだ確認されていません。</span>}
+            {!ok && (
+              <span className="flex items-center gap-2 ml-auto">
+                <input type="text" value={checkerName} onChange={e => setCheckerName(e.target.value)} placeholder="確認者名"
+                  className="field-input text-xs py-1 w-28" />
+                <button onClick={handleLabelCheck} disabled={savingCheck} className="btn-primary text-xs px-3 py-1.5 disabled:opacity-50">
+                  {savingCheck ? '保存中…' : 'この内容で確認済みにする'}
+                </button>
+              </span>
+            )}
+          </div>
+        );
+      })()}
 
       {/* 中間品として使う（2026-10-22） */}
       <div className="flex flex-wrap items-center gap-2 text-xs text-stone-500 bg-cream-50 border border-cream-200 rounded-xl px-3 py-2">

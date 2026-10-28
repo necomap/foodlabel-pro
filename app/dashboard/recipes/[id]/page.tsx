@@ -125,9 +125,19 @@ export default function RecipeDetailPage() {
 
   // 材料1行の「ラベルに表示しない」をこの画面で切り替える（2026-10-28新設）。
   // 以前はレシピ編集画面に移動しないと切り替えられなかった。このレシピだけの設定（他のレシピには影響しない）。
+  // 2026-10-28改善: 以前は「保存API完了（約4秒）→ レシピ全体の再取得（約4秒）」を待ってから表示を切り替えていたため
+  // 8秒ほどぐるぐるしていた。押した時点で画面上の表示を先に切り替え（楽観的更新）、保存は裏で行う。
+  // 原材料名の表示文字列などサーバー側で組み立てる部分は、保存後の静かな再取得（待たない）で追従させる。
+  // 保存に失敗した場合は元の状態に戻してエラーを出す。
   const [togglingHideFor, setTogglingHideFor] = useState<string | null>(null);
+  const setRowHidden = (rowId: string, hide: boolean) =>
+    setRecipe(prev => prev ? ({
+      ...prev,
+      ingredients: prev.ingredients.map(i => i.id === rowId ? { ...i, hideFromLabel: hide } : i),
+    }) : prev);
   const toggleHideFromLabel = async (rowId: string, hide: boolean) => {
     setTogglingHideFor(rowId);
+    setRowHidden(rowId, hide);
     try {
       const res  = await fetch(`/api/recipes/${id}/ingredients/${rowId}`, {
         method: 'PATCH',
@@ -135,9 +145,9 @@ export default function RecipeDetailPage() {
         body: JSON.stringify({ hideFromLabel: hide }),
       });
       const data = await res.json();
-      if (data.success) { toast.success(data.message); await fetchRecipe(true); }
-      else toast.error(data.error ?? '更新に失敗しました');
-    } catch { toast.error('通信エラー'); }
+      if (data.success) { toast.success(data.message); fetchRecipe(true); }
+      else { setRowHidden(rowId, !hide); toast.error(data.error ?? '更新に失敗しました'); }
+    } catch { setRowHidden(rowId, !hide); toast.error('通信エラー'); }
     finally { setTogglingHideFor(null); }
   };
 
@@ -588,9 +598,7 @@ export default function RecipeDetailPage() {
                       <button type="button" disabled={togglingHideFor === ing.id}
                         onClick={() => toggleHideFromLabel(ing.id, !ing.hideFromLabel)}
                         className={`inline-flex items-center gap-1 text-xs hover:underline disabled:opacity-50 ${ing.hideFromLabel ? 'text-orange-600' : 'text-stone-500'}`}>
-                        {togglingHideFor === ing.id ? (
-                          <><Loader2 className="w-3 h-3 animate-spin" />切り替え中...</>
-                        ) : ing.hideFromLabel ? (
+                        {ing.hideFromLabel ? (
                           <><EyeOff className="w-3 h-3" />このレシピのラベルに非表示中（表示に戻す）</>
                         ) : (
                           <><Eye className="w-3 h-3" />このレシピのラベルに表示しない</>

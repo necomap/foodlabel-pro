@@ -17,11 +17,17 @@ export async function PATCH(request: Request, { params }: Params) {
   const session = await auth();
   if (!session) return NextResponse.json({ success: false, error: '認証が必要です' }, { status: 401 });
 
-  const recipe = await prisma.recipe.findFirst({ where: { id: params.id, userId: session.user.id }, select: { id: true } });
-  if (!recipe) return NextResponse.json({ success: false, error: 'レシピが見つかりません' }, { status: 404 });
+  // 2026-10-28: 応答を速くするため、レシピ・材料行の存在確認と読み取り専用チェックを並行して行う
+  const [row, readOnlyIds] = await Promise.all([
+    prisma.recipeIngredient.findFirst({
+      where: { id: params.rowId, recipeId: params.id, recipe: { userId: session.user.id } },
+      select: { id: true },
+    }),
+    getReadOnlyRecipeIds(session.user.id, (session.user as any).plan ?? 'free'),
+  ]);
+  if (!row) return NextResponse.json({ success: false, error: '材料が見つかりません' }, { status: 404 });
 
   // レシピ編集（PUT /api/recipes/[id]）と同じく、プラン上限超過の読み取り専用レシピは変更不可
-  const readOnlyIds = await getReadOnlyRecipeIds(session.user.id, (session.user as any).plan ?? 'free');
   if (readOnlyIds.has(params.id)) {
     return NextResponse.json({
       success: false,
@@ -29,9 +35,6 @@ export async function PATCH(request: Request, { params }: Params) {
       upgradeRequired: true,
     }, { status: 403 });
   }
-
-  const row = await prisma.recipeIngredient.findFirst({ where: { id: params.rowId, recipeId: params.id }, select: { id: true } });
-  if (!row) return NextResponse.json({ success: false, error: '材料が見つかりません' }, { status: 404 });
 
   const body = await request.json().catch(() => ({}));
   if (typeof body.hideFromLabel !== 'boolean') {

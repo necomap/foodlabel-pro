@@ -17,7 +17,7 @@ interface RecipeSummary {
   readOnly?: boolean;
 }
 
-const REQUIRED_ALLERGENS = ['えび','かに','小麦','そば','卵','乳','落花生','くるみ'];
+const REQUIRED_ALLERGENS = ['えび','かに','小麦','そば','卵','乳','落花生','くるみ','カシューナッツ'];  // 2026-04改正で9品目
 
 function AllergenBadge({ name }: { name: string }) {
   const req = REQUIRED_ALLERGENS.includes(name);

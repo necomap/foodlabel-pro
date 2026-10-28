@@ -8,7 +8,8 @@ import { prisma } from '@/lib/db';
 import { getPlanLimits } from '@/lib/plan-limits';
 import { getReadOnlyRecipeIds } from '@/lib/plan-limits-server';
 import { findDisallowedIngredientIds, DISALLOWED_INGREDIENT_MESSAGE } from '@/lib/ingredient-access';
-import { detectAllergens } from '@/lib/allergen';
+import { collectRecipeAllergens } from '@/lib/allergen';
+import { getCompositeOverrides, resolveComposite } from '@/lib/generic-name-overrides';
 import { recipeSchema, createRecipeRecord } from '@/lib/recipe-create';
 
 // ============================================================
@@ -42,20 +43,34 @@ export async function GET(request: Request) {
       orderBy: { updatedAt: 'desc' },
       include: {
         category:    { select: { name: true } },
-        ingredients: { select: { allergenOverride: true, ingredientNameOverride: true, ingredient: { select: { allergens: true, name: true } }, nutritionUnconfirmed: true } },
+        ingredients: { select: { ingredientId: true, allergenOverride: true, ingredientNameOverride: true, ingredient: { select: { allergens: true, name: true, compositeIngredients: true, compositeAdditives: true } }, nutritionUnconfirmed: true } },
       },
     }),
   ]);
 
+  // 複合原材料の内訳の「自分専用」上書き（詳細画面・ラベル印刷と同じく内訳からもアレルゲンを拾う）
+  const compositeOverrides = await getCompositeOverrides(
+    session.user.id,
+    recipes.flatMap(r => r.ingredients.map(i => i.ingredientId)),
+  );
+
   const items = recipes.map(r => {
-    // アレルゲン集約
-    const allergens = new Set<string>();
-    for (const ing of r.ingredients) {
-      const src = ing.allergenOverride?.length
-        ? ing.allergenOverride
-        : ing.ingredient?.allergens ?? detectAllergens(ing.ingredient?.name ?? ing.ingredientNameOverride ?? '');
-      src.forEach(a => allergens.add(a));
-    }
+    // アレルゲン集約（2026-10-28: 詳細画面〔app/api/recipes/[id]/route.ts〕と同じ collectRecipeAllergens に統一）。
+    // 以前はレシピ側に残った古いスナップショット（allergenOverride）を優先していたため、
+    // 「牛乳」を「牛肉」と誤判定していた頃の値が一覧にだけ残っていた。
+    // 食材マスタに紐づく材料はマスタのアレルゲンのみを使う。
+    const allergenInfo = collectRecipeAllergens(
+      r.ingredients.map(ing => {
+        const comp = resolveComposite(compositeOverrides, ing.ingredientId, ing.ingredient as any);
+        return {
+          allergens:         ing.ingredient?.allergens ?? [],
+          allergenOverride:  ing.allergenOverride,
+          ingredientName:    ing.ingredient?.name || ing.ingredientNameOverride || '',
+          hasIngredientLink: !!ing.ingredientId,
+          compositeText:     [comp.compositeIngredients, comp.compositeAdditives].filter(Boolean).join('、'),
+        };
+      })
+    );
 
     return {
       id:             r.id,
@@ -72,7 +87,7 @@ export async function GET(request: Request) {
       energyKcal:     r.energyKcal     ? Number(r.energyKcal)     : null,
       totalWeightG:   r.totalWeightG   ? Number(r.totalWeightG)   : null,
       saltEquivalent: r.saltEquivalent ? Number(r.saltEquivalent) : null,
-      allergens:      Array.from(allergens),
+      allergens:      allergenInfo.all,
       hasUnconfirmedNutrition: r.ingredients.some(i => i.nutritionUnconfirmed),
       isActive:       r.isActive,
       createdAt:      r.createdAt,

@@ -192,11 +192,32 @@ export interface LabelIngredientInput {
   compositeAdditives?:   string | null;
 }
 
+// ============================================================
+// 水の自動非表示（2026-10-28新設）
+// 製造工程で加える水・お湯は、食品表示基準上、原材料名に表示しなくてよい。
+// レシピごと・食材ごとに非表示を設定する手間をなくすため、名前が下の一覧と「完全に一致」する
+// 材料はラベルの原材料名から自動で外す（全ユーザー共通）。
+// 「水あめ」「水煮」「湯葉」のように名前に水・湯を含むだけの食材は対象外にするため、部分一致にはしない。
+// 末尾の「（生地用）」のような補足のかっこ書きだけは取り除いてから比べる。
+// ※ 重量・栄養成分・原価の計算には影響しない（原材料名の表示を省くだけ）。
+// ============================================================
+export const OMITTABLE_WATER_NAMES = [
+  '水', 'お水', '湯', 'お湯', '熱湯', 'ぬるま湯', '温水', '冷水', '氷水', '水道水', '浄水',
+];
+const OMITTABLE_WATER_SET = new Set(OMITTABLE_WATER_NAMES);
+
+export function isOmittableWater(name: string | null | undefined): boolean {
+  const n = (name ?? '')
+    .replace(/[\s　]+/g, '')
+    .replace(/[（(][^（）()]*[）)]$/, '');
+  return OMITTABLE_WATER_SET.has(n);
+}
+
 /**
  * 原材料表示の元データを、実際に印字する順番・内容に整形する。
  *
  * - 非表示設定（食材マスタの「常に非表示」／レシピ単位の「今回は非表示」のどちらか）が
- *   付いている原材料は除外する。※ あくまで原材料名の表示だけを省略する設定であり、
+ *   付いている原材料と、水・お湯（isOmittableWater、2026-10-28）は除外する。※ あくまで原材料名の表示だけを省略する設定であり、
  *   栄養成分計算やアレルゲン表示（buildAllergenLabel）には一切影響しない
  *   （実際に使っている以上、アレルゲンは省略してはいけないため、そちらは常に全原材料を対象にする）。
  * - 同じ表示名（一般名）の原材料が同一レシピ内で複数回登場する場合
@@ -207,7 +228,8 @@ export interface LabelIngredientInput {
  *   合算できないため、別項目のまま残す。
  */
 export function prepareIngredientsForLabel<T extends LabelIngredientInput>(ingredients: T[]): T[] {
-  const visible = ingredients.filter(i => !i.hideFromLabel && !i.ingredientAlwaysHideFromLabel);
+  // 2026-10-28: 水・お湯（isOmittableWater）も自動で除外する
+  const visible = ingredients.filter(i => !i.hideFromLabel && !i.ingredientAlwaysHideFromLabel && !isOmittableWater(i.ingredientName));
 
   const merged: T[] = [];
   for (const ing of visible) {

@@ -12,10 +12,11 @@ import {
   ArrowLeft, Edit2, Tag, Trash2, Flame, Wheat,
   AlertTriangle, CheckCircle2, Loader2, Printer,
   ChevronRight, Info, TrendingUp, Copy, ShieldCheck, Lock,
-  ShoppingBag, ChevronDown,
+  ShoppingBag, ChevronDown, EyeOff, Eye,
 } from 'lucide-react';
 import type { RecipeDetail } from '@/types';
 import { checkRecipeCompliance, type ComplianceIssue } from '@/lib/compliance-check';
+import { isOmittableWater } from '@/lib/allergen';
 import { generateEcText, EC_TEXT_STYLES, type EcTextStyle } from '@/lib/ec-text-generator';
 import { calcElectricityCostEstimate, type ElectricityCostSettings } from '@/lib/electricity-cost';
 import { getPlanLimits } from '@/lib/plan-limits';
@@ -121,6 +122,24 @@ export default function RecipeDetailPage() {
   };
 
   useEffect(() => { fetchRecipe(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id, router]);
+
+  // 材料1行の「ラベルに表示しない」をこの画面で切り替える（2026-10-28新設）。
+  // 以前はレシピ編集画面に移動しないと切り替えられなかった。このレシピだけの設定（他のレシピには影響しない）。
+  const [togglingHideFor, setTogglingHideFor] = useState<string | null>(null);
+  const toggleHideFromLabel = async (rowId: string, hide: boolean) => {
+    setTogglingHideFor(rowId);
+    try {
+      const res  = await fetch(`/api/recipes/${id}/ingredients/${rowId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hideFromLabel: hide }),
+      });
+      const data = await res.json();
+      if (data.success) { toast.success(data.message); await fetchRecipe(true); }
+      else toast.error(data.error ?? '更新に失敗しました');
+    } catch { toast.error('通信エラー'); }
+    finally { setTogglingHideFor(null); }
+  };
 
   // 材料の一般名を保存する（食材マスタ側を更新するAPIなので、成功後は原材料名表示・
   // コンプライアンスチェック等も含めてレシピ全体を静かに再取得し直す）
@@ -514,7 +533,7 @@ export default function RecipeDetailPage() {
               <tr key={ing.id}>
                 <td>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium">{ing.genericName || ing.ingredientName}</span>
+                    <span className={`font-medium ${(ing.hideFromLabel || ing.ingredientAlwaysHideFromLabel || isOmittableWater(ing.genericName || ing.ingredientName)) ? 'text-stone-400' : ''}`}>{ing.genericName || ing.ingredientName}</span>
                     {ing.genericName && ing.genericName !== ing.ingredientName && (
                       <span className="text-xs text-stone-400">（{ing.ingredientName}）</span>
                     )}
@@ -553,6 +572,32 @@ export default function RecipeDetailPage() {
                       </button>
                     )
                   )}
+                  {/* ラベル（原材料名）への表示・非表示（2026-10-28新設）。
+                      水・お湯は全ユーザー共通で自動非表示、食材マスタで「常に非表示」の食材はマスタ側の設定のため、
+                      どちらもここでは切り替えボタンを出さず理由だけ表示する */}
+                  <div className="mt-1">
+                    {isOmittableWater(ing.genericName || ing.ingredientName) ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-stone-400">
+                        <EyeOff className="w-3 h-3" />ラベル非表示（水・お湯は自動で表示しません）
+                      </span>
+                    ) : ing.ingredientAlwaysHideFromLabel ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-stone-400">
+                        <EyeOff className="w-3 h-3" />ラベル非表示（食材マスタで「常に非表示」）
+                      </span>
+                    ) : (
+                      <button type="button" disabled={togglingHideFor === ing.id}
+                        onClick={() => toggleHideFromLabel(ing.id, !ing.hideFromLabel)}
+                        className={`inline-flex items-center gap-1 text-xs hover:underline disabled:opacity-50 ${ing.hideFromLabel ? 'text-orange-600' : 'text-stone-500'}`}>
+                        {togglingHideFor === ing.id ? (
+                          <><Loader2 className="w-3 h-3 animate-spin" />切り替え中...</>
+                        ) : ing.hideFromLabel ? (
+                          <><EyeOff className="w-3 h-3" />このレシピのラベルに非表示中（表示に戻す）</>
+                        ) : (
+                          <><Eye className="w-3 h-3" />このレシピのラベルに表示しない</>
+                        )}
+                      </button>
+                    )}
+                  </div>
                 </td>
                 <td className="text-right font-medium">{ing.amount}{ing.unit}</td>
                 <td className="text-right text-stone-500 hidden sm:table-cell">

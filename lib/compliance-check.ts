@@ -10,7 +10,7 @@
 // 販売形態によって必要な表示事項は異なるため、最終的な表示内容は必ずユーザー自身の
 // 確認、または必要に応じて保健所・専門家への確認を経ること。UI側にも必ず
 // 同様の免責文言を表示すること（app/dashboard/recipes/[id]/page.tsx参照）。
-import { checkMasterAllergens, isLikelyComposite } from './allergen';
+import { checkMasterAllergens, isLikelyComposite, isOmittableWater } from './allergen';
 
 export type ComplianceSeverity = 'error' | 'warning' | 'info';
 
@@ -73,7 +73,8 @@ export function checkRecipeCompliance(
     });
   }
 
-  const visible = recipe.ingredients.filter(i => !i.hideFromLabel && !i.ingredientAlwaysHideFromLabel);
+  // 水・お湯は原材料名に表示しないため、ラベル（prepareIngredientsForLabel）と同じく対象外にする（2026-10-28）
+  const visible = recipe.ingredients.filter(i => !i.hideFromLabel && !i.ingredientAlwaysHideFromLabel && !isOmittableWater(i.ingredientName));
 
   if (visible.length === 0) {
     issues.push({

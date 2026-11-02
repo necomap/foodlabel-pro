@@ -11,9 +11,10 @@ import { prisma } from '@/lib/db';
 import { getReadOnlyRecipeIds } from '@/lib/plan-limits-server';
 import { syncIngredientFromRecipe } from '@/lib/recipe-as-ingredient';
 
-type Params = { params: { id: string; rowId: string } };
+type Params = { params: Promise<{ id: string; rowId: string }> };
 
-export async function PATCH(request: Request, { params }: Params) {
+export async function PATCH(request: Request, props: Params) {
+  const params = await props.params;
   const session = await auth();
   if (!session) return NextResponse.json({ success: false, error: '認証が必要です' }, { status: 401 });
 

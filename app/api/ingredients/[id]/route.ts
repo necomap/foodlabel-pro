@@ -5,9 +5,10 @@ import { prisma } from '@/lib/db';
 import { toFullWidth } from '@/lib/excel-import-export';
 import { detectAllergens } from '@/lib/allergen';
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
-export async function PUT(request: Request, { params }: Params) {
+export async function PUT(request: Request, props: Params) {
+  const params = await props.params;
   const session = await auth();
   if (!session) return NextResponse.json({ success: false, error: '認証が必要です' }, { status: 401 });
 
@@ -178,7 +179,8 @@ export async function PUT(request: Request, { params }: Params) {
   return NextResponse.json({ success: true, message: '食材を更新しました' });
 }
 
-export async function DELETE(_req: Request, { params }: Params) {
+export async function DELETE(_req: Request, props: Params) {
+  const params = await props.params;
   const session = await auth();
   if (!session) return NextResponse.json({ success: false, error: '認証が必要です' }, { status: 401 });
 

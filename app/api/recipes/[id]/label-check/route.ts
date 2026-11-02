@@ -5,9 +5,10 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
-export async function POST(request: Request, { params }: Params) {
+export async function POST(request: Request, props: Params) {
+  const params = await props.params;
   const session = await auth();
   if (!session) return NextResponse.json({ success: false, error: '認証が必要です' }, { status: 401 });
 
@@ -28,7 +29,8 @@ export async function POST(request: Request, { params }: Params) {
   return NextResponse.json({ success: true, message: '表示内容を確認済みにしました', data: { checkedAt: now, checkedBy } });
 }
 
-export async function DELETE(_req: Request, { params }: Params) {
+export async function DELETE(_req: Request, props: Params) {
+  const params = await props.params;
   const session = await auth();
   if (!session) return NextResponse.json({ success: false, error: '認証が必要です' }, { status: 401 });
   const recipe = await prisma.recipe.findFirst({ where: { id: params.id, userId: session.user.id }, select: { id: true } });

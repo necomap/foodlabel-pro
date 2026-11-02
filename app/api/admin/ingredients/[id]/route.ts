@@ -4,7 +4,8 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { INGREDIENT_REJECTION_REASONS } from '@/lib/ingredient-rejection-reasons';
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await auth();
   if (session?.user?.plan !== 'admin') return NextResponse.json({ success: false, error: '権限がありません' }, { status: 403 });
 

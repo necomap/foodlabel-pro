@@ -13,12 +13,13 @@ import { syncIngredientFromRecipe } from '@/lib/recipe-as-ingredient';
 import { computeLabelHash } from '@/lib/label-check';
 import type { BakingStep } from '@/types';
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 // ============================================================
 // GET /api/recipes/[id] - レシピ詳細
 // ============================================================
-export async function GET(_req: Request, { params }: Params) {
+export async function GET(_req: Request, props: Params) {
+  const params = await props.params;
   const session = await auth();
   if (!session) return NextResponse.json({ success: false, error: '認証が必要です' }, { status: 401 });
 
@@ -239,7 +240,8 @@ export async function GET(_req: Request, { params }: Params) {
 // ============================================================
 // PUT /api/recipes/[id] - レシピ更新
 // ============================================================
-export async function PUT(request: Request, { params }: Params) {
+export async function PUT(request: Request, props: Params) {
+  const params = await props.params;
   const session = await auth();
   if (!session) return NextResponse.json({ success: false, error: '認証が必要です' }, { status: 401 });
 
@@ -456,7 +458,8 @@ export async function PUT(request: Request, { params }: Params) {
 // ============================================================
 // DELETE /api/recipes/[id] - レシピ削除（論理削除）
 // ============================================================
-export async function DELETE(_req: Request, { params }: Params) {
+export async function DELETE(_req: Request, props: Params) {
+  const params = await props.params;
   const session = await auth();
   if (!session) return NextResponse.json({ success: false, error: '認証が必要です' }, { status: 401 });
 

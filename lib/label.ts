@@ -6,7 +6,7 @@ import { addDays, format } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import type { LabelContent, LabelConfig, RecipeDetail } from '@/types';
 import { buildIngredientsLabel, collectRecipeAllergens, prepareIngredientsForLabel } from './allergen';
-import { buildIngredientsLabelEn, translateStorage, translateContentAmount } from './label-en';
+import { buildIngredientsLabelEn, translateStorage, translateContentAmount, translateNote } from './label-en';
 import { applyZeroDisplayRule, calcPerUnit, roundForDisplay } from './nutrition';
 
 /**
@@ -180,6 +180,14 @@ export function generateLabelContent(
   const storageEn = translateStorage(recipe.storageMethod, recipe.storageMethodEn);
   if (!storageEn && recipe.storageMethod) enWarnings.push('英語ラベル：保存方法の英語が未設定です（定型文以外はレシピ編集で入力してください）');
   if (en.missing.length) enWarnings.push(`英語ラベル：英語名が未設定の原材料があります（${en.missing.join('・')}）。食材マスタの「英語名」で設定できます`);
+  // 注意書き（コメント・品質管理事項）: 決まり文句なら英訳、訳せない文があれば日本語のまま表示して知らせる（2026-11-03）
+  const commentEn = translateNote(jaContent.comment);
+  const qualityEn = translateNote(jaContent.qualityControl);
+  const untranslatedNotes = [
+    jaContent.comment && !commentEn ? jaContent.comment : null,
+    jaContent.qualityControl && !qualityEn ? jaContent.qualityControl : null,
+  ].filter(Boolean);
+  if (untranslatedNotes.length) enWarnings.push(`英語ラベル：注意書きの英訳が無いため日本語のまま表示しています（${untranslatedNotes.join('／')}）`);
   const contentEn = translateContentAmount(jaContent.contentAmount);
   return {
     ...jaContent,
@@ -191,6 +199,8 @@ export function generateLabelContent(
     contentAmount:   contentEn,
     expiryType:      recipe.shelfLifeType === 'BEST_BEFORE' ? 'Best before' : 'Use by',
     storageMethod:   storageEn || jaContent.storageMethod,
+    comment:         commentEn || jaContent.comment,
+    qualityControl:  qualityEn || jaContent.qualityControl,
     nutritionPerUnit: { ...jaContent.nutritionPerUnit, label: `per ${contentEn}` },
     warnings:        [...jaContent.warnings, ...enWarnings],
   };

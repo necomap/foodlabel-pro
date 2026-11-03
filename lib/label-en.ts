@@ -69,6 +69,32 @@ export const INGREDIENT_EN: Record<string, string> = {
   '玉ねぎ': 'Onion', 'たまねぎ': 'Onion', 'にんじん': 'Carrot', 'キャベツ': 'Cabbage', 'ほうれん草': 'Spinach', 'トマト': 'Tomato', 'コーン': 'Corn',
   'ほうれんそう': 'Spinach', 'ねぎ': 'Green onion', 'にんにく': 'Garlic', 'しめじ': 'Shimeji mushroom', 'マッシュルーム': 'Mushroom',
   '水': 'Water', 'パン粉': 'Breadcrumbs', 'マヨネーズ': 'Mayonnaise', 'ケチャップ': 'Ketchup', 'ソース': 'Sauce',
+  // 2026-11-03追加: 総菜・キッシュ系、魚介、野菜、チーズ、香辛料など
+  'えび': 'Shrimp', 'エビ': 'Shrimp', '海老': 'Shrimp', 'むきえび': 'Shrimp', 'かに': 'Crab', 'カニ': 'Crab', 'いか': 'Squid', 'たこ': 'Octopus',
+  'ほたて': 'Scallop', '帆立': 'Scallop', 'あさり': 'Clam', 'さけ': 'Salmon', '鮭': 'Salmon', 'サーモン': 'Salmon', 'スモークサーモン': 'Smoked salmon',
+  'さば': 'Mackerel', 'しらす': 'Whitebait', 'ちりめんじゃこ': 'Dried baby sardines', 'かつお節': 'Bonito flakes', '鰹節': 'Bonito flakes', 'のり': 'Seaweed (nori)', '海苔': 'Seaweed (nori)',
+  'わかめ': 'Wakame seaweed', 'ひじき': 'Hijiki seaweed', '昆布': 'Kelp', 'こんぶ': 'Kelp',
+  'ブロッコリー': 'Broccoli', 'カリフラワー': 'Cauliflower', 'アスパラガス': 'Asparagus', 'ズッキーニ': 'Zucchini', 'なす': 'Eggplant', '茄子': 'Eggplant',
+  'ピーマン': 'Green pepper', 'パプリカ': 'Bell pepper', 'セロリ': 'Celery', 'きゅうり': 'Cucumber', 'レタス': 'Lettuce', '大根': 'Daikon radish', 'だいこん': 'Daikon radish',
+  'ごぼう': 'Burdock root', 'れんこん': 'Lotus root', 'さといも': 'Taro', 'ながいも': 'Chinese yam', 'えだまめ': 'Edamame', '枝豆': 'Edamame', 'グリーンピース': 'Green peas',
+  'ひよこ豆': 'Chickpeas', 'しいたけ': 'Shiitake mushroom', '椎茸': 'Shiitake mushroom', 'まいたけ': 'Maitake mushroom', 'エリンギ': 'King oyster mushroom', 'えのき': 'Enoki mushroom',
+  'きのこ': 'Mushroom', 'ベビーリーフ': 'Baby leaf', 'バジル': 'Basil', 'パセリ': 'Parsley', 'ローズマリー': 'Rosemary', 'タイム': 'Thyme', 'オレガノ': 'Oregano',
+  'ハーブ': 'Herbs', 'ミックスハーブ': 'Mixed herbs', 'ガーリック': 'Garlic', 'ガーリックパウダー': 'Garlic powder', 'オニオンパウダー': 'Onion powder',
+  '黒こしょう': 'Black pepper', '黒胡椒': 'Black pepper', 'ブラックペッパー': 'Black pepper', '白こしょう': 'White pepper', 'ホワイトペッパー': 'White pepper',
+  'ナツメグ': 'Nutmeg', 'カレー粉': 'Curry powder', '唐辛子': 'Chili pepper', '一味唐辛子': 'Chili pepper', 'ケチャップ（トマト）': 'Ketchup', 'コンソメ': 'Consomme',
+  'ブイヨン': 'Bouillon', 'だし': 'Dashi (soup stock)', '出汁': 'Dashi (soup stock)', 'ウスターソース': 'Worcestershire sauce', 'オイスターソース': 'Oyster sauce',
+  'ナチュラルチーズ': 'Natural cheese', 'プロセスチーズ': 'Processed cheese', 'ピザ用チーズ': 'Shredded cheese', 'シュレッドチーズ': 'Shredded cheese',
+  'カマンベールチーズ': 'Camembert cheese', 'ゴーダチーズ': 'Gouda cheese', 'グリュイエールチーズ': 'Gruyere cheese', 'エメンタールチーズ': 'Emmental cheese',
+  'ブルーチーズ': 'Blue cheese', 'リコッタチーズ': 'Ricotta cheese', 'カッテージチーズ': 'Cottage cheese', 'サワークリーム': 'Sour cream', '牛乳（成分無調整）': 'Milk',
+  'ウインナー': 'Sausage', 'ウィンナー': 'Sausage', 'ソーセージ（豚肉）': 'Sausage', 'ひき肉': 'Minced meat', '合いびき肉': 'Minced beef and pork', '豚ひき肉': 'Minced pork',
+  '鶏ひき肉': 'Minced chicken', '鶏もも肉': 'Chicken thigh', '鶏むね肉': 'Chicken breast', 'ささみ': 'Chicken tenderloin', 'ベーコン（豚肉）': 'Bacon',
+  '豆腐': 'Tofu', '油揚げ': 'Fried tofu', '春雨': 'Glass noodles', 'パスタ': 'Pasta', 'マカロニ': 'Macaroni', 'パイシート': 'Puff pastry sheet', 'パイ生地': 'Pie crust',
+  '冷凍パイシート': 'Frozen puff pastry sheet', 'タルト生地': 'Tart crust', 'クラッカー': 'Crackers', 'ビスケット': 'Biscuits', 'コーンフレーク': 'Corn flakes',
+  'ドライフルーツ': 'Dried fruit', 'ミックスナッツ': 'Mixed nuts', 'アプリコット': 'Apricot', 'キウイフルーツ': 'Kiwi fruit', 'パイナップル': 'Pineapple', 'ぶどう': 'Grape',
+  'さくらんぼ': 'Cherry', 'チェリー': 'Cherry', 'メロン': 'Melon', '洋梨': 'Pear', 'なし': 'Pear', 'ゆず皮': 'Yuzu peel', 'レモンピール': 'Lemon peel', 'カシス': 'Blackcurrant',
+  'ラムレーズン': 'Rum raisins', 'あんこ': 'Sweet bean paste', '抹茶パウダー': 'Matcha (green tea powder)', 'きび糖': 'Cane sugar', '和三盆': 'Wasanbon sugar',
+  'アガベシロップ': 'Agave syrup', 'オリゴ糖': 'Oligosaccharide', '甘酒': 'Amazake (rice drink)', '酒粕': 'Sake lees', '塩こうじ': 'Salt koji', '米こうじ': 'Rice koji',
+  'お湯': 'Water', '湯': 'Water', '氷': 'Ice', '牛乳・乳製品': 'Milk products', '乳製品': 'Dairy products', '卵黄（鶏卵）': 'Egg yolk', '卵白（鶏卵）': 'Egg white',
 };
 
 // ---- 保存方法の決まり文句 ----
@@ -90,11 +116,74 @@ const lookup = (dict: Record<string, string>, ja: string): string | undefined =>
   return undefined;
 };
 
-export function translateIngredientName(ja: string, userEn?: string | null): string | null {
-  return (userEn ?? '').trim() || lookup(INGREDIENT_EN, ja) || null;
+/**
+ * 辞書の完全一致で見つからないとき用の候補（2026-11-03追加）。
+ * 食材マスタ名は「薄力粉 ドルチェ」「無塩バター 明治」のようにブランド名を空白区切りで付けていることが
+ * 多いため、①末尾のかっこ書きを外す ②空白の手前（先頭の語）だけにする、の順で辞書を引き直す。
+ * 部分一致（「いちごジャム→Strawberry」のような誤訳になる）はしない。
+ */
+function nameCandidates(ja: string): string[] {
+  const out: string[] = [];
+  const noParen = ja.replace(/[（(][^（）()]*[）)]\s*$/, '').trim();
+  if (noParen && noParen !== ja) out.push(noParen);
+  const head = noParen.split(/[\s　]+/)[0];
+  if (head && head !== noParen) out.push(head);
+  return out;
 }
+
+export function translateIngredientName(ja: string, userEn?: string | null): string | null {
+  const u = (userEn ?? '').trim();
+  if (u) return u;
+  const exact = lookup(INGREDIENT_EN, ja);
+  if (exact) return exact;
+  for (const c of nameCandidates(ja.trim())) {
+    const hit = lookup(INGREDIENT_EN, c);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/**
+ * 保存方法の英訳。決まり文句の完全一致のほか、「直射日光・高温多湿を避け保存」のような表記ゆれでも
+ * 意味が決まるもの（直射日光＋高温多湿／要冷蔵・10℃以下／要冷凍・-18℃以下）はキーワードで判定する（2026-11-03）。
+ */
 export function translateStorage(ja: string | null | undefined, userEn?: string | null): string | null {
-  return (userEn ?? '').trim() || (ja ? lookup(STORAGE_EN, ja) : undefined) || null;
+  const u = (userEn ?? '').trim();
+  if (u) return u;
+  if (!ja) return null;
+  const exact = lookup(STORAGE_EN, ja);
+  if (exact) return exact;
+  const k = normalizeKey(ja);
+  const parts: string[] = [];
+  if (/要冷凍|-18℃|－18℃|−18℃/.test(k)) parts.push('Keep frozen (-18°C or below).');
+  else if (/要冷蔵|10℃以下|１０℃以下/.test(k)) parts.push('Keep refrigerated (10°C or below).');
+  if (/直射日光/.test(k) && /高温多湿/.test(k)) parts.push('Store away from direct sunlight, high temperature and humidity.');
+  else if (/高温多湿/.test(k)) parts.push('Store away from high temperature and humidity.');
+  // 判定できない内容が残っている（「開封後は〜」など）場合は、誤訳を避けて未設定扱いにする
+  const rest = k.replace(/要冷凍|要冷蔵|[-－−]?1?[08]℃以下|１０℃以下|直射日光|高温多湿|[・、。,.（）()]|を?避け(て)?|で?保存(して)?(ください)?|及び|および|や|と|の|を|は|して|で/g, '');
+  if (!parts.length || rest.length > 0) return null;
+  return parts.join(' ');
+}
+
+// ---- 注意書き（コメント・品質管理事項）の決まり文句（2026-11-03） ----
+const NOTE_EN: Array<[RegExp, string]> = [
+  [/お?早めに(お召し上がり|召し上がって|お食べ)ください/, 'Please consume as soon as possible.'],
+  [/開封後は.*お?早めに/, 'Consume promptly after opening.'],
+  [/当日中に?(お召し上がり|召し上がって)ください/, 'Please consume on the day of purchase.'],
+  [/温めて(お召し上がり|召し上がって)ください/, 'Best enjoyed warm.'],
+  [/(電子レンジ|レンジ)で温め/, 'Heat in a microwave before eating.'],
+];
+/** 注意書きを1文ずつ英訳する。訳せない文が1つでもあれば null（日本語のまま表示し、警告を出す） */
+export function translateNote(ja: string | null | undefined): string | null {
+  if (!ja || !ja.trim()) return null;
+  const sentences = ja.split(/[。\n]/).map(s => s.trim()).filter(Boolean);
+  const out: string[] = [];
+  for (const s of sentences) {
+    const hit = NOTE_EN.find(([re]) => re.test(s));
+    if (!hit) return null;
+    if (!out.includes(hit[1])) out.push(hit[1]);
+  }
+  return out.join(' ');
 }
 
 /** 内容量の簡易英訳（「6個」→「6 pcs」、「1個」→「1 pc」）。それ以外の単位（g・ml等）はそのまま */

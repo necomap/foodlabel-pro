@@ -113,7 +113,10 @@ export default function RecipesPage() {
     if (page > 1)   params.set('page', String(page));
     if (showHidden) params.set('hidden', 'true');
     const qs = params.toString();
-    router.replace(qs ? `/dashboard/recipes?${qs}` : '/dashboard/recipes', { scroll: false });
+    const listUrl = qs ? `/dashboard/recipes?${qs}` : '/dashboard/recipes';
+    router.replace(listUrl, { scroll: false });
+    // 2026-11-12: レシピ詳細の「←」で、この検索条件のままの一覧に戻れるよう覚えておく
+    try { sessionStorage.setItem('foodlabel:recipesListUrl', listUrl); } catch { /* 保存できない環境では一覧トップに戻る */ }
   }, [search, category, page, showHidden, router]);
 
   // 古いリクエストの結果が新しいリクエストの結果を上書きしないようにするためのガード

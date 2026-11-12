@@ -304,17 +304,20 @@ export default function RecipeDetailPage() {
     <div className="max-w-3xl space-y-5 animate-fade-in">
       {/* ヘッダー */}
       <div className="flex items-center gap-3">
-        {/* 一覧の「戻る」はrouter.back()でブラウザ履歴を戻ることで、一覧側の検索語・
-            ページ番号（URLに同期済み）を保った状態に復元する。一覧を経由せず直接この
-            ページを開いた場合など戻り先が無いときは、一覧トップにフォールバックする。 */}
+        {/* 2026-11-12変更: 以前はrouter.back()でブラウザ履歴を1つ戻していたため、
+            一覧→レシピ→ラベル印刷→「レシピに戻る」→レシピ と進むと、「←」でラベル印刷画面に
+            戻ってしまい一覧に戻れなかった。一覧が覚えておいたURL（検索語・ページ番号付き）へ
+            常に移動するように変更。覚えていなければ一覧トップへ。 */}
         <button
           type="button"
+          title="レシピ一覧に戻る"
           onClick={() => {
-            if (typeof window !== 'undefined' && window.history.length > 1) {
-              router.back();
-            } else {
-              router.push('/dashboard/recipes');
-            }
+            let listUrl = '/dashboard/recipes';
+            try {
+              const saved = sessionStorage.getItem('foodlabel:recipesListUrl');
+              if (saved && saved.startsWith('/dashboard/recipes')) listUrl = saved;
+            } catch { /* 取得できなければ一覧トップ */ }
+            router.push(listUrl);
           }}
           className="btn-ghost p-2"
         >

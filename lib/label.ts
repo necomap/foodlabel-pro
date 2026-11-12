@@ -183,11 +183,8 @@ export function generateLabelContent(
   // 注意書き（コメント・品質管理事項）: 決まり文句なら英訳、訳せない文があれば日本語のまま表示して知らせる（2026-11-03）
   const commentEn = translateNote(jaContent.comment);
   const qualityEn = translateNote(jaContent.qualityControl);
-  const untranslatedNotes = [
-    jaContent.comment && !commentEn ? jaContent.comment : null,
-    jaContent.qualityControl && !qualityEn ? jaContent.qualityControl : null,
-  ].filter(Boolean);
-  if (untranslatedNotes.length) enWarnings.push(`英語ラベル：注意書きの英訳が無いため日本語のまま表示しています（${untranslatedNotes.join('／')}）`);
+  const untranslatedNotes = [...commentEn.untranslated, ...qualityEn.untranslated];
+  if (untranslatedNotes.length) enWarnings.push(`英語ラベル：注意書きの一部は英訳が無いため日本語のまま表示しています（${untranslatedNotes.join('／')}）`);
   const contentEn = translateContentAmount(jaContent.contentAmount);
   return {
     ...jaContent,
@@ -199,8 +196,8 @@ export function generateLabelContent(
     contentAmount:   contentEn,
     expiryType:      recipe.shelfLifeType === 'BEST_BEFORE' ? 'Best before' : 'Use by',
     storageMethod:   storageEn || jaContent.storageMethod,
-    comment:         commentEn || jaContent.comment,
-    qualityControl:  qualityEn || jaContent.qualityControl,
+    comment:         commentEn.text ?? jaContent.comment,
+    qualityControl:  qualityEn.text ?? jaContent.qualityControl,
     nutritionPerUnit: { ...jaContent.nutritionPerUnit, label: `per ${contentEn}` },
     warnings:        [...jaContent.warnings, ...enWarnings],
   };

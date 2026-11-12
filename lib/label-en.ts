@@ -167,23 +167,31 @@ export function translateStorage(ja: string | null | undefined, userEn?: string 
 
 // ---- 注意書き（コメント・品質管理事項）の決まり文句（2026-11-03） ----
 const NOTE_EN: Array<[RegExp, string]> = [
-  [/お?早めに(お召し上がり|召し上がって|お食べ)ください/, 'Please consume as soon as possible.'],
+  [/(お|なるべく|できるだけ)?早めに(お召し上がり|召し上がって|お食べ)ください/, 'Please consume as soon as possible.'],
   [/開封後は.*お?早めに/, 'Consume promptly after opening.'],
   [/当日中に?(お召し上がり|召し上がって)ください/, 'Please consume on the day of purchase.'],
   [/温めて(お召し上がり|召し上がって)ください/, 'Best enjoyed warm.'],
   [/(電子レンジ|レンジ)で温め/, 'Heat in a microwave before eating.'],
 ];
-/** 注意書きを1文ずつ英訳する。訳せない文が1つでもあれば null（日本語のまま表示し、警告を出す） */
-export function translateNote(ja: string | null | undefined): string | null {
-  if (!ja || !ja.trim()) return null;
-  const sentences = ja.split(/[。\n]/).map(s => s.trim()).filter(Boolean);
-  const out: string[] = [];
-  for (const s of sentences) {
-    const hit = NOTE_EN.find(([re]) => re.test(s));
-    if (!hit) return null;
-    if (!out.includes(hit[1])) out.push(hit[1]);
+/**
+ * 注意書きを1行（1文）ずつ英訳する（2026-11-03）。決まり文句の行だけ英語にし、訳せない行
+ * （「型: 新IF100」のような社内メモ・自由記述）は日本語のまま残して untranslated に入れる。
+ */
+export function translateNote(ja: string | null | undefined): { text: string | null; untranslated: string[] } {
+  if (!ja || !ja.trim()) return { text: null, untranslated: [] };
+  const lines = ja.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const out: string[] = []; const untranslated: string[] = [];
+  for (const line of lines) {
+    const sentences = line.split('。').map(x => x.trim()).filter(Boolean);
+    const parts: string[] = [];
+    for (const sentence of sentences) {
+      const hit = NOTE_EN.find(([re]) => re.test(sentence));
+      if (hit) { if (!parts.includes(hit[1])) parts.push(hit[1]); }
+      else { parts.push(sentence); untranslated.push(sentence); }
+    }
+    out.push(parts.join(' '));
   }
-  return out.join(' ');
+  return { text: out.join('\n'), untranslated };
 }
 
 /** 内容量の簡易英訳（「6個」→「6 pcs」、「1個」→「1 pc」）。それ以外の単位（g・ml等）はそのまま */

@@ -700,8 +700,10 @@ export default function LabelsPage() {
     }
     setBpacPrinting(true);
     try {
-      const result = await printFoodLabel(bpacTemplatePath, labelContent);
-      if (result.success) toast.success('b-PACで印刷しました');
+      // 2026-11-12: 画面の「印刷枚数」を反映（以前は1枚固定だった）
+      const copies = Math.min(999, Math.max(1, parseInt(printCount) || 1));
+      const result = await printFoodLabel(bpacTemplatePath, labelContent, copies);
+      if (result.success) toast.success(`b-PACで${copies}枚印刷しました`);
       else toast.error(result.error ?? 'b-PAC印刷に失敗しました');
     } finally {
       setBpacPrinting(false);

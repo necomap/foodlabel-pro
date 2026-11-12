@@ -47,9 +47,11 @@ function buildTextFields(content: LabelContent): Record<string, string> {
 
 /**
  * templatePath（.lbx）を開き、contentの内容を差し込んで不定長印刷する。
+ * copies: 印刷枚数（2026-11-12追加。以前は PrintOut(1, 0) で1枚固定だった）。1〜999に丸める。
  * 例外は投げず、成功/失敗を戻り値で返す（呼び出し側でtoast表示するため）。
  */
-export async function printFoodLabel(templatePath: string, content: LabelContent): Promise<BpacPrintResult> {
+export async function printFoodLabel(templatePath: string, content: LabelContent, copies = 1): Promise<BpacPrintResult> {
+  const copyCount = Math.min(999, Math.max(1, Math.floor(Number(copies) || 1)));
   if (!templatePath.trim()) {
     return { success: false, error: 'b-PACテンプレートのパスが設定されていません（設定画面で入力してください）' };
   }
@@ -98,7 +100,9 @@ export async function printFoodLabel(templatePath: string, content: LabelContent
     objDoc.Length = 0; // 不定長指定（印刷領域内のオブジェクトに合わせて長さを自動調整）
 
     objDoc.StartPrint('', 0);
-    objDoc.PrintOut(1, 0);
+    // 第1引数が枚数。第2引数0＝カット等はプリンタードライバーの設定に従う
+    // （1枚ごとにカットするかはドライバーの「オートカット」設定で決まる）
+    objDoc.PrintOut(copyCount, 0);
     objDoc.EndPrint();
   } catch (e: any) {
     await objDoc.Close();

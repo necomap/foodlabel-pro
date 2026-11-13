@@ -9,7 +9,7 @@
 // ============================================================
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ChevronLeft, ChevronUp, ChevronDown, Trash2, Printer, Eye, Loader2, AlertTriangle, Settings, Save, FolderOpen, Plus, Usb, RotateCcw, Info } from 'lucide-react';
@@ -33,6 +33,13 @@ const addDaysStr = (ymd: string, days: number) => {
   const [y, m, d] = ymd.split('-').map(Number);
   const dt = new Date(y, m - 1, d + days);
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+};
+// 作業中の内容（レシピ・枚数・期限日・製造日）をブラウザに保存しておくキー。
+// 「設定はラベル印刷画面で変更」で画面を離れて戻ってきても、選んだレシピが消えないようにする（2026-11-13）。
+const DRAFT_KEY = 'foodlabel:labelBatchDraft';
+interface Draft { savedOn: string; mfgDate: string; setName: string; rows: Array<{ recipeId: string; count: string; expiryDate: string; expiryEdited: boolean }>; }
+const loadDraft = (): Draft | null => {
+  try { const v = localStorage.getItem(DRAFT_KEY); return v ? JSON.parse(v) as Draft : null; } catch { return null; }
 };
 let rowSeq = 0;
 const newKey = () => `r${++rowSeq}`;
@@ -70,6 +77,7 @@ function BatchLabelInner() {
   const [bpacTemplatePath, setBpacTemplatePath] = useState('');
   const [bpacPrinting, setBpacPrinting] = useState(false);
 
+  const draftReady = useRef(false);   // 初期読み込みが終わるまでは下書きを上書きしない
   const recipeMap = useMemo(() => new Map((recipes ?? []).map(r => [r.id, r])), [recipes]);
 
   const defaultExpiry = (recipeId: string, mfg: string) => {
@@ -116,7 +124,27 @@ function BatchLabelInner() {
 
       const ids = (searchParams.get('ids') ?? '').split(',').map(s => s.trim()).filter(Boolean);
       const setId = searchParams.get('set');
-      if (ids.length > 0) {
+      const draft = loadDraft();
+      // 下書きと同じレシピの並び（＝同じ作業の続き）なら、入力した枚数・期限日を復元する
+      const draftMatchesIds = !!draft && ids.length > 0 && draft.rows.map(r => r.recipeId).join(',') === ids.join(',');
+      if (draft && draft.rows.length > 0 && !setId && (ids.length === 0 || draftMatchesIds)) {
+        const sameDay = draft.savedOn === mfg;
+        // 別の日の下書きは製造日を今日にし、期限日も計算し直す（前日の日付のまま印刷する事故を防ぐ）
+        const useMfg = sameDay && /^\d{4}-\d{2}-\d{2}$/.test(draft.mfgDate) ? draft.mfgDate : mfg;
+        const restored: Row[] = [];
+        let excluded = 0;
+        for (const d of draft.rows) {
+          const r = map.get(d.recipeId);
+          if (!r) { excluded++; continue; }
+          const keepExpiry = sameDay && d.expiryEdited && /^\d{4}-\d{2}-\d{2}$/.test(d.expiryDate);
+          restored.push({ key: newKey(), recipeId: d.recipeId, count: d.count || '1',
+            expiryDate: keepExpiry ? d.expiryDate : addDaysStr(useMfg, Math.max(0, r.shelfLifeDays ?? 0)), expiryEdited: keepExpiry });
+        }
+        setMfgDate(useMfg);
+        setRows(restored);
+        setSetName(draft.setName ?? '');
+        if (excluded > 0) toast.error(`${excluded}件のレシピは削除または非表示のため除外しました`);
+      } else if (ids.length > 0) {
         const { rows: rs, excluded } = buildRows(ids.map(id => ({ recipeId: id, count: 1 })), mfg, map);
         setRows(rs);
         if (excluded > 0) toast.error(`${excluded}件のレシピは削除または非表示のため除外しました`);
@@ -128,8 +156,18 @@ function BatchLabelInner() {
           if (excluded > 0) toast.error(`${excluded}件のレシピは削除または非表示のため除外しました`);
         }
       }
+      draftReady.current = true;
     }).catch(() => { setRecipes([]); toast.error('レシピの読み込みに失敗しました'); });
   }, [searchParams]);
+
+  // 作業中の内容を下書きとして保存
+  useEffect(() => {
+    if (!draftReady.current) return;
+    try {
+      const draft: Draft = { savedOn: todayStr(), mfgDate, setName, rows: rows.map(r => ({ recipeId: r.recipeId, count: r.count, expiryDate: r.expiryDate, expiryEdited: r.expiryEdited })) };
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    } catch { /* 保存できない環境では下書きなしで動く */ }
+  }, [rows, mfgDate, setName]);
 
   // 内容を変えたら、生成済みのHTMLは古くなるので印刷できないようにする
   const invalidate = () => { setPrintReady(false); setResultItems([]); };
@@ -283,6 +321,8 @@ function BatchLabelInner() {
 
   const toggleDeduct = (v: boolean) => { setDeductStock(v); try { localStorage.setItem('label_deductStock', String(v)); } catch {} };
 
+  // b-PACはラベルプリンター・日本語ラベルのときだけ（ラベル印刷画面と同じ条件）
+  const bpacAvailable = settings?.deviceType === 'LABEL_PRINTER' && settings.payload.language !== 'en';
   const remainingFree = printStats && !printStats.isPremium ? Math.max(0, printStats.limit - printStats.used) : null;
   const usedRecipeIds = new Set(rows.map(r => r.recipeId));
 
@@ -306,7 +346,10 @@ function BatchLabelInner() {
             {settings && !settings.hasSaved && <p className="text-amber-600 mt-0.5">まだラベル印刷画面で設定していないため、初期設定で印刷します</p>}
           </div>
         </div>
-        <Link href="/dashboard/labels" className="btn-secondary text-sm whitespace-nowrap">設定はラベル印刷画面で変更</Link>
+        <div className="flex flex-col items-start sm:items-end gap-1">
+          <Link href="/dashboard/labels" className="btn-secondary text-sm whitespace-nowrap">設定はラベル印刷画面で変更</Link>
+          <span className="text-xs text-stone-400">変更後はラベル印刷画面右上の「複数のレシピをまとめて印刷」で戻れます（選んだレシピは残ります）</span>
+        </div>
       </div>
 
       {/* セット */}
@@ -436,12 +479,22 @@ function BatchLabelInner() {
               <Printer className="w-4 h-4" />印刷する
             </button>
           )}
-          {printReady && bpacTemplatePath && (
-            <button onClick={handleBpacPrint} disabled={bpacPrinting} className="btn-secondary flex items-center gap-2 disabled:opacity-50">
+          {bpacAvailable && bpacTemplatePath && (
+            <button onClick={handleBpacPrint} disabled={bpacPrinting || !printReady} title={printReady ? '' : '先に「ラベルを生成」を押してください'}
+              className="btn-secondary flex items-center gap-2 disabled:opacity-50">
               {bpacPrinting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Usb className="w-4 h-4" />}b-PAC印刷
             </button>
           )}
         </div>
+        {bpacAvailable && bpacTemplatePath && !printReady && (
+          <p className="text-xs text-stone-400">b-PAC印刷は「ラベルを生成」のあとに押せるようになります（レシピごとに順番に印刷します）。</p>
+        )}
+        {bpacAvailable && !bpacTemplatePath && (
+          <p className="text-xs text-stone-400">b-PACで印刷するには、<Link href="/dashboard/settings" className="text-brand-600 hover:underline">設定</Link>の「b-PACラベル印刷の設定」でテンプレートファイルのパスを入力してください。</p>
+        )}
+        {settings?.deviceType === 'LABEL_PRINTER' && settings.payload.language === 'en' && bpacTemplatePath && (
+          <p className="text-xs text-stone-400">英語の補助ラベルはb-PAC印刷に対応していません（ブラウザの「印刷する」をお使いください）。</p>
+        )}
       </div>
 
       {warnings.length > 0 && (

@@ -126,7 +126,8 @@ export default function RecipesPage() {
   const fetchSeq = useRef(0);
   const fetchRecipes = useCallback(async () => {
     setLoading(true);
-    setSelected(new Set());
+    // 2026-11-13: 検索・ページ切り替えで選択が消えないよう、ここでは選択を解除しない
+    // （検索して探しながら複数のレシピを選べるようにするため。解除はキャンセル／解除ボタンで行う）
     const seq = ++fetchSeq.current;
     try {
       const params = new URLSearchParams({ page: String(page), perPage: String(PERPAGE), search, category, active: showHidden ? 'false' : 'true', hiddenOnly: showHidden ? 'true' : 'false' });
@@ -144,7 +145,8 @@ export default function RecipesPage() {
   const toggleSelect = (id: string) => {
     setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
   };
-  const selectAll = () => setSelected(new Set(recipes.map(r=>r.id)));
+  // 表示中のレシピを選択に追加する（他の検索結果・ページで選んだものは残す）
+  const selectAll = () => setSelected(prev => { const s = new Set(prev); recipes.forEach(r => s.add(r.id)); return s; });
   const clearSelection = () => { setSelected(new Set()); setSelectMode(false); };
 
   // 複数レシピ印刷
@@ -338,7 +340,7 @@ export default function RecipesPage() {
               {deletingHidden ? '削除中...' : '非表示レシピを全て完全に削除'}
             </button>
           )}
-          <button onClick={() => { setShowHidden(!showHidden); setPage(1); setSelectMode(false); }}
+          <button onClick={() => { setShowHidden(!showHidden); setPage(1); clearSelection(); }}
             className={`btn-secondary flex items-center gap-2 text-sm ${showHidden ? 'bg-amber-100 border-amber-300 text-amber-700' : ''}`}>
             {showHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
             {showHidden ? '通常表示に戻る' : '非表示レシピ'}
@@ -369,9 +371,10 @@ export default function RecipesPage() {
         </div>
         {selectMode && (
           <div className="flex items-center gap-3 mt-3 pt-3 border-t border-cream-200">
-            <button onClick={selectAll} className="text-sm text-brand-600 hover:underline">全選択</button>
+            <button onClick={selectAll} className="text-sm text-brand-600 hover:underline">表示中をすべて選択</button>
             <button onClick={clearSelection} className="text-sm text-stone-500 hover:underline">解除</button>
             <span className="text-sm text-stone-500">{selected.size}件選択中</span>
+            <span className="text-xs text-stone-400">（検索やページを変えても選択は残ります）</span>
           </div>
         )}
       </div>

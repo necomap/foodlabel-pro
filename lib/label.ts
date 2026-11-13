@@ -431,7 +431,22 @@ export function generateLabelHtml(
   config: LabelConfig,
   isPreview: boolean = false
 ): string {
+  return generateMultiLabelHtml([{ content, count: config.printCount }], config, isPreview);
+}
+
+/**
+ * 複数レシピのラベルを1つの印刷用HTMLにまとめる（2026-11 まとめてラベル印刷）。
+ * items の順に count 枚ずつ並べる。A4シールは空きなく続けて詰め、シートが埋まったときだけ改ページする
+ * （開始位置 startPosition は最初のラベルにだけ適用）。ラベルプリンタは順番に連続出力する。
+ * 用紙・フォントなど印刷設定（config）は全レシピ共通。config.printCount は使わない（items の count の合計を使う）。
+ */
+export function generateMultiLabelHtml(
+  items: Array<{ content: LabelContent; count: number }>,
+  config: LabelConfig,
+  isPreview: boolean = false
+): string {
   const { fontSizePt, labelWidthMm, labelHeightMm } = config;
+  const totalCount = items.reduce((sum, it) => sum + Math.max(0, Math.floor(it.count)), 0);
   // ラベル1枚の実寸。A4プリンタの場合は labelWidthMm/labelHeightMm（ラベルプリンタ用の項目）ではなく、
   // シールサイズ指定（a4SealWidthMm/a4SealHeightMm）があればそれ、なければページ幅・列数・行数・
   // スキマから自動計算したセルサイズを使う。ここで実寸を先に確定させておかないと、後続のフォント
@@ -457,10 +472,6 @@ export function generateLabelHtml(
   // 無定長（連続）ロール用：ラベルプリンタのみ有効。高さを固定せず、内容量に応じて印刷側で
   // 自動的に長さを決める（@page の size に "auto" を指定する）。A4は物理的にグリッドが固定なので対象外。
   const labelHeightAuto = config.deviceType === 'LABEL_PRINTER' && (config as any).labelHeightAuto === true;
-  const recycleMarks: Array<{ key: string; role?: string }> = (content as any).recycleMarks ?? [];
-  // 識別マーク単体の高さ。バーコード高さ(barcodeHeightMm)とは独立した設定値。
-  // 法令上マーク単体で6mm以上必要なため、万一0や未設定の値が来ても下限をクランプする。
-  const recycleMarkHeightMm = Math.max((content as any).recycleMarkHeightMm ?? 8, 6);
   // 表示可能面積から法令上の文字サイズ下限を判定（食品表示基準）
   // 150cm²超: 8pt以上 / 150cm²以下: 5.5pt以上
   // 容器全体サイズ（packageWidthMm/packageHeightMm）が未入力の場合はシールサイズから推定
@@ -508,6 +519,12 @@ export function generateLabelHtml(
   const escHtml = (s: string) =>
     s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+  // ここから下（singleLabel まで）はレシピごとの内容に依存する部分。まとめて印刷のため関数にしている。
+  const buildSingleLabel = (content: LabelContent): string => {
+  const recycleMarks: Array<{ key: string; role?: string }> = (content as any).recycleMarks ?? [];
+  // 識別マーク単体の高さ。バーコード高さ(barcodeHeightMm)とは独立した設定値。
+  // 法令上マーク単体で6mm以上必要なため、万一0や未設定の値が来ても下限をクランプする。
+  const recycleMarkHeightMm = Math.max((content as any).recycleMarkHeightMm ?? 8, 6);
   // 見出しの文言（英語の補助ラベルでは英語にする。2026-10-22）
   const isEn = content.lang === 'en';
   const T = isEn
@@ -668,9 +685,19 @@ ${(content.barcode && content.showBarcode !== false) || (recycleMarks.length > 0
   </div>` : ''}
 </div>
 `;
+  return singleLabel;
+  };
+  // 印刷順に並べたラベル（レシピごとに1回だけ組み立てて count 枚ぶん繰り返す）
+  const labelSequence: string[] = [];
+  for (const it of items) {
+    const n = Math.max(0, Math.floor(it.count));
+    if (n === 0) continue;
+    const one = buildSingleLabel(it.content);
+    for (let i = 0; i < n; i++) labelSequence.push(one);
+  }
   // ラベルプリンタ用：ラベルのみ
   if (config.deviceType === 'LABEL_PRINTER') {
-    const labels = Array(config.printCount).fill(singleLabel).join('\n');
+    const labels = labelSequence.join('\n');
     return `<!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -762,7 +789,7 @@ ${isPreview ? `
   const marginRight  = Math.max(210 - marginLeft - cellW * cols - colGap * (cols - 1), 0);
   const marginBottom = Math.max(297 - marginTop  - cellH * rows - rowGap * (rows - 1), 0);
 
-  const totalSlots = startPos + config.printCount;
+  const totalSlots = startPos + totalCount;
   const pages      = Math.ceil(totalSlots / labelsPerPage);
 
   // A4セルサイズに合わせてフォントサイズを再計算（こちらもシールが基準より大きくても拡大はしない）
@@ -770,21 +797,29 @@ ${isPreview ? `
   const a4FontSize = Math.max(Math.round((fontSizePt ?? 8) * a4AreaRatio * 10) / 10, legalMinFontPt);
 
   // ラベルHTMLをセルサイズとフォントサイズに合わせて調整
-  const cellLabel = singleLabel
+  const toCellLabel = (singleLabel: string) => singleLabel
     .replace(`width: ${width}mm`, `width: ${cellW}mm`)
     .replace(`min-height: ${height}mm`, `height: ${cellH}mm`)
     .replace(`max-height: ${height}mm`, `max-height: ${cellH}mm`)
     .replace(new RegExp(`font-size:${fontSize}pt`, 'g'), `font-size:${a4FontSize}pt`)
     .replace(new RegExp(`font-size:${Math.round(fontSize * 1.1)}pt`, 'g'), `font-size:${Math.round(a4FontSize * 1.1)}pt`);
 
+  // 同じラベル文字列の置換を毎回やり直さないようキャッシュする
+  const cellCache = new Map<string, string>();
+  const cellLabelOf = (idx: number): string => {
+    const src = labelSequence[idx] ?? '';
+    let cell = cellCache.get(src);
+    if (cell === undefined) { cell = toCellLabel(src); cellCache.set(src, cell); }
+    return cell;
+  };
   let gridHtml = '';
   for (let p = 0; p < pages; p++) {
     const isLastPage = p === pages - 1;
     gridHtml += `<div style="display:grid;grid-template-columns:repeat(${cols},${cellW}mm);grid-template-rows:repeat(${rows},${cellH}mm);gap:${rowGap}mm ${colGap}mm;width:${210 - marginLeft - marginRight}mm;height:${297 - marginTop - marginBottom}mm;margin:${marginTop}mm ${marginRight}mm ${marginBottom}mm ${marginLeft}mm;${isLastPage ? '' : 'page-break-after:always;'}">`;
     for (let i = 0; i < labelsPerPage; i++) {
       const slot = p * labelsPerPage + i;
-      const isEmpty = slot < startPos || slot >= startPos + config.printCount;
-      gridHtml += `<div style="width:${cellW}mm;height:${cellH}mm;box-sizing:border-box;">${isEmpty ? '' : cellLabel}</div>`;
+      const isEmpty = slot < startPos || slot >= startPos + totalCount;
+      gridHtml += `<div style="width:${cellW}mm;height:${cellH}mm;box-sizing:border-box;">${isEmpty ? '' : cellLabelOf(slot - startPos)}</div>`;
     }
     gridHtml += '</div>';
   }

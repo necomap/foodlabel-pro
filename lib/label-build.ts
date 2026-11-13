@@ -1,0 +1,445 @@
+// ============================================================
+// lib/label-build.ts - レシピ1件からラベル内容（LabelContent）を組み立てる共通処理
+// ============================================================
+// 2026-11 まとめてラベル印刷の追加にあわせ、app/api/labels/generate/route.ts から切り出した。
+// 1件ずつのラベル生成（generate）と、まとめて印刷（generate-batch）の両方で同じ処理を使い、
+// 原材料・アレルゲン・栄養成分・警告の内容が両者で食い違わないようにする。
+// ============================================================
+
+import { z } from 'zod';
+import { prisma } from '@/lib/db';
+import { generateLabelContent, getDefaultDisplaySettings } from '@/lib/label';
+import { buildIngredientsLabel, collectRecipeAllergens, prepareIngredientsForLabel, checkMasterAllergens } from '@/lib/allergen';
+import { computeLiveRecipeNutrition, calcPerUnit, roundForDisplay } from '@/lib/nutrition';
+import { computeLabelHash } from '@/lib/label-check';
+import { getGenericNameOverrides, getCompositeOverrides, resolveComposite, getNameEnOverrides } from '@/lib/generic-name-overrides';
+import type { RecipeDetail, LabelConfig, LabelContent, BakingStep } from '@/types';
+
+export const labelConfigSchema = z.object({
+  recipeId:        z.string(),
+  shopId:          z.string().optional(),
+  manufactureDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  shelfLifeDays:   z.number().int().min(0).optional(),
+  printCount:      z.number().int().positive().default(1),
+  fontSizePt:      z.number().min(6).max(12).default(8),
+  // ラベル本文に使う日本語フォント。選べる値は lib/label.ts の FONT_FAMILY_OPTIONS 参照
+  fontFamily:      z.enum(['noto-sans-jp', 'yu-gothic', 'hiragino-kaku-gothic', 'meiryo']).default('noto-sans-jp'),
+  deviceType:      z.enum(['LABEL_PRINTER', 'A4_PRINTER', 'OTHER']).default('LABEL_PRINTER'),
+  labelWidthMm:    z.number().positive().optional(),
+  labelHeightMm:   z.number().positive().optional(),
+  labelHeightAuto: z.boolean().optional(),
+  isPrecut:        z.boolean().optional(),
+  cutMarginMm:     z.number().optional(),
+  // ラベル内側の余白（プリンタードライバーの印字不可能領域による欠け対策）
+  labelPaddingTopMm:    z.number().min(0).max(10).optional(),
+  labelPaddingBottomMm: z.number().min(0).max(10).optional(),
+  labelPaddingLeftMm:   z.number().min(0).max(10).optional(),
+  labelPaddingRightMm:  z.number().min(0).max(10).optional(),
+  a4Cols:          z.number().int().positive().optional(),
+  a4Rows:          z.number().int().positive().optional(),
+  marginTopMm:     z.number().optional(),
+  marginBottomMm:  z.number().optional(),
+  marginLeftMm:    z.number().optional(),
+  marginRightMm:   z.number().optional(),
+  startPosition:   z.number().int().positive().optional(),
+  a4SealWidthMm:   z.number().positive().optional(),
+  a4SealHeightMm:  z.number().positive().optional(),
+  a4ColGapMm:      z.number().min(0).optional(),
+  a4RowGapMm:      z.number().min(0).optional(),
+  // 2026-10-22: ラベルの言語（'en' は英語の補助ラベル。lib/label-en.ts）
+  language:        z.enum(['ja', 'en']).optional(),
+  displaySettings: z.object({
+    showPostalCode:     z.boolean().default(true),
+    showPhone:          z.boolean().default(true),
+    showRepresentative: z.boolean().default(false),
+    showEmail:          z.boolean().default(false),
+    showNutrition:      z.boolean().default(true),
+    showDietaryFiber:   z.boolean().default(true),
+    showSugar:          z.boolean().default(true),
+    showCholesterol:    z.boolean().default(false),
+    // 2026-10-22: 栄養成分の0表示基準（スキーマに無いとzodに落とされ、OFFにしても効かなかった）
+    applyZeroRule:      z.boolean().default(true),
+    showQualityControl: z.boolean().default(true),
+    showComment:        z.boolean().default(true),
+    nutritionNote:      z.string().default('※推定値'),
+  }).optional(),
+  logoHeightMm:     z.number().int().min(4).max(20).optional(),
+  qrSizeMm:         z.number().int().min(4).max(20).optional(),
+  showLogo:         z.boolean().optional(),
+  showQr:           z.boolean().optional(),
+  showBarcode:      z.boolean().optional(),
+  showBarcodeText:  z.boolean().optional(),
+  // 2026-08: 5mmでも実機で問題なく読み取れたとのことで下限を3mmに引き下げ。
+  // 法令上の最小値ではなく、あくまでスキャナーでの読み取りやすさの目安（UI側にも注意書きあり）。
+  barcodeHeightMm:  z.number().int().min(3).max(15).optional(),
+  packageWidthMm:   z.number().positive().optional(),
+  packageHeightMm:  z.number().positive().optional(),
+  // 識別マーク（リサイクルマーク）。バーコードとは別にサイズ指定できる。
+  // マークは法令上単体で6mm以上必要なため下限をスキーマ側でも強制する（実際の描画側でも再度クランプする）。
+  recycleMarks: z.array(z.object({
+    key:  z.enum(['plastic','paper','pet','steel','aluminum','board']),
+    role: z.string().max(20).optional(),
+  })).optional(),
+  recycleMarkHeightMm: z.number().min(6).max(30).optional(),
+  // 2026-08 プロプラン新設: ロット番号トレーサビリティ（Pro限定・任意入力）。
+  // Pro未満のプランから送られてきた場合はサーバー側で無視する（下記のLabel.create部分参照）。
+  lots: z.array(z.object({
+    ingredientName: z.string().max(200),
+    lotNumber:      z.string().max(100),
+  })).optional(),
+  // 2026-09新設: 印刷時の在庫自動差し引き（Pro限定）。印刷画面のチェックボックスで
+  // ON/OFFできる（デフォルトON。再印刷・修正印刷時にOFFにすれば二重差し引きを防げる）。
+  // Pro未満のプランから送られてきた場合はサーバー側で無視する（下記の実行部分参照）。
+  deductStock: z.boolean().optional().default(false),
+});
+
+export type LabelRequestConfig = z.infer<typeof labelConfigSchema>;
+
+export interface ShopInfo {
+  shopName: string; companyName: string; postalCode: string; address: string; phone: string;
+  representative: string; email: string; showPhone: boolean; showRepresentative: boolean; showEmail: boolean;
+  qrUrl: string | null; logoUrl: string | null; logoHeightMm: number; qrSizeMm: number;
+}
+
+/** ラベルの製造者欄に使う店舗情報（指定店舗 → デフォルト店舗 → ユーザー情報の順） */
+export async function resolveShopInfo(userId: string, shopId?: string): Promise<ShopInfo> {
+  const session = { user: { id: userId } };
+  let shopInfo: ShopInfo = {
+    shopName:       '',
+    companyName:    '',
+    postalCode:     '',
+    address:        '',
+    phone:          '',
+    representative: '',
+    email:          '',
+    showPhone:          true,
+    showRepresentative: false,
+    showEmail:          false,
+    qrUrl:              null,
+    logoUrl:            null,
+    logoHeightMm:       8,
+    qrSizeMm:           6,
+  };
+
+  if (shopId) {
+    const shops = await prisma.$queryRaw`
+      SELECT "shopName", "companyName", representative, "postalCode",
+             address, phone, email, "showPhone", "showRepresentative", "showEmail", "qrUrl", "logoUrl", "logoHeightMm", "qrSizeMm"
+      FROM shops
+      WHERE id = ${shopId} AND "userId" = ${session.user.id} AND "isActive" = true
+      LIMIT 1
+    ` as any[];
+    const shop = shops[0];
+    if (shop) {
+      shopInfo = {
+        shopName:           shop.shopName ?? '',
+        companyName:        shop.companyName ?? shop.shopName ?? '',
+        postalCode:         shop.postalCode ?? '',
+        address:            shop.address ?? '',
+        phone:              shop.phone ?? '',
+        representative:     shop.representative ?? '',
+        email:              shop.email ?? '',
+        showPhone:          shop.showPhone ?? true,
+        showRepresentative: true,  // フロントのcheckboxで制御
+        showEmail:          shop.showEmail ?? false,
+        qrUrl:              shop.qrUrl ?? null,
+        logoUrl:            shop.logoUrl ?? null,
+        logoHeightMm:       shop.logoHeightMm ?? 8,
+        qrSizeMm:           shop.qrSizeMm ?? 6,
+      };
+    }
+  } else {
+    // デフォルト店舗またはユーザー情報
+    const defaultShops = await prisma.$queryRaw`
+      SELECT "shopName", "companyName", representative, "postalCode",
+             address, phone, email, "showPhone", "showRepresentative", "showEmail", "qrUrl", "logoUrl", "logoHeightMm", "qrSizeMm"
+      FROM shops
+      WHERE "userId" = ${session.user.id} AND "isActive" = true AND "isDefault" = true
+      LIMIT 1
+    ` as any[];
+    if (defaultShops[0]) {
+      const s = defaultShops[0];
+      shopInfo = {
+        shopName:           s.shopName ?? '',
+        companyName:        s.companyName ?? s.shopName ?? '',
+        postalCode:         s.postalCode ?? '',
+        address:            s.address ?? '',
+        phone:              s.phone ?? '',
+        representative:     s.representative ?? '',
+        email:              s.email ?? '',
+        showPhone:          s.showPhone ?? true,
+        showRepresentative: true,  // フロントのcheckboxで制御
+        showEmail:          s.showEmail ?? false,
+        qrUrl:              s.qrUrl ?? null,
+        logoUrl:            s.logoUrl ?? null,
+        logoHeightMm:       s.logoHeightMm ?? 8,
+        qrSizeMm:           s.qrSizeMm ?? 6,
+      };
+    } else {
+      const user = await prisma.user.findUnique({ where: { id: session.user.id } });
+      if (user) {
+        shopInfo = {
+          shopName:           (user as any).companyName ?? '',
+          companyName:        (user as any).companyName ?? '',
+          postalCode:         (user as any).postalCode ?? '',
+          address:            (user as any).address ?? '',
+          phone:              (user as any).phone ?? '',
+          representative:     (user as any).representative ?? '',
+          email:              user.email ?? '',
+          showPhone:          true,
+          showRepresentative: false,
+          showEmail:          false,
+          logoHeightMm:       8,
+          qrSizeMm:           6,
+          qrUrl:              null,
+          logoUrl:            null,
+        };
+      }
+    }
+  }
+  return shopInfo;
+}
+
+function fetchRecipeForLabel(userId: string, recipeId: string) {
+  return prisma.recipe.findFirst({
+    where:   { id: recipeId, userId },
+    include: {
+      category:    { select: { name: true } },
+      ingredients: {
+        orderBy: [{ sortByWeight: 'desc' }, { displayOrder: 'asc' }],
+        include: {
+          ingredient: {
+            select: {
+              name: true, allergens: true, genericName: true, alwaysHideFromLabel: true, originCountry: true,
+              compositeIngredients: true, compositeAdditives: true, nameEn: true,
+              // 栄養成分「未確認」警告を、レシピ保存時点のスナップショットではなく食材マスタの
+              // 最新値から毎回判定し直すために必要（詳細はlib/nutrition.tsのコメント参照）
+              energyKcalManual: true, proteinManual: true, fatManual: true, carbohydrateManual: true,
+              sodiumManual: true, saltEquivalentManual: true, dietaryFiberManual: true, sugarManual: true, cholesterolManual: true,
+              nutritionData: { select: { energyKcal: true, protein: true, fat: true, carbohydrate: true, sodium: true, saltEquivalent: true, dietaryFiber: true, sugar: true, cholesterol: true } },
+            },
+          },
+        },
+      },
+      steps: { orderBy: { stepNumber: 'asc' } },
+    },
+  });
+}
+
+export type RecipeForLabel = NonNullable<Awaited<ReturnType<typeof fetchRecipeForLabel>>>;
+
+/**
+ * レシピ1件分のラベル内容を組み立てる。レシピが見つからなければ null。
+ * 引数の shopInfo は書き換えない（まとめて印刷で使い回すため、内部でコピーして使う）。
+ */
+export async function buildRecipeLabel(
+  userId: string,
+  config: LabelRequestConfig,
+  baseShopInfo: ShopInfo,
+): Promise<{ recipe: RecipeForLabel; content: LabelContent; labelConfig: LabelConfig; warnings: string[] } | null> {
+  const session = { user: { id: userId } };
+  const shopInfo: ShopInfo = { ...baseShopInfo };
+  const recipe = await fetchRecipeForLabel(userId, config.recipeId);
+  if (!recipe) return null;
+
+  // 各材料について、食材マスタに紐づいているものは保存時点のスナップショット
+  // （RecipeIngredient.nutritionUnconfirmed）ではなく、食材マスタの最新の栄養成分から
+  // 「未確認」かどうかを毎回判定し直す。こうしないと、食材マスタ側で後から栄養成分を
+  // 入力・修正しても、このレシピを開き直して保存し直すまで警告が消えない
+  // （直したのに反映されないように見える）不具合になる。
+  const liveNutrition = computeLiveRecipeNutrition(recipe.ingredients as any);
+  const resolvedIngredients = recipe.ingredients.map((ing, idx) => {
+    const live = liveNutrition.perIngredient[idx];
+    const unconfirmed = (ing.ingredientId && ing.ingredient) ? live.unconfirmed : ing.nutritionUnconfirmed;
+    return { ing, unconfirmed, nutrition: live.nutrition, notWeighable: live.notWeighable };
+  });
+  const resolvedById = new Map(resolvedIngredients.map(r => [r.ing.id, r]));
+
+  // 未確認成分の警告収集
+  const warnings = resolvedIngredients
+    .filter(r => r.unconfirmed)
+    .map(r => `「${r.ing.ingredient?.name ?? r.ing.ingredientNameOverride ?? '不明'}」の成分情報が未確認です`);
+  // 個・枚など重量に換算できない単位の材料は栄養成分に含まれない（黙って0扱いにしないよう警告する）
+  resolvedIngredients
+    .filter(r => r.notWeighable && !r.unconfirmed)
+    .forEach(r => warnings.push(`「${r.ing.ingredient?.name ?? r.ing.ingredientNameOverride ?? '不明'}」は単位が「${r.ing.unit}」のため栄養成分の計算に含まれていません（g・kg・ml・Lで入力すると計算されます）`));
+  // 食材マスタのアレルゲンの入れ忘れ・誤登録の疑い（2026-10-22）。マスタに紐づく材料はマスタの値だけで
+  // ラベルを作るため、名前から判定できるアレルゲンがマスタに無いと表示漏れになる。
+  recipe.ingredients.forEach(ing => {
+    if (!ing.ingredientId || !ing.ingredient) return;
+    const names = Array.from(new Set([ing.ingredient.name, ing.ingredient.genericName].filter(Boolean) as string[]));
+    const missing = new Set<string>(); const suspicious = new Set<string>();
+    names.forEach(n => { const r = checkMasterAllergens(n, ing.ingredient!.allergens ?? []); r.missing.forEach(a => missing.add(a)); r.suspicious.forEach(a => suspicious.add(a)); });
+    if (missing.size) warnings.push(`「${ing.ingredient.name}」の名前から「${Array.from(missing).join('・')}」を含む可能性がありますが、食材マスタのアレルゲンに入っていません（含む場合は食材マスタで追加してください）`);
+    if (suspicious.size) warnings.push(`「${ing.ingredient.name}」に果物の「もも」がアレルゲンとして登録されています。肉の部位の「もも」であれば食材マスタで外してください`);
+  });
+
+  // RecipeDetail 形式に変換
+  const sortedIngredients = [...recipe.ingredients].sort((a, b) => {
+    if (a.sortByWeight && a.unit === 'g') return Number(b.amount) - Number(a.amount);
+    return a.displayOrder - b.displayOrder;
+  });
+
+  // 自分が所有していない共有食材でも「自分専用の一般名」が設定されていれば優先する
+  // （詳細はlib/generic-name-overrides.ts）。実際に印字される内容に反映させる必要があるため、
+  // レシピ詳細API（app/api/recipes/[id]/route.ts）と同じロジックをここでも適用する。
+  const genericNameOverrides = await getGenericNameOverrides(session.user.id, sortedIngredients.map(ing => ing.ingredientId));
+  const resolveGenericName = (ing: typeof sortedIngredients[number]): string | null =>
+    (ing.ingredientId && genericNameOverrides.get(ing.ingredientId)) || ing.ingredient?.genericName || null;
+  // 複合原材料の内訳（自分専用の上書き → 食材マスタ本体）。2026-10-22
+  const compositeOverrides = await getCompositeOverrides(session.user.id, sortedIngredients.map(ing => ing.ingredientId));
+  const compositeOf = (ing: typeof sortedIngredients[number]) => resolveComposite(compositeOverrides, ing.ingredientId, ing.ingredient as any);
+  // 英語名（英語の補助ラベル用。自分専用の上書き → 食材マスタ本体）。2026-10-22
+  const nameEnOverrides = await getNameEnOverrides(session.user.id, sortedIngredients.map(ing => ing.ingredientId));
+  const nameEnOf = (ing: typeof sortedIngredients[number]): string | null =>
+    (ing.ingredientId && nameEnOverrides.get(ing.ingredientId)) || (ing.ingredient as any)?.nameEn || null;
+
+  const allergenInfo = collectRecipeAllergens(
+    sortedIngredients.map(ing => ({
+      allergens:        ing.ingredient?.allergens ?? [],
+      allergenOverride: ing.allergenOverride,
+      ingredientName:   resolveGenericName(ing) || ing.ingredient?.name || ing.ingredientNameOverride || '',
+      // 食材マスタに紐づいている材料は、マスタ側のallergensのみを信頼する（名前からの自動再判定はしない）
+      hasIngredientLink: !!ing.ingredientId,
+      compositeText: [compositeOf(ing).compositeIngredients, compositeOf(ing).compositeAdditives].filter(Boolean).join('、'),
+    }))
+  );
+
+  // 食材マスタの最新値から再計算した合計（保存時点の古い合計値ではなく）。上のliveNutrition参照。
+  const totalNutrition = liveNutrition.total;
+
+  const recipeDetail: RecipeDetail = {
+    id:             recipe.id,
+    name:           recipe.name,
+    nameKana:       recipe.nameKana,
+    categoryName:   recipe.category?.name ?? null,
+    unitCount:      recipe.unitCount,
+    // 1個あたり栄養成分の廃棄率補正（レシピ詳細画面と同じ計算にそろえる。以前は渡しておらず、
+    // ラベルだけ廃棄分を差し引かない数値になっていた）
+    ...({ wasteRatio: Number(recipe.wasteRatio ?? 0) } as any),
+    shelfLifeDays:  recipe.shelfLifeDays,
+    shelfLifeType:  recipe.shelfLifeType as 'BEST_BEFORE' | 'USE_BY',
+    salePrice:      recipe.salePrice  ? Number(recipe.salePrice)  : null,
+    unitCost:       recipe.unitCost   ? Number(recipe.unitCost)   : null,
+    costRate:       recipe.costRate   ? Number(recipe.costRate)   : null,
+    contentAmount:  recipe.contentAmount,
+    storageMethod:  recipe.storageMethod,
+    nameEn:          (recipe as any).nameEn ?? null,
+    storageMethodEn: (recipe as any).storageMethodEn ?? null,
+    barcode:        recipe.barcode ?? null,
+    notes:          recipe.notes,
+    printComment:   recipe.printComment,
+    qualityControl: recipe.qualityControl,
+    bakingConditions: recipe.bakingConditions as unknown as BakingStep[] | null,
+    totalCost:      recipe.totalCost  ? Number(recipe.totalCost)  : null,
+    totalWeightG:   recipe.totalWeightG ? Number(recipe.totalWeightG) : null,
+    nutrition:      totalNutrition,
+    ingredientsLabel: buildIngredientsLabel(
+      prepareIngredientsForLabel(
+        sortedIngredients.map(i => ({
+          ingredientName: resolveGenericName(i) || i.ingredient?.name || i.ingredientNameOverride || '',
+          amount: Number(i.amount),
+          // レシピ側で個別に原産地を指定していなければ、食材マスタ側の原産地（デフォルト）を使う。
+          // これが無いと、食材マスタで原産地を後から入力・修正しても、既存のレシピ（材料が
+          // マスタに紐づけられた時点で原産地が未入力だったもの）には反映されないままになる。
+          originCountry: i.originCountry || (i.ingredient as any)?.originCountry || undefined,
+          unit: i.unit,
+          displayOrder: i.displayOrder,
+          sortByWeight: i.sortByWeight,
+          isAdditive: i.isAdditive ?? false,
+          additiveReason: i.additiveReason ?? undefined,
+          hideFromLabel: (i as any).hideFromLabel ?? false,
+          ingredientAlwaysHideFromLabel: (i.ingredient as any)?.alwaysHideFromLabel ?? false,
+          ...compositeOf(i),
+        }))
+      ),
+      allergenInfo.all
+    ),
+    allergensLabel: allergenInfo.all.join('・'),
+    allergens:      allergenInfo as unknown as string[],
+    hasUnconfirmedNutrition: resolvedIngredients.some(r => r.unconfirmed),
+    isActive:       recipe.isActive,
+    createdAt:      recipe.createdAt,
+    updatedAt:      recipe.updatedAt,
+    ingredients: sortedIngredients.map(ing => {
+      const resolved = resolvedById.get(ing.id);
+      const nutrition = resolved?.nutrition ?? {
+        energyKcal:     ing.energyKcal     != null ? Number(ing.energyKcal)     : null,
+        protein:        ing.protein        != null ? Number(ing.protein)        : null,
+        fat:            ing.fat            != null ? Number(ing.fat)            : null,
+        carbohydrate:   ing.carbohydrate   != null ? Number(ing.carbohydrate)   : null,
+        sodium:         ing.sodium         != null ? Number(ing.sodium)         : null,
+        saltEquivalent: ing.saltEquivalent != null ? Number(ing.saltEquivalent) : null,
+        dietaryFiber:   ing.dietaryFiber   != null ? Number(ing.dietaryFiber)   : null,
+        sugar:          ing.sugar          != null ? Number(ing.sugar)          : null,
+        cholesterol:    ing.cholesterol    != null ? Number(ing.cholesterol)    : null,
+      };
+      return {
+        id:                     ing.id,
+        ingredientId:           ing.ingredientId ?? undefined,
+        ingredientName:         resolveGenericName(ing) || ing.ingredient?.name || ing.ingredientNameOverride || '',
+        ingredientNameOverride: ing.ingredientNameOverride ?? undefined,
+        amount:                 Number(ing.amount),
+        unit:                   ing.unit,
+        displayOrder:           ing.displayOrder,
+        sortByWeight:           ing.sortByWeight,
+        originCountry:          ing.originCountry || (ing.ingredient as any)?.originCountry || undefined,
+        isAdditive:             ing.isAdditive ?? false,
+        additiveReason:         ing.additiveReason ?? undefined,
+        hideFromLabel:          (ing as any).hideFromLabel ?? false,
+        ingredientAlwaysHideFromLabel: (ing.ingredient as any)?.alwaysHideFromLabel ?? false,
+        ...compositeOf(ing),
+        ingredientNameEn:       nameEnOf(ing),
+        costPrice:              ing.costPrice   != null ? Number(ing.costPrice)  : null,
+        costTotal:              ing.costTotal   != null ? Number(ing.costTotal)  : null,
+        allergenOverride:       ing.allergenOverride,
+        // 印字するアレルゲンの情報源（マスタ紐づけ材料）。これが無いとラベルからアレルゲンが抜ける。
+        masterAllergens:        ing.ingredient?.allergens ?? [],
+        isPrimaryIngredient:    ing.isPrimaryIngredient,
+        nutritionUnconfirmed:   resolved?.unconfirmed ?? ing.nutritionUnconfirmed,
+        nutrition,
+      };
+    }),
+    steps: recipe.steps.map(s => s.instruction),
+  };
+
+  // 表示内容の確認記録（2026-10-22）: 確認後に表示内容が変わっていれば警告する（日本語ラベルのみ）
+  if ((config as any).language !== 'en') {
+    const currentHash = computeLabelHash({
+      name: recipe.name,
+      ingredientsLabel: recipeDetail.ingredientsLabel ?? '',
+      nutritionPerUnit: roundForDisplay(calcPerUnit(totalNutrition, recipe.unitCount, Number(recipe.wasteRatio ?? 0))) as any,
+      contentAmount: recipe.contentAmount, shelfLifeDays: recipe.shelfLifeDays, shelfLifeType: recipe.shelfLifeType, storageMethod: recipe.storageMethod,
+    });
+    const checkedHash = (recipe as any).labelCheckedHash as string | null;
+    if (!checkedHash) warnings.push('このレシピの表示内容は、まだ確認済みになっていません（レシピ詳細画面の「表示内容の確認」で記録できます）');
+    else if (checkedHash !== currentHash) warnings.push('前回の確認以降に、このレシピの表示内容（原材料・アレルゲン・栄養成分など）が変わっています。内容を確認し、レシピ詳細画面で確認し直してください');
+  }
+
+  const labelConfig: LabelConfig = {
+    ...config,
+    displaySettings: config.displaySettings ?? getDefaultDisplaySettings(),
+    // zodスキーマ上 key は必須（z.enum、.optional()なし）だが、型推論の都合で
+    // key?: ... という型になりビルドエラーになるため、ここで明示的に組み直す
+    // （実行時はzodのバリデーションでkey未設定のデータは弾かれるので安全）
+    recycleMarks: (config.recycleMarks ?? []).map(m => ({ key: m.key!, role: m.role })),
+  };
+
+  // フロントエンドからサイズ指定がある場合は上書き
+  if (labelConfig.logoHeightMm) shopInfo.logoHeightMm = labelConfig.logoHeightMm;
+  if (labelConfig.qrSizeMm)     shopInfo.qrSizeMm     = labelConfig.qrSizeMm;
+
+  // バーコード設定をrecipeDetailに追加
+  (recipeDetail as any).showBarcode     = labelConfig.showBarcode !== false;
+  (recipeDetail as any).showBarcodeText  = labelConfig.showBarcodeText !== false;
+  (recipeDetail as any).barcodeHeightMm = labelConfig.barcodeHeightMm ?? 7;
+  (recipeDetail as any).recycleMarks        = Array.isArray((labelConfig as any).recycleMarks) ? (labelConfig as any).recycleMarks : [];
+  (recipeDetail as any).recycleMarkHeightMm = (labelConfig as any).recycleMarkHeightMm ?? 8;
+
+  const content = generateLabelContent(recipeDetail, labelConfig, shopInfo);
+  // シールサイズが小さい場合など、店舗設定のロゴ/QR URL自体は残したまま
+  // この印刷ジョブだけで一時的に非表示にできるようにする（設定側の削除は不要）
+  if (labelConfig.showLogo === false) content.logoUrl = null;
+  if (labelConfig.showQr   === false) content.qrUrl   = null;
+  return { recipe, content, labelConfig, warnings };
+}

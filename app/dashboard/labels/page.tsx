@@ -282,6 +282,8 @@ export default function LabelsPage() {
     setShowRep(getB('showRep', false));
     setShowFiber(getB('showFiber', true));
     setApplyZeroRule(getB('applyZeroRule', true));
+    // 2026-11: ラベルの言語も保存する（まとめてラベル印刷画面が同じ設定を読むため）
+    if (getL('language') === 'en' || getL('language') === 'ja') setLabelLang(getL('language') as 'ja' | 'en');
     setShowSugar(getB('showSugar', true));
     setShowCholest(getB('showCholest', false));
     setShowComment(getB('showComment', true));
@@ -756,8 +758,10 @@ export default function LabelsPage() {
             </a>
           )}
           <h1 className="text-2xl font-bold text-stone-800 font-display">ラベル印刷</h1>
+          {/* 2026-11新設: まとめてラベル印刷（この画面の印刷設定をそのまま使う） */}
+          <a href="/dashboard/labels/batch" className="ml-auto text-sm text-brand-600 hover:underline">複数のレシピをまとめて印刷 →</a>
         </div>
-        <p className="text-stone-500 text-sm mt-0.5">製造日を入力してラベルを生成・印刷します</p>
+        <p className="text-stone-500 text-sm mt-0.5">製造日を入力してラベルを生成・印刷します（ここで決めた用紙・表示などの設定は「まとめて印刷」でも使われます）</p>
       </div>
 
       <div className="space-y-5">
@@ -915,7 +919,7 @@ export default function LabelsPage() {
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-medium text-stone-700">ラベルの言語</span>
               {([['ja', '日本語（法定表示）'], ['en', 'English（補助ラベル）']] as const).map(([v, l]) => (
-                <button key={v} type="button" onClick={() => setLabelLang(v)}
+                <button key={v} type="button" onClick={() => { setLabelLang(v); localStorage.setItem('label_language', v); }}
                   className={`text-xs px-3 py-1.5 rounded-lg border ${labelLang === v ? 'bg-brand-500 text-white border-brand-500' : 'border-cream-300 text-stone-600'}`}>{l}</button>
               ))}
             </div>

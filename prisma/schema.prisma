@@ -65,6 +65,7 @@ model User {
   label_print_logs     label_print_logs[]
   labels               Label[]
   labelTemplates       LabelTemplate[]
+  labelPrintSets       LabelPrintSet[]
   recipes              Recipe[]
   shops                Shop[]
   subscriptions        Subscription[]
@@ -89,6 +90,22 @@ model LabelTemplate {
 
   @@index([userId])
   @@map("label_templates")
+}
+
+// まとめてラベル印刷のセット（2026-11新設）。「朝の焼き菓子セット」のように名前を付けて
+// レシピと枚数の組み合わせを保存し、次回ワンクリックで呼び出す。期限日は保存せず呼び出し時に再計算する。
+// items: [{ recipeId: string, count: number }]（app/api/label-print-sets/route.ts 参照）
+model LabelPrintSet {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String   @db.VarChar(100)
+  items     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("label_print_sets")
 }
 
 model Shop {

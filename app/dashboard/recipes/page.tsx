@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Plus, Search, Filter, AlertTriangle, ChevronRight, Flame, Tag, TrendingUp, RefreshCw, Package, Printer, EyeOff, Eye, CheckSquare, Square, ClipboardList, Sparkles } from 'lucide-react';
+import { Plus, Search, Filter, AlertTriangle, ChevronRight, Flame, Tag, TrendingUp, RefreshCw, Package, Printer, EyeOff, Eye, CheckSquare, Square, ClipboardList, Sparkles, Tags } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SampleRecipePicker from '@/components/recipe/SampleRecipePicker';
 
@@ -151,6 +151,13 @@ export default function RecipesPage() {
     router.push(`/dashboard/recipes/print?ids=${ids}`);
   };
 
+  // まとめてラベル印刷（2026-11新設）。選んだ順番のまま、まとめて印刷画面へ
+  const handleBatchLabels = () => {
+    if (selected.size === 0) { toast.error('ラベルを印刷するレシピを選択してください'); return; }
+    const ids = Array.from(selected).join(',');
+    router.push(`/dashboard/labels/batch?ids=${ids}`);
+  };
+
   // 非表示にしたレシピを元に戻す（個別の非表示ボタン・一括非表示のどちらから
   // 非表示にした場合でも共通で使う。誤操作の取り消し用なのでプラン制限はかけない）
   const restoreRecipes = async (ids: string[]) => {
@@ -264,8 +271,12 @@ export default function RecipesPage() {
             <>
               {!selectMode ? (
                 <>
+                  {/* 2026-11新設: チェックしたレシピのラベルを期限日・枚数を指定してまとめて印刷 */}
                   <button onClick={() => setSelectMode(true)} className="btn-secondary flex items-center gap-2 text-sm">
-                    <Printer className="w-4 h-4" />レシピを印刷
+                    <Tags className="w-4 h-4" />ラベルをまとめて印刷
+                  </button>
+                  <button onClick={() => setSelectMode(true)} className="btn-secondary flex items-center gap-2 text-sm">
+                    <Printer className="w-4 h-4" />レシピ表を印刷
                   </button>
                   {/* 2026-08新設: レシピをチェックボックスで選択して一括非表示にする
                       （Pro限定機能。レシピ件数が多いプロプランのユーザー向け） */}
@@ -285,9 +296,13 @@ export default function RecipesPage() {
                 </>
               ) : (
                 <>
-                  <button onClick={handlePrintSelected} disabled={selected.size === 0}
+                  <button onClick={handleBatchLabels} disabled={selected.size === 0}
                     className="btn-primary flex items-center gap-2 text-sm disabled:opacity-50">
-                    <Printer className="w-4 h-4" />{selected.size > 0 ? `${selected.size}件を印刷` : '印刷するレシピを選択'}
+                    <Tags className="w-4 h-4" />{selected.size > 0 ? `${selected.size}件のラベルをまとめて印刷` : 'ラベルを印刷するレシピを選択'}
+                  </button>
+                  <button onClick={handlePrintSelected} disabled={selected.size === 0}
+                    className="btn-secondary flex items-center gap-2 text-sm disabled:opacity-50">
+                    <Printer className="w-4 h-4" />{selected.size > 0 ? `${selected.size}件のレシピ表を印刷` : 'レシピ表を印刷するレシピを選択'}
                   </button>
                   {isProOrAdmin && (
                     <button onClick={handleBulkHide} disabled={selected.size === 0 || bulkHiding}

@@ -85,6 +85,9 @@ export default function RecipesPage() {
   // 複数選択
   const [selected,   setSelected]   = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
+  // 何のために選択しているか（2026-11: ボタンが並んで押し間違えやすかったため、選んだ目的のボタンだけ出す）
+  const [selectPurpose, setSelectPurpose] = useState<'labels' | 'sheet' | 'hide'>('labels');
+  const startSelect = (p: 'labels' | 'sheet' | 'hide') => { setSelectPurpose(p); setSelectMode(true); };
   // 非表示レシピの一括完全削除（2026-08新設）
   const [deletingHidden, setDeletingHidden] = useState(false);
   // レシピの一括非表示（2026-08新設・Pro限定）
@@ -272,16 +275,16 @@ export default function RecipesPage() {
               {!selectMode ? (
                 <>
                   {/* 2026-11新設: チェックしたレシピのラベルを期限日・枚数を指定してまとめて印刷 */}
-                  <button onClick={() => setSelectMode(true)} className="btn-secondary flex items-center gap-2 text-sm">
+                  <button onClick={() => startSelect('labels')} className="btn-secondary flex items-center gap-2 text-sm">
                     <Tags className="w-4 h-4" />ラベルをまとめて印刷
                   </button>
-                  <button onClick={() => setSelectMode(true)} className="btn-secondary flex items-center gap-2 text-sm">
+                  <button onClick={() => startSelect('sheet')} className="btn-secondary flex items-center gap-2 text-sm">
                     <Printer className="w-4 h-4" />レシピ表を印刷
                   </button>
                   {/* 2026-08新設: レシピをチェックボックスで選択して一括非表示にする
                       （Pro限定機能。レシピ件数が多いプロプランのユーザー向け） */}
                   {isProOrAdmin && (
-                    <button onClick={() => setSelectMode(true)} className="btn-secondary flex items-center gap-2 text-sm">
+                    <button onClick={() => startSelect('hide')} className="btn-secondary flex items-center gap-2 text-sm">
                       <EyeOff className="w-4 h-4" />選択して非表示にする
                     </button>
                   )}
@@ -296,15 +299,19 @@ export default function RecipesPage() {
                 </>
               ) : (
                 <>
+                  {selectPurpose === 'labels' && (
                   <button onClick={handleBatchLabels} disabled={selected.size === 0}
                     className="btn-primary flex items-center gap-2 text-sm disabled:opacity-50">
                     <Tags className="w-4 h-4" />{selected.size > 0 ? `${selected.size}件のラベルをまとめて印刷` : 'ラベルを印刷するレシピを選択'}
                   </button>
+                  )}
+                  {selectPurpose === 'sheet' && (
                   <button onClick={handlePrintSelected} disabled={selected.size === 0}
                     className="btn-secondary flex items-center gap-2 text-sm disabled:opacity-50">
                     <Printer className="w-4 h-4" />{selected.size > 0 ? `${selected.size}件のレシピ表を印刷` : 'レシピ表を印刷するレシピを選択'}
                   </button>
-                  {isProOrAdmin && (
+                  )}
+                  {isProOrAdmin && selectPurpose === 'hide' && (
                     <button onClick={handleBulkHide} disabled={selected.size === 0 || bulkHiding}
                       className="btn-secondary flex items-center gap-2 text-sm bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100 disabled:opacity-50">
                       <EyeOff className="w-4 h-4" />

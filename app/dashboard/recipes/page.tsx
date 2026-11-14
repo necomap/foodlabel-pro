@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Plus, Search, Filter, AlertTriangle, ChevronRight, Flame, Tag, TrendingUp, RefreshCw, Package, Printer, EyeOff, Eye, CheckSquare, Square, ClipboardList, Sparkles, Tags } from 'lucide-react';
+import { Plus, Search, Filter, AlertTriangle, ChevronRight, Flame, Tag, TrendingUp, RefreshCw, Package, Printer, EyeOff, Eye, CheckSquare, Square, ClipboardList, Sparkles, Tags, ShieldAlert } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SampleRecipePicker from '@/components/recipe/SampleRecipePicker';
 
@@ -283,6 +283,10 @@ export default function RecipesPage() {
                   <button onClick={() => startSelect('sheet')} className="btn-secondary flex items-center gap-2 text-sm">
                     <Printer className="w-4 h-4" />レシピ表を印刷
                   </button>
+                  {/* 2026-11新設: 表示中の全レシピ×28品目のアレルゲン一覧表（店頭掲示用） */}
+                  <Link href="/dashboard/allergen-table" className="btn-secondary flex items-center gap-2 text-sm">
+                    <ShieldAlert className="w-4 h-4" />アレルゲン一覧表
+                  </Link>
                   {/* 2026-08新設: レシピをチェックボックスで選択して一括非表示にする
                       （Pro限定機能。レシピ件数が多いプロプランのユーザー向け） */}
                   {isProOrAdmin && (

@@ -6,7 +6,7 @@ import { signOut } from 'next-auth/react';
 import {
   Cookie, BookOpen, Tag, ShoppingBasket, Settings,
   LogOut, Menu, X, ChevronRight, ArrowLeftRight, HelpCircle, Shield, Crown,
-Star, Search, Megaphone, BarChart3,
+Star, Search, Megaphone, BarChart3, ShieldAlert,
 } from 'lucide-react';
 
 const navItems = [
@@ -15,6 +15,8 @@ const navItems = [
   { href: '/dashboard/ingredients', label: '食材マスタ',             icon: ShoppingBasket, color: 'text-blue-600'   },
   { href: '/dashboard/import',      label: 'インポート/エクスポート', icon: ArrowLeftRight, color: 'text-purple-600' },
   { href: '/dashboard/help',        label: 'ヘルプ・使い方',         icon: HelpCircle,     color: 'text-teal-600'   },
+  // 2026-11新設: アレルゲン一覧表。モバイルボトムナビ（先頭5件）の並びを変えないよう、ヘルプの後ろに置く
+  { href: '/dashboard/allergen-table', label: 'アレルゲン一覧表',  icon: ShieldAlert,    color: 'text-red-600'    },
   { href: '/dashboard/settings',    label: '設定',                   icon: Settings,       color: 'text-stone-600'  },
   // モバイルボトムナビは先頭5件しか表示されないため末尾に追加（フルメニュー・PCサイドバーからは常に見える）
   { href: '/dashboard/updates',     label: '更新情報',               icon: Megaphone,      color: 'text-pink-600'   },

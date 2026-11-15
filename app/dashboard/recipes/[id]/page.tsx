@@ -17,6 +17,7 @@ import {
 import type { RecipeDetail } from '@/types';
 import { checkRecipeCompliance, type ComplianceIssue } from '@/lib/compliance-check';
 import { isOmittableWater } from '@/lib/allergen';
+import NutritionClaims from '@/components/recipe/NutritionClaims';
 import { generateEcText, EC_TEXT_STYLES, type EcTextStyle } from '@/lib/ec-text-generator';
 import { calcElectricityCostEstimate, type ElectricityCostSettings } from '@/lib/electricity-cost';
 import { getPlanLimits } from '@/lib/plan-limits';
@@ -701,6 +702,16 @@ export default function RecipeDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* 栄養強調表示の判定（目安）。2026-11新設・lib/nutrition-claims.ts */}
+      <NutritionClaims
+        perUnit={per1 as any}
+        total={(recipe as any).nutrition}
+        totalWeightG={recipe.totalWeightG ?? null}
+        contentAmount={recipe.contentAmount ?? null}
+        unitCount={recipe.unitCount}
+        hasUnconfirmedNutrition={!!recipe.hasUnconfirmedNutrition}
+      />
 
       {/* ============================================================
           焼成条件

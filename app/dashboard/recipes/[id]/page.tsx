@@ -12,7 +12,7 @@ import {
   ArrowLeft, Edit2, Tag, Trash2, Flame, Wheat,
   AlertTriangle, CheckCircle2, Loader2, Printer,
   ChevronRight, Info, TrendingUp, Copy, ShieldCheck, Lock,
-  ShoppingBag, ChevronDown, EyeOff, Eye,
+  ShoppingBag, ChevronDown, EyeOff, Eye, FileText,
 } from 'lucide-react';
 import type { RecipeDetail } from '@/types';
 import { checkRecipeCompliance, type ComplianceIssue } from '@/lib/compliance-check';
@@ -335,6 +335,18 @@ export default function RecipeDetailPage() {
             className="btn-primary flex items-center gap-2 text-sm">
             <Printer className="w-4 h-4" />
             ラベル印刷
+          </Link>
+          {/* 2026-11新設: 商品規格書（卸先・道の駅向け、A4縦1ページ） */}
+          <Link href={`/dashboard/recipes/spec-sheet?ids=${id}`}
+            className="btn-secondary flex items-center gap-2 text-sm">
+            <FileText className="w-4 h-4" />
+            商品規格書
+          </Link>
+          {/* 2026-11新設: POP・プライスカード */}
+          <Link href={`/dashboard/recipes/pop?ids=${id}`}
+            className="btn-secondary flex items-center gap-2 text-sm">
+            <Tag className="w-4 h-4" />
+            POP
           </Link>
           <button onClick={handleCopy}
             className="btn-secondary flex items-center gap-2 text-sm">

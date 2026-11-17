@@ -236,7 +236,12 @@ export async function buildRecipeLabel(
   userId: string,
   config: LabelRequestConfig,
   baseShopInfo: ShopInfo,
-): Promise<{ recipe: RecipeForLabel; content: LabelContent; labelConfig: LabelConfig; warnings: string[] } | null> {
+): Promise<{
+  recipe: RecipeForLabel; content: LabelContent; labelConfig: LabelConfig; warnings: string[];
+  // 商品規格書（app/api/recipes/spec-sheet）用。ラベルと同じ集計結果をそのまま使えるように返す（2026-11）
+  allergenInfo: ReturnType<typeof collectRecipeAllergens>;
+  totalNutrition: ReturnType<typeof computeLiveRecipeNutrition>['total'];
+} | null> {
   const session = { user: { id: userId } };
   const shopInfo: ShopInfo = { ...baseShopInfo };
   const recipe = await fetchRecipeForLabel(userId, config.recipeId);
@@ -441,5 +446,5 @@ export async function buildRecipeLabel(
   // この印刷ジョブだけで一時的に非表示にできるようにする（設定側の削除は不要）
   if (labelConfig.showLogo === false) content.logoUrl = null;
   if (labelConfig.showQr   === false) content.qrUrl   = null;
-  return { recipe, content, labelConfig, warnings };
+  return { recipe, content, labelConfig, warnings, allergenInfo, totalNutrition };
 }

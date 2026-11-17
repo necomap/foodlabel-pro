@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Plus, Search, Filter, AlertTriangle, ChevronRight, Flame, Tag, TrendingUp, RefreshCw, Package, Printer, EyeOff, Eye, CheckSquare, Square, ClipboardList, Sparkles, Tags, ShieldAlert } from 'lucide-react';
+import { Plus, Search, Filter, AlertTriangle, ChevronRight, Flame, Tag, TrendingUp, RefreshCw, Package, Printer, EyeOff, Eye, CheckSquare, Square, ClipboardList, Sparkles, Tags, ShieldAlert, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SampleRecipePicker from '@/components/recipe/SampleRecipePicker';
 
@@ -86,8 +86,8 @@ export default function RecipesPage() {
   const [selected,   setSelected]   = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
   // 何のために選択しているか（2026-11: ボタンが並んで押し間違えやすかったため、選んだ目的のボタンだけ出す）
-  const [selectPurpose, setSelectPurpose] = useState<'labels' | 'sheet' | 'hide'>('labels');
-  const startSelect = (p: 'labels' | 'sheet' | 'hide') => { setSelectPurpose(p); setSelectMode(true); };
+  const [selectPurpose, setSelectPurpose] = useState<'labels' | 'sheet' | 'spec' | 'pop' | 'hide'>('labels');
+  const startSelect = (p: 'labels' | 'sheet' | 'spec' | 'pop' | 'hide') => { setSelectPurpose(p); setSelectMode(true); };
   // 非表示レシピの一括完全削除（2026-08新設）
   const [deletingHidden, setDeletingHidden] = useState(false);
   // レシピの一括非表示（2026-08新設・Pro限定）
@@ -283,6 +283,14 @@ export default function RecipesPage() {
                   <button onClick={() => startSelect('sheet')} className="btn-secondary flex items-center gap-2 text-sm">
                     <Printer className="w-4 h-4" />レシピ表を印刷
                   </button>
+                  {/* 2026-11新設: 選んだレシピの商品規格書（1件1ページ） */}
+                  <button onClick={() => startSelect('spec')} className="btn-secondary flex items-center gap-2 text-sm">
+                    <FileText className="w-4 h-4" />商品規格書
+                  </button>
+                  {/* 2026-11新設: 選んだレシピのPOP・プライスカード */}
+                  <button onClick={() => startSelect('pop')} className="btn-secondary flex items-center gap-2 text-sm">
+                    <Tag className="w-4 h-4" />POP・値札
+                  </button>
                   {/* 2026-11新設: 表示中の全レシピ×28品目のアレルゲン一覧表（店頭掲示用） */}
                   <Link href="/dashboard/allergen-table" className="btn-secondary flex items-center gap-2 text-sm">
                     <ShieldAlert className="w-4 h-4" />アレルゲン一覧表
@@ -315,6 +323,22 @@ export default function RecipesPage() {
                   <button onClick={handlePrintSelected} disabled={selected.size === 0}
                     className="btn-secondary flex items-center gap-2 text-sm disabled:opacity-50">
                     <Printer className="w-4 h-4" />{selected.size > 0 ? `${selected.size}件のレシピ表を印刷` : 'レシピ表を印刷するレシピを選択'}
+                  </button>
+                  )}
+                  {selectPurpose === 'spec' && (
+                  <button onClick={() => router.push(`/dashboard/recipes/spec-sheet?ids=${Array.from(selected).join(',')}`)}
+                    disabled={selected.size === 0 || selected.size > 50}
+                    className="btn-primary flex items-center gap-2 text-sm disabled:opacity-50">
+                    <FileText className="w-4 h-4" />
+                    {selected.size > 50 ? '一度に選べるのは50件までです' : selected.size > 0 ? `${selected.size}件の商品規格書を作成` : '商品規格書を作るレシピを選択'}
+                  </button>
+                  )}
+                  {selectPurpose === 'pop' && (
+                  <button onClick={() => router.push(`/dashboard/recipes/pop?ids=${Array.from(selected).join(',')}`)}
+                    disabled={selected.size === 0 || selected.size > 100}
+                    className="btn-primary flex items-center gap-2 text-sm disabled:opacity-50">
+                    <Tag className="w-4 h-4" />
+                    {selected.size > 100 ? '一度に選べるのは100件までです' : selected.size > 0 ? `${selected.size}件のPOPを作成` : 'POPを作るレシピを選択'}
                   </button>
                   )}
                   {isProOrAdmin && selectPurpose === 'hide' && (

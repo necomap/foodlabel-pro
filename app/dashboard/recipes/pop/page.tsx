@@ -17,7 +17,7 @@ interface PopItem {
   id: string; name: string; variationName: string | null; nameEn: string | null;
   salePrice: number | null; allergens: string[]; otherAllergens: string[];
 }
-interface Override { price?: string; catchCopy?: string; copies?: number; displayName?: string }
+interface Override { price?: string; catchCopy?: string; copies?: number; displayName?: string; point?: string }
 
 type SizeKey = 'S' | 'M' | 'L';
 // A4（余白8mm → 194×281mm）に収まる面付け
@@ -101,14 +101,18 @@ function buildCardHtml(it: PopItem, ov: Override, s: Settings): string {
   const all = [...it.allergens.map(allergenLabel), ...it.otherAllergens];
   const allergenText = all.length ? `アレルゲン：${all.join('・')}` : 'アレルゲン（28品目）：なし';
   return `<div class="card">
-    ${ov.catchCopy ? `<div class="catch">${esc(ov.catchCopy)}</div>` : ''}
-    <div class="name" style="font-size:${nameFs.toFixed(2)}mm">${esc(mainName)}</div>
-    ${varText ? `<div class="var" style="font-size:${varFs.toFixed(2)}mm">${esc(varText)}</div>` : ''}
-    ${s.showEn && it.nameEn ? `<div class="en">${esc(it.nameEn)}</div>` : ''}
-    <div class="spacer"></div>
+    <div class="head">
+      ${ov.catchCopy?.trim() ? `<div class="catch">${esc(ov.catchCopy.trim())}</div>` : ''}
+      <div class="name" style="font-size:${nameFs.toFixed(2)}mm">${esc(mainName)}</div>
+      ${varText ? `<div class="var" style="font-size:${varFs.toFixed(2)}mm">${esc(varText)}</div>` : ''}
+      ${s.showEn && it.nameEn ? `<div class="en">${esc(it.nameEn)}</div>` : ''}
+      ${ov.point?.trim() ? `<div class="point">${esc(ov.point.trim())}</div>` : ''}
+    </div>
+    <div class="pricebox">
     ${p ? `<div class="price"><span class="yen">¥</span>${yen(p.incl)}<span class="tax">税込</span></div>
            ${s.showBase ? `<div class="base">（本体価格 ¥${yen(p.excl)}）</div>` : ''}`
         : '<div class="price none">価格未設定</div>'}
+    </div>
     ${s.showAllergen ? `<div class="allergen">${esc(allergenText)}</div>` : ''}
     ${s.shopName.trim() ? `<div class="shop">${esc(s.shopName.trim())}</div>` : ''}
   </div>`;
@@ -141,7 +145,11 @@ function buildDocHtml(items: PopItem[], overrides: Record<string, Override>, s: 
     .name { font-weight: bold; color: ${t.accent}; line-height: 1.2; word-break: break-all; }
     .var { font-weight: bold; color: ${t.accent}; line-height: 1.2; margin-top: 0.3mm; }
     .en { font-size: ${(size.name * 0.42).toFixed(2)}mm; color: ${t.sub}; font-style: italic; margin-top: 0.5mm; }
-    .spacer { flex: 1; min-height: 1mm; }
+    /* 名前のブロックは価格より上の余白の中で上下中央に置く（上に寄りすぎないように） */
+    .head { flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .point { font-size: ${(size.name * 0.4).toFixed(2)}mm; color: ${t.sub}; line-height: 1.35; margin-top: ${s.size === 'S' ? 0.8 : 1.5}mm;
+             max-width: 92%; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .pricebox { display: flex; flex-direction: column; align-items: center; margin-bottom: ${s.size === 'L' ? 2 : 0.5}mm; }
     .price { font-size: ${size.price}mm; font-weight: bold; color: ${t.accent}; line-height: 1; white-space: nowrap; }
     .price .yen { font-size: 0.6em; margin-right: 0.3mm; }
     .price .tax { font-size: 0.32em; margin-left: 1mm; font-weight: normal; }
@@ -280,7 +288,8 @@ export default function PopPage() {
                 <th className="text-left px-3 py-2">商品</th>
                 <th className="text-left px-3 py-2">カードの表示名（任意）</th>
                 <th className="text-left px-3 py-2 w-32">価格（円）</th>
-                <th className="text-left px-3 py-2">キャッチコピー（任意）</th>
+                <th className="text-left px-3 py-2">キャッチコピー（任意・名前の上）</th>
+                <th className="text-left px-3 py-2">おすすめポイント（任意・名前の下）</th>
                 <th className="text-center px-3 py-2 w-28">枚数</th>
               </tr>
             </thead>
@@ -304,6 +313,10 @@ export default function PopPage() {
                       <input className="field-input py-1" value={ov.catchCopy ?? ''} maxLength={30}
                         placeholder="例: 当店人気No.1" onChange={e => setOv(it.id, { catchCopy: e.target.value })} />
                     </td>
+                    <td className="px-3 py-2 min-w-[14rem]">
+                      <input className="field-input py-1" value={ov.point ?? ''} maxLength={50}
+                        placeholder="例: マダガスカル産バニラの豊かな香り" onChange={e => setOv(it.id, { point: e.target.value })} />
+                    </td>
                     <td className="px-3 py-2">
                       <div className="flex items-center justify-center gap-1">
                         <button type="button" className="p-1 rounded hover:bg-cream-100" onClick={() => setOv(it.id, { copies: Math.max(0, copies - 1) })}><Minus className="w-4 h-4" /></button>
@@ -318,7 +331,7 @@ export default function PopPage() {
           </table>
           <p className="text-xs text-stone-400 px-3 py-2">
             価格を空欄にするとレシピの販売価格を使います。表示名を空欄にすると商品名（バリエーション名が商品名に含まれていない場合は下に小さく）を載せます。
-            表示名・価格・キャッチコピー・枚数はこのブラウザに保存されます。
+            表示名・価格・キャッチコピー・おすすめポイント・枚数はこのブラウザに保存されます。おすすめポイントは2行まで印刷されます。
           </p>
         </div>
       )}

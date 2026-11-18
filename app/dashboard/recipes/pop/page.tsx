@@ -17,7 +17,7 @@ interface PopItem {
   id: string; name: string; variationName: string | null; nameEn: string | null;
   salePrice: number | null; allergens: string[]; otherAllergens: string[];
 }
-interface Override { price?: string; catchCopy?: string; copies?: number }
+interface Override { price?: string; catchCopy?: string; copies?: number; displayName?: string }
 
 type SizeKey = 'S' | 'M' | 'L';
 // A4（余白8mm → 194×281mm）に収まる面付け
@@ -74,20 +74,36 @@ function fitFont(text: string, widthMm: number, maxMm: number, allowTwoLines: bo
   return Math.max(2.5, Math.min(maxMm, (widthMm * 2 * 0.9) / len));
 }
 
+/** バリエーション名を別行に出すか（商品名に同じ語が含まれていれば重複するので出さない） */
+function showVariation(it: PopItem): boolean {
+  const v = it.variationName?.trim();
+  if (!v) return false;
+  const norm = (x: string) => x.replace(/[\s　（）()]/g, '');
+  return !norm(it.name).includes(norm(v));
+}
+/** 商品ごとの設定表に出す名前（自動表示の内容） */
+function autoName(it: PopItem): string {
+  return showVariation(it) ? `${it.name}（${it.variationName!.trim()}）` : it.name;
+}
+
 function buildCardHtml(it: PopItem, ov: Override, s: Settings): string {
   const size = SIZES[s.size];
   const innerW = size.w - 8;
 
   const priceBase = ov.price != null && ov.price !== '' ? Number(ov.price) : it.salePrice;
   const p = prices(Number.isFinite(priceBase as number) ? (priceBase as number) : null, s);
-  const nameFs = fitFont(it.name, innerW, size.name, s.size !== 'S');
-  const varFs  = it.variationName ? fitFont(`（${it.variationName}）`, innerW, size.name * 0.6, false) : 0;
+  // 表示名を入力していればそれだけを1つの名前として出す（バリエーション行は出さない）
+  const custom = ov.displayName?.trim();
+  const mainName = custom || it.name;
+  const varText = !custom && showVariation(it) ? `（${it.variationName!.trim()}）` : '';
+  const nameFs = fitFont(mainName, innerW, size.name, s.size !== 'S');
+  const varFs  = varText ? fitFont(varText, innerW, size.name * 0.6, false) : 0;
   const all = [...it.allergens.map(allergenLabel), ...it.otherAllergens];
   const allergenText = all.length ? `アレルゲン：${all.join('・')}` : 'アレルゲン（28品目）：なし';
   return `<div class="card">
     ${ov.catchCopy ? `<div class="catch">${esc(ov.catchCopy)}</div>` : ''}
-    <div class="name" style="font-size:${nameFs.toFixed(2)}mm">${esc(it.name)}</div>
-    ${it.variationName ? `<div class="var" style="font-size:${varFs.toFixed(2)}mm">（${esc(it.variationName)}）</div>` : ''}
+    <div class="name" style="font-size:${nameFs.toFixed(2)}mm">${esc(mainName)}</div>
+    ${varText ? `<div class="var" style="font-size:${varFs.toFixed(2)}mm">${esc(varText)}</div>` : ''}
     ${s.showEn && it.nameEn ? `<div class="en">${esc(it.nameEn)}</div>` : ''}
     <div class="spacer"></div>
     ${p ? `<div class="price"><span class="yen">¥</span>${yen(p.incl)}<span class="tax">税込</span></div>
@@ -262,6 +278,7 @@ export default function PopPage() {
             <thead>
               <tr className="text-xs text-stone-500 border-b border-cream-200 bg-cream-50">
                 <th className="text-left px-3 py-2">商品</th>
+                <th className="text-left px-3 py-2">カードの表示名（任意）</th>
                 <th className="text-left px-3 py-2 w-32">価格（円）</th>
                 <th className="text-left px-3 py-2">キャッチコピー（任意）</th>
                 <th className="text-center px-3 py-2 w-28">枚数</th>
@@ -273,7 +290,11 @@ export default function PopPage() {
                 const copies = ov.copies ?? 1;
                 return (
                   <tr key={it.id} className="border-b border-cream-100">
-                    <td className="px-3 py-2">{it.variationName ? `${it.name}（${it.variationName}）` : it.name}</td>
+                    <td className="px-3 py-2 whitespace-nowrap">{it.variationName ? `${it.name}（${it.variationName}）` : it.name}</td>
+                    <td className="px-3 py-2 min-w-[12rem]">
+                      <input className="field-input py-1" value={ov.displayName ?? ''} maxLength={40}
+                        placeholder={autoName(it)} onChange={e => setOv(it.id, { displayName: e.target.value })} />
+                    </td>
                     <td className="px-3 py-2">
                       <input type="number" min="0" inputMode="numeric" className="field-input py-1"
                         value={ov.price ?? ''} placeholder={it.salePrice != null ? String(it.salePrice) : '未設定'}
@@ -296,7 +317,8 @@ export default function PopPage() {
             </tbody>
           </table>
           <p className="text-xs text-stone-400 px-3 py-2">
-            価格を空欄にするとレシピの販売価格を使います。価格・キャッチコピー・枚数はこのブラウザに保存されます。
+            価格を空欄にするとレシピの販売価格を使います。表示名を空欄にすると商品名（バリエーション名が商品名に含まれていない場合は下に小さく）を載せます。
+            表示名・価格・キャッチコピー・枚数はこのブラウザに保存されます。
           </p>
         </div>
       )}

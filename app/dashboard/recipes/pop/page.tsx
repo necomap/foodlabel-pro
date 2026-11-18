@@ -332,7 +332,7 @@ export default function PopPage() {
                     </td>
                     <td className="px-3 py-2 min-w-[13rem]">
                       <input className="field-input py-1" value={ov.catchCopy ?? ''} maxLength={30}
-                        placeholder="例: 当店人気No.1" onChange={e => setOv(it.id, { catchCopy: e.target.value })} />
+                        onChange={e => setOv(it.id, { catchCopy: e.target.value })} />
                     </td>
                     <td className="px-3 py-2 min-w-[14rem]">
                       <input className="field-input py-1" value={it.popPoint ?? ''} maxLength={60}

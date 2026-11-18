@@ -54,7 +54,9 @@ export const ALL_ALLERGENS = { ...REQUIRED_ALLERGENS, ...OPTIONAL_ALLERGENS };
 // 判定語を部分一致で探す際の明らかな誤判定を防ぐため、先に取り除く語（2026-09-27追加）。
 // 例: 「豆乳」→乳、「鶏もも肉」→もも（桃）、「牛乳」→牛肉、「鶏卵」→鶏肉 と誤判定されていた。
 const DETECT_EXCLUSIONS: Record<string, string[]> = {
-  '乳':   ['豆乳', '乳化剤', 'ピーナッツバター', 'ピーナツバター'],
+  // 2026-11-18: 植物性の「〜バター」「〜クリーム」も乳と誤判定されていた（チョコの内訳の「ココアバター」等）
+  '乳':   ['豆乳', '乳化剤', 'ピーナッツバター', 'ピーナツバター', 'ココアバター', 'カカオバター', 'シアバター',
+           'アーモンドバター', 'カシューナッツバター', 'ココナッツクリーム', 'ココナツクリーム'],
   '牛肉': ['牛乳', '牛蒡'],
   '鶏肉': ['鶏卵'],
   'もも': ['もも肉', 'モモ肉', 'すもも', 'スモモ'],
@@ -81,6 +83,9 @@ export function detectAllergens(ingredientName: string): string[] {
     let target = name;
     for (const ex of DETECT_EXCLUSIONS[allergen] ?? []) target = target.split(ex).join('');
     if (allergen === 'もも' && isMeatName) target = target.split('もも').join('').split('モモ').join('');
+    // 2026-11-18: 添加物の「乳酸」「乳酸Ca」「乳酸ナトリウム」等は乳由来ではないため判定から外す。
+    // 「乳酸菌」（乳酸菌飲料など乳を含むことが多い）は従来どおり乳として判定する。
+    if (allergen === '乳') target = target.replace(/乳酸(?!菌)/g, '');
     for (const keyword of keywords) {
       if (target.includes(keyword)) {
         detected.push(allergen);

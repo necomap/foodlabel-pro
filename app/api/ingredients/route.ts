@@ -5,7 +5,7 @@ import type { Prisma } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { toFullWidth } from '@/lib/excel-import-export';
-import { detectAllergens } from '@/lib/allergen';
+import { detectIngredientAllergens } from '@/lib/allergen';
 import { normalizeIngredientName, isSimilarName } from '@/lib/ingredient-similarity';
 import { getCompositeOverrides, getNameEnOverrides } from '@/lib/generic-name-overrides';
 
@@ -360,7 +360,10 @@ export async function POST(request: Request) {
   if (data.purchaseUnitG && data.purchasePrice) {
     unitPrice = data.purchasePrice / data.purchaseUnitG;
   }
-  const allergens = data.allergens?.length ? data.allergens : detectAllergens(normalizedName);
+  // 2026-11-18: 内訳（複合原材料）があれば名前ではなく内訳から判定する
+  const allergens = data.allergens?.length
+    ? data.allergens
+    : detectIngredientAllergens(normalizedName, [data.compositeIngredients, data.compositeAdditives].filter(Boolean).join('、'));
 
   const ingredient = await prisma.ingredient.create({
     data: {

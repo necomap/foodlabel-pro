@@ -268,17 +268,6 @@ export async function buildRecipeLabel(
   resolvedIngredients
     .filter(r => r.notWeighable && !r.unconfirmed)
     .forEach(r => warnings.push(`「${r.ing.ingredient?.name ?? r.ing.ingredientNameOverride ?? '不明'}」は単位が「${r.ing.unit}」のため栄養成分の計算に含まれていません（g・kg・ml・Lで入力すると計算されます）`));
-  // 食材マスタのアレルゲンの入れ忘れ・誤登録の疑い（2026-10-22）。マスタに紐づく材料はマスタの値だけで
-  // ラベルを作るため、名前から判定できるアレルゲンがマスタに無いと表示漏れになる。
-  recipe.ingredients.forEach(ing => {
-    if (!ing.ingredientId || !ing.ingredient) return;
-    const names = Array.from(new Set([ing.ingredient.name, ing.ingredient.genericName].filter(Boolean) as string[]));
-    const missing = new Set<string>(); const suspicious = new Set<string>();
-    names.forEach(n => { const r = checkMasterAllergens(n, ing.ingredient!.allergens ?? []); r.missing.forEach(a => missing.add(a)); r.suspicious.forEach(a => suspicious.add(a)); });
-    if (missing.size) warnings.push(`「${ing.ingredient.name}」の名前から「${Array.from(missing).join('・')}」を含む可能性がありますが、食材マスタのアレルゲンに入っていません（含む場合は食材マスタで追加してください）`);
-    if (suspicious.size) warnings.push(`「${ing.ingredient.name}」に果物の「もも」がアレルゲンとして登録されています。肉の部位の「もも」であれば食材マスタで外してください`);
-  });
-
   // RecipeDetail 形式に変換
   const sortedIngredients = [...recipe.ingredients].sort((a, b) => {
     if (a.sortByWeight && a.unit === 'g') return Number(b.amount) - Number(a.amount);
@@ -294,6 +283,21 @@ export async function buildRecipeLabel(
   // 複合原材料の内訳（自分専用の上書き → 食材マスタ本体）。2026-10-22
   const compositeOverrides = await getCompositeOverrides(session.user.id, sortedIngredients.map(ing => ing.ingredientId));
   const compositeOf = (ing: typeof sortedIngredients[number]) => resolveComposite(compositeOverrides, ing.ingredientId, ing.ingredient as any);
+  // 食材マスタのアレルゲンの入れ忘れ・誤登録の疑い（2026-10-22）。マスタに紐づく材料はマスタの値だけで
+  // ラベルを作るため、名前から判定できるアレルゲンがマスタに無いと表示漏れになる。
+  // 2026-11-18: 内訳（複合原材料）を登録している食材は、内訳から判定したアレルゲンがラベルに自動で入るため、
+  // 名前からの「入っていません」の注意は出さない（「クーベルチュール」等で毎回注意が出るのを防ぐ）。
+  recipe.ingredients.forEach(ing => {
+    if (!ing.ingredientId || !ing.ingredient) return;
+    const comp = compositeOf(ing as any);
+    const hasComposite = !!(comp.compositeIngredients?.trim() || comp.compositeAdditives?.trim());
+    const names = Array.from(new Set([ing.ingredient.name, ing.ingredient.genericName].filter(Boolean) as string[]));
+    const missing = new Set<string>(); const suspicious = new Set<string>();
+    names.forEach(n => { const r = checkMasterAllergens(n, ing.ingredient!.allergens ?? []); r.missing.forEach(a => missing.add(a)); r.suspicious.forEach(a => suspicious.add(a)); });
+    if (missing.size && !hasComposite) warnings.push(`「${ing.ingredient.name}」の名前から「${Array.from(missing).join('・')}」を含む可能性がありますが、食材マスタのアレルゲンに入っていません（含む場合は食材マスタで追加してください）`);
+    if (suspicious.size) warnings.push(`「${ing.ingredient.name}」に果物の「もも」がアレルゲンとして登録されています。肉の部位の「もも」であれば食材マスタで外してください`);
+  });
+
   // 英語名（英語の補助ラベル用。自分専用の上書き → 食材マスタ本体）。2026-10-22
   const nameEnOverrides = await getNameEnOverrides(session.user.id, sortedIngredients.map(ing => ing.ingredientId));
   const nameEnOf = (ing: typeof sortedIngredients[number]): string | null =>

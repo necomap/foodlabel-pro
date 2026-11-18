@@ -16,7 +16,9 @@ export const REQUIRED_ALLERGENS: Record<string, string[]> = {
   '卵':    ['卵', '全卵', '卵黄', '卵白', 'たまご', 'タマゴ', '鶏卵', '乾燥卵白', 'メレンゲ', 'マヨネーズ'],
   '乳':    ['牛乳', '生クリーム', 'バター', 'チーズ', 'ヨーグルト', 'クリームチーズ', 'マスカルポーネ',
             'ホワイトチョコ', '乳', 'バターミルク', 'スキムミルク', '脱脂粉乳', 'カスタード', 'クリーム',
-            'アイスクリーム', 'チョコレート', 'クーベルチュール'],
+            // 2026-11-18: 「チョコレート」「クーベルチュール」は名前だけでは乳と判定しない（カカオ分の高い
+            // ものは乳を含まないことが多い）。代わりに「ミルク」（ミルクチョコ等）と、チョコ類の「ホワイト」で判定する
+            'アイスクリーム', 'ミルク'],
   '落花生': ['落花生', 'ピーナッツ', 'ピーナツ', 'ピーナッツバター'],
   'くるみ': ['くるみ', 'クルミ', '胡桃', 'ウォルナット'],
   'カシューナッツ': ['カシューナッツ', 'カシュー'],
@@ -56,7 +58,9 @@ export const ALL_ALLERGENS = { ...REQUIRED_ALLERGENS, ...OPTIONAL_ALLERGENS };
 const DETECT_EXCLUSIONS: Record<string, string[]> = {
   // 2026-11-18: 植物性の「〜バター」「〜クリーム」も乳と誤判定されていた（チョコの内訳の「ココアバター」等）
   '乳':   ['豆乳', '乳化剤', 'ピーナッツバター', 'ピーナツバター', 'ココアバター', 'カカオバター', 'シアバター',
-           'アーモンドバター', 'カシューナッツバター', 'ココナッツクリーム', 'ココナツクリーム'],
+           'アーモンドバター', 'カシューナッツバター', 'ココナッツクリーム', 'ココナツクリーム',
+           // 2026-11-18: 「ミルク」を判定語に加えたため、植物性のミルクを除外
+           'ココナッツミルク', 'ココナツミルク', 'アーモンドミルク', 'オーツミルク', 'ソイミルク', 'ライスミルク'],
   '牛肉': ['牛乳', '牛蒡'],
   '鶏肉': ['鶏卵'],
   'もも': ['もも肉', 'モモ肉', 'すもも', 'スモモ'],
@@ -86,6 +90,11 @@ export function detectAllergens(ingredientName: string): string[] {
     // 2026-11-18: 添加物の「乳酸」「乳酸Ca」「乳酸ナトリウム」等は乳由来ではないため判定から外す。
     // 「乳酸菌」（乳酸菌飲料など乳を含むことが多い）は従来どおり乳として判定する。
     if (allergen === '乳') target = target.replace(/乳酸(?!菌)/g, '');
+    // 2026-11-18: ホワイトチョコ・ホワイトクーベルチュール等（「クーベルチュール ホワイト」のような書き方も含む）は乳
+    if (allergen === '乳' && /チョコ|クーベルチュール|ショコラ/.test(name) && /ホワイト/.test(name)) {
+      detected.push(allergen);
+      continue;
+    }
     for (const keyword of keywords) {
       if (target.includes(keyword)) {
         detected.push(allergen);
@@ -95,6 +104,17 @@ export function detectAllergens(ingredientName: string): string[] {
   }
 
   return detected;
+}
+
+/**
+ * 食材マスタ登録時のアレルゲン自動判定（2026-11-18）
+ * 複合原材料の内訳（原材料・添加物）が登録されていれば内訳から判定し、名前は使わない
+ * （例: 「クーベルチュールチョコレート」は内訳に乳成分が書かれているときだけ乳になる）。内訳が無ければ名前から判定する。
+ */
+export function detectIngredientAllergens(ingredientName: string, compositeText?: string | null): string[] {
+  const items = splitLabelList(compositeText);
+  if (items.length === 0) return detectAllergens(ingredientName);
+  return Array.from(new Set(items.flatMap(t => detectAllergens(t))));
 }
 
 /**

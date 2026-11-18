@@ -306,12 +306,12 @@ export default function PopPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-xs text-stone-500 border-b border-cream-200 bg-cream-50">
-                <th className="text-left px-3 py-2">商品</th>
-                <th className="text-left px-3 py-2">カードの表示名（任意）</th>
-                <th className="text-left px-3 py-2 w-32">価格（円）</th>
-                <th className="text-left px-3 py-2">キャッチコピー（任意・名前の上）</th>
-                <th className="text-left px-3 py-2">おすすめポイント（任意・名前の下）</th>
-                <th className="text-center px-3 py-2 w-28">枚数</th>
+                <th className="text-left px-3 py-2 whitespace-nowrap">商品</th>
+                <th className="text-left px-3 py-2 whitespace-nowrap">カードの表示名（任意）</th>
+                <th className="text-left px-3 py-2 whitespace-nowrap">価格（円）</th>
+                <th className="text-left px-3 py-2 whitespace-nowrap">キャッチコピー（任意・名前の上）</th>
+                <th className="text-left px-3 py-2 whitespace-nowrap">おすすめポイント（任意・名前の下）</th>
+                <th className="text-center px-3 py-2 whitespace-nowrap">枚数</th>
               </tr>
             </thead>
             <tbody>
@@ -320,17 +320,17 @@ export default function PopPage() {
                 const copies = ov.copies ?? 1;
                 return (
                   <tr key={it.id} className="border-b border-cream-100">
-                    <td className="px-3 py-2 whitespace-nowrap">{it.variationName ? `${it.name}（${it.variationName}）` : it.name}</td>
+                    <td className="px-3 py-2 min-w-[10rem]">{it.variationName ? `${it.name}（${it.variationName}）` : it.name}</td>
                     <td className="px-3 py-2 min-w-[12rem]">
                       <input className="field-input py-1" value={ov.displayName ?? ''} maxLength={40}
                         placeholder={autoName(it)} onChange={e => setOv(it.id, { displayName: e.target.value })} />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 min-w-[6.5rem]">
                       <input type="number" min="0" inputMode="numeric" className="field-input py-1"
                         value={ov.price ?? ''} placeholder={it.salePrice != null ? String(it.salePrice) : '未設定'}
                         onChange={e => setOv(it.id, { price: e.target.value })} />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 min-w-[13rem]">
                       <input className="field-input py-1" value={ov.catchCopy ?? ''} maxLength={30}
                         placeholder="例: 当店人気No.1" onChange={e => setOv(it.id, { catchCopy: e.target.value })} />
                     </td>

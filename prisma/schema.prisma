@@ -304,6 +304,8 @@ model Recipe {
   // 2026-10-22新設: 英語の補助ラベル用（商品名・保存方法の英語）
   nameEn           String?            @db.VarChar(200)
   storageMethodEn  String?
+  // 2026-11-18新設: POP・プライスカードの「おすすめポイント」（レシピ編集・POP画面の両方から編集）
+  popPoint         String?            @db.VarChar(100)
   // 2026-10-22新設: 表示内容の確認記録（lib/label-check.ts）。確認時の表示内容のハッシュと違えば「未確認」
   labelCheckedAt   DateTime?
   labelCheckedBy   String?            @db.VarChar(100)

@@ -52,6 +52,7 @@ export async function POST(_req: Request, props: { params: Promise<{ id: string 
       storageMethod:   original.storageMethod,
       nameEn:          original.nameEn,
       storageMethodEn: original.storageMethodEn,
+      popPoint:        original.popPoint,
       notes:           original.notes,
       printComment:    original.printComment,
       qualityControl:  original.qualityControl,

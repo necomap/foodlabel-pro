@@ -171,6 +171,8 @@ export default function RecipeForm() {
   const [notes,         setNotes]         = useState('');
   const [printComment,  setPrintComment]  = useState('');
   const [qualityControl, setQualityControl] = useState('');
+  // POP・プライスカードの「おすすめポイント」（2026-11-18）
+  const [popPoint, setPopPoint] = useState('');
 
   // 材料
   const [focusedKey, setFocusedKey] = useState<string|null>(null);
@@ -229,6 +231,7 @@ export default function RecipeForm() {
         setNotes(r.notes ?? '');
         setPrintComment(r.printComment ?? '');
         setQualityControl(r.qualityControl ?? '');
+        setPopPoint((r as any).popPoint ?? '');
         // bakingConditions: JSON文字列の場合はパース
         let baking = r.bakingConditions;
         if (baking && typeof baking === 'string') {
@@ -394,6 +397,7 @@ export default function RecipeForm() {
         notes: notes.trim() || undefined,
         printComment: printComment.trim() || undefined,
         qualityControl: qualityControl.trim() || undefined,
+        popPoint: popPoint.trim() || undefined,
         bakingConditions: showBaking ? bakingSteps : undefined,
         ingredients: validIngs.map((ing, idx) => ({
           ingredientId:           ing.ingredientId || undefined,
@@ -597,6 +601,13 @@ export default function RecipeForm() {
               className="field-input resize-none text-sm" rows={2}
               placeholder="例: なるべく早めにお召し上がりください" />
           </div>
+        </div>
+
+        <div>
+          <label className="field-label">POPのおすすめポイント（任意）</label>
+          <input type="text" value={popPoint} onChange={e => setPopPoint(e.target.value)}
+            className="field-input" maxLength={60} />
+          <p className="field-hint">POP・プライスカードの商品名の下に印刷します（2行まで）。POP画面からも編集できます。</p>
         </div>
       </div>
 

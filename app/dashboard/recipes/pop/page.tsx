@@ -7,6 +7,7 @@
 // 販売価格はDB上で税込/税抜の区別がないため、画面で「登録額は税込か税抜か」と税率を選ぶ。
 // 価格は総額表示（税込）を大きく表示する（消費税法の総額表示義務）。
 // 商品ごとの価格・キャッチコピー・枚数の上書きと全体設定は localStorage に保存する。
+// おすすめポイントはレシピのデータ（recipes.popPoint）。レシピ編集画面と共通で、この画面で直すと入力欄を離れたときに保存する。
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Printer, Loader2, Tag, Minus, Plus } from 'lucide-react';
@@ -16,8 +17,9 @@ import { printHtmlDocument } from '@/lib/print-html';
 interface PopItem {
   id: string; name: string; variationName: string | null; nameEn: string | null;
   salePrice: number | null; allergens: string[]; otherAllergens: string[];
+  popPoint: string | null;
 }
-interface Override { price?: string; catchCopy?: string; copies?: number; displayName?: string; point?: string }
+interface Override { price?: string; catchCopy?: string; copies?: number; displayName?: string }
 
 type SizeKey = 'S' | 'M' | 'L';
 // A4（余白8mm → 194×281mm）に収まる面付け
@@ -106,7 +108,7 @@ function buildCardHtml(it: PopItem, ov: Override, s: Settings): string {
       <div class="name" style="font-size:${nameFs.toFixed(2)}mm">${esc(mainName)}</div>
       ${varText ? `<div class="var" style="font-size:${varFs.toFixed(2)}mm">${esc(varText)}</div>` : ''}
       ${s.showEn && it.nameEn ? `<div class="en">${esc(it.nameEn)}</div>` : ''}
-      ${ov.point?.trim() ? `<div class="point">${esc(ov.point.trim())}</div>` : ''}
+      ${it.popPoint?.trim() ? `<div class="point">${esc(it.popPoint.trim())}</div>` : ''}
     </div>
     <div class="pricebox">
     ${p ? `<div class="price"><span class="yen">¥</span>${yen(p.incl)}<span class="tax">税込</span></div>
@@ -169,6 +171,8 @@ export default function PopPage() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [overrides, setOverrides] = useState<Record<string, Override>>({});
   const [loaded, setLoaded]     = useState(false);
+  // DBに保存済みのおすすめポイント（変更があったときだけ保存するための比較用）
+  const [savedPoints, setSavedPoints] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get('ids') ?? '';
@@ -195,11 +199,28 @@ export default function PopPage() {
     fetch(`/api/recipes/pop?ids=${encodeURIComponent(ids.join(','))}`).then(r => r.json()).then(d => {
       if (!d.success) { toast.error(d.error ?? '読み込みに失敗しました'); return; }
       setItems(d.data.items);
+      setSavedPoints(Object.fromEntries((d.data.items as PopItem[]).map(it => [it.id, it.popPoint ?? ''])));
     }).catch(() => toast.error('通信エラー')).finally(() => setLoading(false));
   }, [ids]);
 
   const update = <K extends keyof Settings>(k: K, v: Settings[K]) => setSettings(s => ({ ...s, [k]: v }));
   const setOv = (id: string, patch: Override) => setOverrides(o => ({ ...o, [id]: { ...o[id], ...patch } }));
+  const setPoint = (id: string, v: string) => setItems(list => list.map(it => (it.id === id ? { ...it, popPoint: v } : it)));
+  const savePoint = async (id: string) => {
+    const it = items.find(x => x.id === id);
+    const v = (it?.popPoint ?? '').trim();
+    if (!it || v === (savedPoints[id] ?? '').trim()) return;
+    try {
+      const res = await fetch('/api/recipes/pop', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, popPoint: v }),
+      });
+      const d = await res.json();
+      if (!d.success) { toast.error(d.error ?? '保存に失敗しました'); return; }
+      setSavedPoints(p => ({ ...p, [id]: v }));
+      toast.success('おすすめポイントを保存しました');
+    } catch { toast.error('通信エラー（おすすめポイントを保存できませんでした）'); }
+  };
 
   const docHtml = useMemo(() => (items.length ? buildDocHtml(items, overrides, settings) : ''), [items, overrides, settings]);
   const previewHtml = useMemo(() => docHtml.replace('</style>',
@@ -314,8 +335,9 @@ export default function PopPage() {
                         placeholder="例: 当店人気No.1" onChange={e => setOv(it.id, { catchCopy: e.target.value })} />
                     </td>
                     <td className="px-3 py-2 min-w-[14rem]">
-                      <input className="field-input py-1" value={ov.point ?? ''} maxLength={50}
-                        placeholder="例: マダガスカル産バニラの豊かな香り" onChange={e => setOv(it.id, { point: e.target.value })} />
+                      <input className="field-input py-1" value={it.popPoint ?? ''} maxLength={60}
+                        onChange={e => setPoint(it.id, e.target.value)} onBlur={() => savePoint(it.id)}
+                        onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex items-center justify-center gap-1">
@@ -331,7 +353,7 @@ export default function PopPage() {
           </table>
           <p className="text-xs text-stone-400 px-3 py-2">
             価格を空欄にするとレシピの販売価格を使います。表示名を空欄にすると商品名（バリエーション名が商品名に含まれていない場合は下に小さく）を載せます。
-            表示名・価格・キャッチコピー・おすすめポイント・枚数はこのブラウザに保存されます。おすすめポイントは2行まで印刷されます。
+            おすすめポイントはレシピに保存され（入力欄を離れると保存）、レシピ編集画面と共通です。2行まで印刷されます。表示名・価格・キャッチコピー・枚数はこのブラウザに保存されます。
           </p>
         </div>
       )}
